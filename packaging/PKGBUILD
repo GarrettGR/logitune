@@ -1,0 +1,24 @@
+# Maintainer: Mina Maher <mina.maher88@hotmail.com>
+pkgname=logitune
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Configure Logitech devices on Linux (Options+ clone)'
+arch=('x86_64')
+url='https://github.com/mmaher88/logitune'
+license=('GPL3')
+depends=('qt6-base' 'qt6-declarative' 'qt6-svg' 'systemd-libs')
+makedepends=('cmake' 'qt6-tools' 'gtest')
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cmake -B build -S "$pkgname-$pkgver" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DBUILD_TESTING=OFF
+    cmake --build build
+}
+
+package() {
+    DESTDIR="$pkgdir" cmake --install build
+}
