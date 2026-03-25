@@ -459,6 +459,9 @@ void DeviceManager::disconnectDevice()
 
 void DeviceManager::handleNotification(const hidpp::Report &report)
 {
+    qDebug() << "[DeviceManager] notification: featureIndex=" << Qt::hex << report.featureIndex
+             << "functionId=" << report.functionId;
+
     // Track last response time for sleep/wake detection
     qint64 now = QDateTime::currentMSecsSinceEpoch();
     checkSleepWake();
@@ -468,7 +471,10 @@ void DeviceManager::handleNotification(const hidpp::Report &report)
     if (m_features && m_features->hasFeature(hidpp::FeatureId::BatteryUnified)) {
         auto idx = m_features->featureIndex(hidpp::FeatureId::BatteryUnified);
         if (idx.has_value() && report.featureIndex == *idx) {
+            qDebug() << "[DeviceManager] battery raw params:"
+                     << Qt::hex << report.params[0] << report.params[1] << report.params[2] << report.params[3];
             auto status = hidpp::features::Battery::parseStatus(report);
+            qDebug() << "[DeviceManager] battery notification:" << status.level << "% charging:" << status.charging;
             bool levelChanged   = (m_batteryLevel != status.level);
             bool chargeChanged  = (m_batteryCharging != status.charging);
             m_batteryLevel   = status.level;

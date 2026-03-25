@@ -76,6 +76,7 @@ std::optional<Report> Transport::trySend(const Report &request, int timeoutMs, i
 
 void Transport::run()
 {
+    qDebug() << "[Transport] I/O thread started, listening for notifications";
     m_running = true;
     while (m_running) {
         auto bytes = m_device->readReport(/*timeoutMs=*/100);
