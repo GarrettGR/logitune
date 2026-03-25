@@ -17,7 +17,15 @@ Item {
             Layout.fillHeight: true
 
             onPageSelected: function(page) {
-                contentStack.replace(placeholderComponent,
+                var component
+                if (page === "easyswitch") {
+                    component = easySwitchComponent
+                } else if (page === "settings") {
+                    component = settingsComponent
+                } else {
+                    component = placeholderComponent
+                }
+                contentStack.replace(component,
                                      {pageName: page},
                                      StackView.Immediate)
             }
@@ -126,6 +134,17 @@ Item {
                 }
             }
         }
+    }
+
+    // Page components
+    Component {
+        id: easySwitchComponent
+        EasySwitchPage {}
+    }
+
+    Component {
+        id: settingsComponent
+        SettingsPage {}
     }
 
     // Placeholder page component

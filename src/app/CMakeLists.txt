@@ -12,6 +12,8 @@ qt_add_qml_module(logitune
         qml/DeviceView.qml
         qml/components/SideNav.qml
         qml/components/BatteryChip.qml
+        qml/pages/EasySwitchPage.qml
+        qml/pages/SettingsPage.qml
 )
 
 target_include_directories(logitune PRIVATE
