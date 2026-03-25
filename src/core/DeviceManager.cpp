@@ -4,6 +4,7 @@
 
 #include <QDateTime>
 #include <QDebug>
+#include <QFile>
 #include <QSocketNotifier>
 
 #include <libudev.h>
@@ -227,16 +228,40 @@ void DeviceManager::onUdevEvent(const QString &action, const QString &devNode)
 void DeviceManager::probeDevice(const QString &devNode)
 {
     qDebug() << "[DeviceManager] probing" << devNode;
+
+    // Check report descriptor via sysfs BEFORE opening the device.
+    // Opening the wrong hidraw interface poisons writes to sibling interfaces.
+    {
+        // devNode is e.g. "/dev/hidraw8" → sysfs path is "/sys/class/hidraw/hidraw8/device/report_descriptor"
+        QString hidrawName = devNode.mid(devNode.lastIndexOf('/') + 1); // "hidraw8"
+        QString sysfsDesc = QString("/sys/class/hidraw/%1/device/report_descriptor").arg(hidrawName);
+        QFile descFile(sysfsDesc);
+        if (descFile.open(QIODevice::ReadOnly)) {
+            QByteArray desc = descFile.readAll();
+            bool hasHidpp = false;
+            for (int i = 0; i + 1 < desc.size(); ++i) {
+                if (static_cast<uint8_t>(desc[i]) == 0x85 && static_cast<uint8_t>(desc[i + 1]) == 0x11) {
+                    hasHidpp = true;
+                    break;
+                }
+            }
+            if (!hasHidpp) {
+                qDebug() << "[DeviceManager]" << devNode << "no HID++ report ID in descriptor, skipping";
+                return;
+            }
+            qDebug() << "[DeviceManager]" << devNode << "has HID++ report ID";
+        }
+    }
+
     auto device = std::make_unique<hidpp::HidrawDevice>(devNode);
     if (!device->open()) {
-        qDebug() << "[DeviceManager] cannot open" << devNode << "- permission denied?";
+        qDebug() << "[DeviceManager] cannot open" << devNode;
         return;
     }
 
     auto info = device->info();
     qDebug() << "[DeviceManager] opened" << devNode << "vendor:" << Qt::hex << info.vendorId << "product:" << info.productId;
     if (info.vendorId != hidpp::kVendorLogitech) {
-        qDebug() << "[DeviceManager] not Logitech, skipping";
         return;
     }
 
@@ -251,38 +276,7 @@ void DeviceManager::probeDevice(const QString &devNode)
         connType = (pid == hidpp::kPidBoltReceiver) ? QStringLiteral("Bolt")
                                                     : QStringLiteral("Bolt");
 
-        // Bolt receiver exposes 3 hidraw interfaces. Only one accepts HID++ writes.
-        // Writing to the wrong one returns EPIPE and poisons further writes in this process.
-        // We identify the correct interface by checking the HID report descriptor:
-        // the HID++ interface reports 0x11 (long report ID) in its descriptor.
-        {
-            struct hidraw_report_descriptor rptDesc{};
-            unsigned int descSize = 0;
-            if (ioctl(device->fd(), HIDIOCGRDESCSIZE, &descSize) < 0) {
-                qDebug() << "[DeviceManager]" << devNode << "cannot get report descriptor size";
-                return;
-            }
-            rptDesc.size = descSize;
-            if (ioctl(device->fd(), HIDIOCGRDESC, &rptDesc) < 0) {
-                qDebug() << "[DeviceManager]" << devNode << "cannot get report descriptor";
-                return;
-            }
-
-            // Look for report ID 0x11 (HID++ long report) in the descriptor
-            bool hasHidppReport = false;
-            for (unsigned int i = 0; i + 1 < descSize; ++i) {
-                // Report ID item: 0x85 followed by the ID byte
-                if (rptDesc.value[i] == 0x85 && rptDesc.value[i + 1] == 0x11) {
-                    hasHidppReport = true;
-                    break;
-                }
-            }
-            qDebug() << "[DeviceManager]" << devNode << "descriptor:" << descSize << "bytes, has 0x11 report:" << hasHidppReport;
-            if (!hasHidppReport) {
-                qDebug() << "[DeviceManager]" << devNode << "not the HID++ interface, skipping";
-                return;
-            }
-        }
+        // The sysfs descriptor check above already filtered to the correct interface.
 
         // Probe device indices 1-6
         auto transport = std::make_unique<hidpp::Transport>(device.get(), nullptr);
