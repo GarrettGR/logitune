@@ -1,6 +1,8 @@
 qt_add_executable(logitune
     main.cpp
     models/DeviceModel.cpp
+    models/ButtonModel.cpp
+    models/ActionModel.cpp
 )
 
 qt_add_qml_module(logitune
@@ -12,6 +14,13 @@ qt_add_qml_module(logitune
         qml/DeviceView.qml
         qml/components/SideNav.qml
         qml/components/BatteryChip.qml
+        qml/components/LogituneSlider.qml
+        qml/components/LogituneToggle.qml
+        qml/components/KeystrokeCapture.qml
+        qml/components/ButtonCallout.qml
+        qml/components/ActionsPanel.qml
+        qml/components/DeviceRender.qml
+        qml/pages/ButtonsPage.qml
 )
 
 target_include_directories(logitune PRIVATE
