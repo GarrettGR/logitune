@@ -24,7 +24,7 @@ Rectangle {
     // ── Slide-in animation ──────────────────────────────────────────────────
     property bool opened: false
 
-    x: opened ? 0 : width   // panel starts fully off-screen to the right
+    // x is controlled by the parent page — do not set it here
     Behavior on x {
         NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
     }

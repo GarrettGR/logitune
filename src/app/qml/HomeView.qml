@@ -144,9 +144,10 @@ Item {
                 color: "#1A1A1A"
             }
 
-            // Battery chip
+            // Battery chip — only show when device is connected
             BatteryChip {
                 anchors.horizontalCenter: parent.horizontalCenter
+                visible: DeviceModel.deviceConnected
             }
         }
 

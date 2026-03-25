@@ -49,7 +49,7 @@ Item {
                 top:  mouseRender.top
                 topMargin: 10
             }
-            width: 160
+            width: 200
 
             calloutType: "scrollwheel"
             title: "Scroll wheel"
@@ -96,7 +96,7 @@ Item {
                 bottom: mouseRender.bottom
                 bottomMargin: 10
             }
-            width: 160
+            width: 180
 
             calloutType: "pointerspeed"
             title: "Pointer speed"
