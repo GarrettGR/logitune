@@ -1,16 +1,15 @@
 import QtQuick
-import QtQuick.Controls
 
-// Minimal styled toggle switch for Logitune
+// Logitune toggle switch — purple ON, gray OFF
 Item {
     id: root
 
-    property bool checked: false
-    property string label: ""
+    property bool   checked: false
+    property string label:   ""
 
     signal toggled(bool checked)
 
-    implicitWidth: row.implicitWidth
+    implicitWidth:  row.implicitWidth
     implicitHeight: row.implicitHeight
 
     Row {
@@ -25,23 +24,21 @@ Item {
             visible: root.label.length > 0
         }
 
-        // Toggle track
         Rectangle {
             id: track
-            width: 40
+            width:  40
             height: 22
             radius: 11
-            color: root.checked ? "#7B61FF" : "#CCCCCC"
+            color:  root.checked ? "#7B61FF" : "#CCCCCC"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            // Toggle knob
             Rectangle {
                 id: knob
-                width: 18
+                width:  18
                 height: 18
                 radius: 9
-                color: "#FFFFFF"
+                color:  "#FFFFFF"
                 anchors.verticalCenter: parent.verticalCenter
                 x: root.checked ? parent.width - width - 2 : 2
 

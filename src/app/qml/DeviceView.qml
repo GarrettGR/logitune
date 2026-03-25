@@ -17,11 +17,15 @@ Item {
             Layout.fillHeight: true
 
             onPageSelected: function(page) {
-                var comp = page === "pointscroll" ? pointScrollPageComponent
-                                                  : placeholderComponent
-                contentStack.replace(comp,
-                                     {pageName: page},
-                                     StackView.Immediate)
+                if (page === "buttons") {
+                    contentStack.replace(buttonsPageComponent, {}, StackView.Immediate)
+                } else if (page === "pointscroll") {
+                    contentStack.replace(pointScrollPageComponent, {}, StackView.Immediate)
+                } else {
+                    contentStack.replace(placeholderComponent,
+                                         {pageName: page},
+                                         StackView.Immediate)
+                }
             }
         }
 
@@ -94,7 +98,7 @@ Item {
                 }
             }
 
-            // Content StackView
+            // Content StackView — default to ButtonsPage
             StackView {
                 id: contentStack
                 anchors {
@@ -104,10 +108,8 @@ Item {
                     right: parent.right
                     topMargin: 12
                     bottomMargin: 12
-                    leftMargin: 20
-                    rightMargin: 20
                 }
-                initialItem: placeholderComponent
+                initialItem: buttonsPageComponent
             }
 
             // Battery chip at bottom-left of content area
@@ -128,6 +130,12 @@ Item {
                 }
             }
         }
+    }
+
+    // ButtonsPage component (default)
+    Component {
+        id: buttonsPageComponent
+        ButtonsPage {}
     }
 
     // Point & Scroll page component
