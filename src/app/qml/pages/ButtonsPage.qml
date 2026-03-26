@@ -50,7 +50,7 @@ Item {
     // ── Background ─────────────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
-        color: "#F5F5F5"
+        color: "#FFFFFF"
     }
 
     // ── Dismiss panel by clicking the background ───────────────────────────

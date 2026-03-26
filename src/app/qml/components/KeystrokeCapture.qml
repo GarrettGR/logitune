@@ -19,7 +19,7 @@ Item {
         anchors.fill: parent
         radius: 8
         color:   capturing ? "#F0EDFF" : "#FFFFFF"
-        border.color: capturing ? "#7B61FF" : "#E0E0E0"
+        border.color: capturing ? "#814EFA" : "#E1E2E3"
         border.width: capturing ? 2 : 1
 
         Behavior on border.color { ColorAnimation { duration: 120 } }
@@ -41,7 +41,7 @@ Item {
                 if (root.keystroke.length > 0) return root.keystroke
                 return "Click to assign"
             }
-            color: (field.capturing || root.keystroke.length === 0) ? "#AAAAAA" : "#1A1A1A"
+            color: (field.capturing || root.keystroke.length === 0) ? "#AAAAAA" : "#222425"
             font.pixelSize: 13
             elide: Text.ElideRight
         }
@@ -56,7 +56,7 @@ Item {
             }
             text: "\u00D7"
             font.pixelSize: 16
-            color: clearHover.hovered ? "#1A1A1A" : "#AAAAAA"
+            color: clearHover.hovered ? "#222425" : "#AAAAAA"
             visible: root.keystroke.length > 0 && !field.capturing
 
             HoverHandler { id: clearHover }
@@ -80,7 +80,7 @@ Item {
             width:  8
             height: 16
             radius: 2
-            color:  "#7B61FF"
+            color:  "#814EFA"
             visible: field.capturing
 
             SequentialAnimation on opacity {

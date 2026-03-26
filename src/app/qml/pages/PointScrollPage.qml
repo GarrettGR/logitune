@@ -19,8 +19,8 @@ Item {
     // ── Background ────────────────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
-        color: "#F5F5F5"
-        radius: 12
+        color: "#FFFFFF"
+        radius: 0
     }
 
     // ── Canvas: device render + overlaid callouts ─────────────────────────────

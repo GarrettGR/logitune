@@ -55,7 +55,7 @@ Item {
                 Text {
                     text: "\u2190"
                     font.pixelSize: 22
-                    color: backHover.hovered ? "#7B61FF" : "#444444"
+                    color: backHover.hovered ? "#814EFA" : "#444444"
                     Behavior on color { ColorAnimation { duration: 120 } }
 
                     HoverHandler { id: backHover }
@@ -70,7 +70,7 @@ Item {
                     text: DeviceModel.deviceName || "MX Master 3S"
                     font.pixelSize: 20
                     font.bold: true
-                    color: "#1A1A1A"
+                    color: "#222425"
                 }
 
                 Item { Layout.fillWidth: true }

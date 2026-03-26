@@ -37,7 +37,7 @@ Rectangle {
                 text: DeviceModel.deviceName || "MX Master 3S"
                 font.pixelSize: 13
                 font.bold: true
-                color: "#1A1A1A"
+                color: "#222425"
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }
@@ -58,9 +58,10 @@ Rectangle {
 
             delegate: Item {
                 Layout.fillWidth: true
-                height: 44
+                height: 40
                 opacity: modelData.enabled ? 1.0 : 0.4
 
+                // 17px vertical margin between tabs — use top margin on pill
                 Rectangle {
                     id: pill
                     anchors {
@@ -70,9 +71,9 @@ Rectangle {
                         topMargin: 2
                         bottomMargin: 2
                     }
-                    radius: 8
+                    radius: 4
                     color: sideNav.currentPage === modelData.name
-                           ? "#7B61FF"
+                           ? "#814EFA"
                            : (itemHover.hovered && modelData.enabled ? "#F5F5F5" : "transparent")
 
                     Behavior on color { ColorAnimation { duration: 120 } }
@@ -93,9 +94,9 @@ Rectangle {
 
                         Text {
                             text: modelData.label
-                            font.pixelSize: 12
+                            font.pixelSize: 13
                             font.letterSpacing: 0.6
-                            font.bold: sideNav.currentPage === modelData.name
+                            font.bold: true
                             color: sideNav.currentPage === modelData.name ? "white" : "#444444"
                             // Strikethrough when disabled
                             font.strikeout: !modelData.enabled
@@ -118,6 +119,7 @@ Rectangle {
             }
         }
 
+        // 17px spacing between nav section and bottom
         Item { Layout.fillHeight: true }
     }
 }

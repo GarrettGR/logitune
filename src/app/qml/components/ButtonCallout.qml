@@ -44,7 +44,7 @@ Item {
             ctx.beginPath()
             ctx.moveTo(root.width / 2, root.height / 2)
             ctx.lineTo(lx, ly)
-            ctx.strokeStyle = root.selected ? "#7B61FF" : "#CCCCCC"
+            ctx.strokeStyle = root.selected ? "#814EFA" : "#CCCCCC"
             ctx.lineWidth = 1.5
             ctx.setLineDash([4, 3])
             ctx.stroke()
@@ -60,11 +60,11 @@ Item {
     // ── Card ───────────────────────────────────────────────────────────────
     Rectangle {
         id: card
-        implicitWidth:  contentCol.implicitWidth + 20
+        implicitWidth:  Math.min(contentCol.implicitWidth + 20, 172)
         implicitHeight: contentCol.implicitHeight + 16
-        radius: 8
-        color:  root.selected ? "#7B61FF" : "#FFFFFF"
-        border.color: root.selected ? "#6B51EF" : "#E8E8E8"
+        radius: 4
+        color:  root.selected ? "#814EFA" : "#FFFFFF"
+        border.color: root.selected ? "#673EC8" : "#E8E8E8"
         border.width: 1
 
         Behavior on color        { ColorAnimation { duration: 150 } }
@@ -97,7 +97,7 @@ Item {
                 text: root.actionName
                 font.pixelSize: 12
                 font.bold: true
-                color: root.selected ? "#FFFFFF" : "#1A1A1A"
+                color: root.selected ? "#FFFFFF" : (hoverHandler.hovered ? "#814EFA" : "#222425")
 
                 Behavior on color { ColorAnimation { duration: 150 } }
             }

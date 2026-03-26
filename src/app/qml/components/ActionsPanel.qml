@@ -26,7 +26,7 @@ Rectangle {
     Rectangle {
         anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
         width: 1
-        color: "#E0E0E0"
+        color: "#F0F0F0"
     }
 
     // ── Slide animation ────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ Rectangle {
                     text: "Actions"
                     font.pixelSize: 18
                     font.bold: true
-                    color: "#1A1A1A"
+                    color: "#222425"
                 }
 
                 Text {
@@ -80,7 +80,7 @@ Rectangle {
                     anchors.centerIn: parent
                     text: "\u00D7"
                     font.pixelSize: 18
-                    color: "#666666"
+                    color: "#999999"
                 }
 
                 HoverHandler { id: closeHover }
@@ -97,7 +97,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.topMargin: 12
             height: 1
-            color: "#E0E0E0"
+            color: "#F0F0F0"
         }
 
         // ── SMART ACTIONS section ──────────────────────────────────────────
@@ -160,7 +160,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.topMargin: 8
             height: 1
-            color: "#E8E8E8"
+            color: "#F0F0F0"
         }
 
         // ── OTHER ACTIONS section header ───────────────────────────────────
@@ -199,13 +199,15 @@ Rectangle {
 
             delegate: Item {
                 width:  actionList.width
-                height: 44
+                height: isSelected ? 48 : 32
                 required property string name
                 required property string description
                 required property string actionType
                 required property int    index
 
                 readonly property bool isSelected: name === root.currentAction
+
+                Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
                 Rectangle {
                     anchors {
@@ -215,9 +217,9 @@ Rectangle {
                         topMargin:   1
                         bottomMargin: 1
                     }
-                    radius: 8
+                    radius: 4
                     color: isSelected
-                           ? "#7B61FF"
+                           ? "#814EFA"
                            : (rowHover.hovered ? "#EEEEFF" : "transparent")
 
                     Behavior on color { ColorAnimation { duration: 100 } }
@@ -242,14 +244,15 @@ Rectangle {
                                 anchors.centerIn: parent
                                 width: 6; height: 6
                                 radius: 3
-                                color: isSelected ? "#7B61FF" : "transparent"
+                                color: isSelected ? "#814EFA" : "transparent"
                             }
                         }
 
                         Text {
                             text: name
                             font.pixelSize: 13
-                            color: isSelected ? "#FFFFFF" : "#1A1A1A"
+                            font.bold: isSelected
+                            color: isSelected ? "#FFFFFF" : "#222425"
                             Layout.fillWidth: true
                             elide: Text.ElideRight
 
@@ -276,7 +279,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             height: 1
-            color: "#E0E0E0"
+            color: "#F0F0F0"
             visible: root.currentActionType.length > 0
         }
 
@@ -365,9 +368,9 @@ Rectangle {
                     delegate: Rectangle {
                         width: parent.width
                         height: 36
-                        radius: 6
+                        radius: 4
                         color: "#FFFFFF"
-                        border.color: "#EEEEEE"
+                        border.color: "#F0F0F0"
                         border.width: 1
 
                         RowLayout {
@@ -377,7 +380,7 @@ Rectangle {
                             Text {
                                 text: modelData.dir
                                 font.pixelSize: 14
-                                color: "#7B61FF"
+                                color: "#814EFA"
                             }
                             Text {
                                 text: modelData.label

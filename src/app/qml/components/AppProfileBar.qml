@@ -11,8 +11,8 @@ Row {
             width: 56
             height: 40
             radius: 8
-            color: model.isActive ? "#F0EDFF" : "transparent"
-            border.color: model.isActive ? "#7B61FF" : "transparent"
+            color: model.isActive ? Qt.rgba(0.506, 0.306, 0.980, 0.06) : "transparent"
+            border.color: model.isActive ? "#814EFA" : "transparent"
             border.width: model.isActive ? 2 : 0
 
             Column {
@@ -27,7 +27,7 @@ Row {
                 Text {
                     text: model.name
                     font.pixelSize: 8
-                    color: "#666666"
+                    color: "#999999"
                     anchors.horizontalCenter: parent.horizontalCenter
                     visible: model.name.length <= 10
                 }

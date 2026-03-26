@@ -15,7 +15,7 @@ Rectangle {
 
     // ── Geometry / Appearance ───────────────────────────────────────────────
     width:  340
-    color:  "#F0F0F0"
+    color:  "#F5F5F5"
     radius: 12
 
     // Drop shadow illusion via a slightly larger, lighter rect behind
@@ -52,7 +52,7 @@ Rectangle {
                 }
                 font.pixelSize: 15
                 font.bold: true
-                color: "#1A1A1A"
+                color: "#222425"
                 Layout.fillWidth: true
             }
 
@@ -60,7 +60,7 @@ Rectangle {
             Rectangle {
                 width: 28; height: 28
                 radius: 14
-                color: closeHover.hovered ? "#E0E0E0" : "transparent"
+                color: closeHover.hovered ? "#E1E2E3" : "transparent"
                 Behavior on color { ColorAnimation { duration: 100 } }
 
                 Text {
@@ -82,7 +82,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             height: 1
-            color: "#E0E0E0"
+            color: "#F0F0F0"
         }
 
         // ── Per-type content ────────────────────────────────────────────────
@@ -136,7 +136,7 @@ Rectangle {
                         leftPadding: naturalRadio.indicator.width + naturalRadio.spacing
                         text: naturalRadio.text
                         font.pixelSize: 12
-                        color: "#1A1A1A"
+                        color: "#222425"
                         verticalAlignment: Text.AlignVCenter
                     }
 
@@ -144,7 +144,7 @@ Rectangle {
                         implicitWidth:  18
                         implicitHeight: 18
                         radius: 9
-                        border.color: naturalRadio.checked ? "#7B61FF" : "#AAAAAA"
+                        border.color: naturalRadio.checked ? "#814EFA" : "#AAAAAA"
                         border.width: 2
                         color: "transparent"
                         anchors.verticalCenter: parent.verticalCenter
@@ -153,7 +153,7 @@ Rectangle {
                             anchors.centerIn: parent
                             width: 8; height: 8
                             radius: 4
-                            color: "#7B61FF"
+                            color: "#814EFA"
                             visible: naturalRadio.checked
                         }
                     }
@@ -168,7 +168,7 @@ Rectangle {
                         leftPadding: standardRadio.indicator.width + standardRadio.spacing
                         text: standardRadio.text
                         font.pixelSize: 12
-                        color: "#1A1A1A"
+                        color: "#222425"
                         verticalAlignment: Text.AlignVCenter
                     }
 
@@ -176,7 +176,7 @@ Rectangle {
                         implicitWidth:  18
                         implicitHeight: 18
                         radius: 9
-                        border.color: standardRadio.checked ? "#7B61FF" : "#AAAAAA"
+                        border.color: standardRadio.checked ? "#814EFA" : "#AAAAAA"
                         border.width: 2
                         color: "transparent"
                         anchors.verticalCenter: parent.verticalCenter
@@ -185,7 +185,7 @@ Rectangle {
                             anchors.centerIn: parent
                             width: 8; height: 8
                             radius: 4
-                            color: "#7B61FF"
+                            color: "#814EFA"
                             visible: standardRadio.checked
                         }
                     }
@@ -306,7 +306,7 @@ Rectangle {
             Rectangle {
                 width: parent.width
                 height: kdeNote.implicitHeight + 16
-                radius: 8
+                radius: 4
                 color: "#FFF3CD"
                 border.color: "#FFD97D"
                 border.width: 1

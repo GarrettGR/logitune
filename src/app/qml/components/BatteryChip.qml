@@ -39,7 +39,7 @@ Rectangle {
     readonly property string connType: DeviceModel.connectionType
 
     // Color: orange when <= 25%, green otherwise
-    readonly property color battColor: level <= 25 ? "#FF9500" : "#34C759"
+    readonly property color battColor: level <= 25 ? "#FFA414" : "#79E053"
 
     // Battery icon based on stepped levels
     readonly property string battIcon: {
@@ -66,7 +66,7 @@ Rectangle {
         Text {
             text: chip.connType === "Bolt" ? "\u26A1" : "\uD83D\uDD35"
             font.pixelSize: 13
-            color: "#666666"
+            color: "#999999"
             visible: chip.connType.length > 0
         }
 
@@ -76,19 +76,19 @@ Rectangle {
 
             Rectangle {
                 width: 18; height: 10; radius: 1
-                color: chip.level >= 1 ? chip.battColor : "#E0E0E0"
+                color: chip.level >= 1 ? chip.battColor : "#E1E2E3"
             }
             Rectangle {
                 width: 18; height: 10; radius: 1
-                color: chip.level > 25 ? chip.battColor : "#E0E0E0"
+                color: chip.level > 25 ? chip.battColor : "#E1E2E3"
             }
             Rectangle {
                 width: 18; height: 10; radius: 1
-                color: chip.level > 50 ? chip.battColor : "#E0E0E0"
+                color: chip.level > 50 ? chip.battColor : "#E1E2E3"
             }
             Rectangle {
                 width: 18; height: 10; radius: 1
-                color: chip.level > 75 ? chip.battColor : "#E0E0E0"
+                color: chip.level > 75 ? chip.battColor : "#E1E2E3"
             }
             // Battery tip
             Rectangle {
@@ -110,7 +110,7 @@ Rectangle {
         Text {
             text: "\u26A1"
             font.pixelSize: 11
-            color: "#FF9500"
+            color: "#FFA414"
             visible: chip.charging
         }
     }

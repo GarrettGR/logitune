@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 
 // Logitune-styled horizontal slider
-// Purple fill (#7B61FF), gray track, circular white thumb
+// Purple fill (#814EFA), gray track, circular white thumb with purple border
 Item {
     id: root
 
@@ -35,7 +35,7 @@ Item {
                 id: valueLabel
                 text: Math.round(slider.value)
                 font.pixelSize: 12
-                color: "#7B61FF"
+                color: "#814EFA"
                 font.bold: true
             }
         }
@@ -54,25 +54,37 @@ Item {
                 width:  slider.availableWidth
                 height: 4
                 radius: 2
-                color:  "#E0E0E0"
+                color:  "#E1E2E3"
 
                 Rectangle {
                     width:  slider.visualPosition * parent.width
                     height: parent.height
                     radius: 2
-                    color:  "#7B61FF"
+                    color:  "#814EFA"
                 }
             }
 
             handle: Rectangle {
                 x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
                 y: slider.topPadding + slider.availableHeight / 2 - height / 2
-                width:  18
-                height: 18
-                radius: 9
+                width:  16
+                height: 16
+                radius: 8
                 color:  "#FFFFFF"
-                border.color: "#D0D0D0"
-                border.width: 1
+                border.color: "#814EFA"
+                border.width: 5
+
+                // Focus ring
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width + 6
+                    height: parent.height + 6
+                    radius: (parent.width + 6) / 2
+                    color: "transparent"
+                    border.color: Qt.rgba(0.506, 0.306, 0.980, 0.3)
+                    border.width: 2
+                    visible: slider.activeFocus
+                }
             }
         }
     }

@@ -1,6 +1,7 @@
 import QtQuick
 
-// Logitune toggle switch — purple ON, gray OFF
+// Logitune toggle switch — purple ON (#814EFA), gray OFF (#E1E2E3)
+// Track: 28×16px, radius 8. Knob: 12×12px, 2px offset from edge.
 Item {
     id: root
 
@@ -26,18 +27,18 @@ Item {
 
         Rectangle {
             id: track
-            width:  40
-            height: 22
-            radius: 11
-            color:  root.checked ? "#7B61FF" : "#CCCCCC"
+            width:  28
+            height: 16
+            radius: 8
+            color:  root.checked ? "#814EFA" : "#E1E2E3"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Rectangle {
                 id: knob
-                width:  18
-                height: 18
-                radius: 9
+                width:  12
+                height: 12
+                radius: 6
                 color:  "#FFFFFF"
                 anchors.verticalCenter: parent.verticalCenter
                 x: root.checked ? parent.width - width - 2 : 2

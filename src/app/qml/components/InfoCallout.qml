@@ -17,8 +17,13 @@ Rectangle {
     implicitWidth:  contentCol.implicitWidth  + 24
     implicitHeight: contentCol.implicitHeight + 20
 
-    color:  "#7B61FF"
-    radius: 10
+    // Gradient from top (#A04EFA) to bottom (#814EFA)
+    gradient: Gradient {
+        orientation: Gradient.Vertical
+        GradientStop { position: 0.0; color: "#A04EFA" }
+        GradientStop { position: 1.0; color: "#814EFA" }
+    }
+    radius: 4
 
     // Slight brightness boost on hover
     Rectangle {

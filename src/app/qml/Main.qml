@@ -7,7 +7,7 @@ ApplicationWindow {
     width: 960; height: 640
     visible: true
     title: "Logitune"
-    color: "#F5F5F5"
+    color: "#FFFFFF"
     minimumWidth: 800; minimumHeight: 540
 
     onClosing: function(close) {
@@ -33,7 +33,7 @@ ApplicationWindow {
     Rectangle {
         id: permissionError
         anchors.fill: parent
-        color: "#F5F5F5"
+        color: "#FFFFFF"
         visible: false
         z: 100
 
@@ -45,13 +45,13 @@ ApplicationWindow {
             Text {
                 text: "Permission Required"
                 font { pixelSize: 24; bold: true }
-                color: "#1A1A1A"
+                color: "#222425"
                 anchors.horizontalCenter: parent.horizontalCenter
             }
             Text {
                 text: "Logitune needs permission to access your mouse.\n\nPlease log out and back in for udev rules to take effect."
                 font.pixelSize: 14
-                color: "#666666"
+                color: "#999999"
                 wrapMode: Text.WordWrap
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
