@@ -7,13 +7,14 @@ ButtonModel::ButtonModel(QObject *parent)
 {
     // Default button assignments — hardcoded until ProfileEngine integration
     m_buttons = {
-        { 0, "Left click",   "Left click",      "default"         },
-        { 1, "Right click",  "Right click",     "default"         },
-        { 2, "Middle click", "Middle click",    "default"         },
-        { 3, "Back",         "Back",            "default"         },
-        { 4, "Forward",      "Forward",         "default"         },
-        { 5, "Thumb",        "Gesture button",  "default"         },
-        { 6, "Top",          "Default",         "default"         },
+        { 0, "Left click",   "Left click",        "default"         },
+        { 1, "Right click",  "Right click",       "default"         },
+        { 2, "Middle click", "Middle click",      "default"         },
+        { 3, "Back",         "Back",              "default"         },
+        { 4, "Forward",      "Forward",           "default"         },
+        { 5, "Thumb",        "Gesture button",    "default"         },
+        { 6, "Top",          "Shift wheel mode",  "default"         },
+        { 7, "Thumb wheel",  "Horizontal scroll", "default"         },
     };
 }
 

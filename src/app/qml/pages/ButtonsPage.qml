@@ -3,11 +3,11 @@ import QtQuick.Layouts
 import Logitune
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ButtonsPage — main button-remapping screen.
+// ButtonsPage — main button-remapping screen (Options+ dark style).
 //
 // Layout:
-//   Left area: DeviceRender (mouse SVG) + ButtonCallout[7] cards
-//   Right area: ActionsPanel (slides in when a button is selected)
+//   Centre: mouseContainer (DeviceRender + ButtonCallout cards, move together)
+//   Right:  ActionsPanel (slides in when a button is selected)
 // ─────────────────────────────────────────────────────────────────────────────
 Item {
     id: root
@@ -16,51 +16,45 @@ Item {
     property int selectedButton: -1
 
     // ── Callout layout data ────────────────────────────────────────────────
-    // Each entry: { dx, dy } offset from mouse render centre.
-    // Positive dx = right, positive dy = down.
-    // The mouse render is 200×280, centred at (100, 140) relative to itself.
-    readonly property var calloutLayout: [
-        // 0: Left click — top-left
-        { dx: -180, dy: -80, lineX: -50, lineY:  -70 },
-        // 1: Right click — top-right
-        { dx:  130, dy: -80, lineX:  50, lineY:  -70 },
-        // 2: Middle / scroll — top-centre
-        { dx:  -30, dy: -140, lineX:   0, lineY:  -80 },
-        // 3: Back — left side lower
-        { dx: -180, dy:  110, lineX: -90, lineY:   50 },
-        // 4: Forward — left side upper
-        { dx: -180, dy:  -10, lineX: -90, lineY:  -40 },
-        // 5: Thumb / gesture — left middle
-        { dx: -180, dy:   50, lineX: -90, lineY:   -5 },
-        // 6: Top (behind scroll) — right side upper
-        { dx:  130, dy:   20, lineX:  70, lineY:  -70 },
+    // Only configurable buttons (no left/right click).
+    // hotspotXPct / hotspotYPct: percentage of mouse image where the hotspot dot sits.
+    // side: "left" means label goes to the left of the hotspot, "right" to the right.
+    // buttonId: maps to ButtonModel index.
+    readonly property var calloutData: [
+        // Middle button — dot at (71%, 15%), RIGHT side label
+        { buttonId: 2, hotspotXPct: 0.71, hotspotYPct: 0.15, side: "right",
+          actionDefault: "Middle click", buttonLabel: "Middle button" },
+        // Top / ModeShift — dot at (81%, 34%), RIGHT side label
+        { buttonId: 6, hotspotXPct: 0.81, hotspotYPct: 0.34, side: "right",
+          actionDefault: "Shift wheel mode", buttonLabel: "Top button" },
+        // ThumbWheel — dot at (55%, 51.5%), RIGHT side label
+        { buttonId: 7, hotspotXPct: 0.55, hotspotYPct: 0.515, side: "right",
+          actionDefault: "Horizontal scroll", buttonLabel: "Thumb wheel" },
+        // Forward — dot at (35%, 43%), LEFT side label
+        { buttonId: 4, hotspotXPct: 0.35, hotspotYPct: 0.43, side: "left",
+          actionDefault: "Forward", buttonLabel: "Forward button" },
+        // Back — dot at (45%, 60%), LEFT side label
+        { buttonId: 3, hotspotXPct: 0.45, hotspotYPct: 0.60, side: "left",
+          actionDefault: "Back", buttonLabel: "Back button" },
+        // Gesture — dot at (8%, 58%), LEFT side label
+        { buttonId: 5, hotspotXPct: 0.08, hotspotYPct: 0.58, side: "left",
+          actionDefault: "Gestures", buttonLabel: "Virtual desktops" },
     ]
 
-    // Convenience: button display data (mirrors ButtonModel defaults)
-    readonly property var buttonMeta: [
-        { name: "Left click"  },
-        { name: "Right click" },
-        { name: "Middle click"},
-        { name: "Back"        },
-        { name: "Forward"     },
-        { name: "Thumb"       },
-        { name: "Top"         },
-    ]
-
-    // ── Background ─────────────────────────────────────────────────────────
+    // ── Dark background ──────────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
-        color: "#FFFFFF"
+        color: "#1A1A1C"
     }
 
-    // ── Dismiss panel by clicking the background ───────────────────────────
+    // ── Dismiss panel by clicking the background ─────────────────────────────
     MouseArea {
         anchors.fill: parent
         enabled: root.selectedButton >= 0
         onClicked: root.selectedButton = -1
     }
 
-    // ── Centre area: mouse render + callouts ───────────────────────────────
+    // ── Centre area (fills space left of actions panel) ──────────────────────
     Item {
         id: renderArea
         anchors {
@@ -70,67 +64,81 @@ Item {
             right:  actionsPanel.left
         }
 
-        // DeviceRender centred in the available space, shifts left when panel opens
-        DeviceRender {
-            id: deviceRender
-            anchors.centerIn: parent
-            // Shift left by 130px when actions panel is open (translateX equivalent)
-            anchors.horizontalCenterOffset: root.selectedButton >= 0 ? -130 : 0
-            Behavior on anchors.horizontalCenterOffset {
+        // ── Mouse + callouts container — moves together when panel opens ─────
+        Item {
+            id: mouseContainer
+
+            width:  deviceRender.implicitWidth + 460   // extra space for callouts
+            height: deviceRender.implicitHeight
+
+            anchors.verticalCenter: parent.verticalCenter
+
+            // Centre horizontally; shift left when panel opens
+            x: (parent.width - width) / 2 + (root.selectedButton >= 0 ? -60 : 0)
+
+            Behavior on x {
                 NumberAnimation { duration: 300; easing.type: Easing.InOutCubic }
             }
 
-            onButtonClicked: function(buttonId) {
-                root.selectedButton = buttonId
-                // Sync ActionModel selection to current button's action
-                var actionName = ButtonModel.actionNameForButton(buttonId)
-                actionsPanel.buttonId           = buttonId
-                actionsPanel.buttonName         = root.buttonMeta[buttonId].name
-                actionsPanel.currentAction      = actionName
-                actionsPanel.currentActionType  = ButtonModel.actionTypeForButton(buttonId)
-            }
-        }
+            // DeviceRender centred in mouseContainer
+            DeviceRender {
+                id: deviceRender
+                anchors.centerIn: parent
+                implicitWidth:  280
+                implicitHeight: 414
 
-        // ── Callout cards ──────────────────────────────────────────────────
-        Repeater {
-            id: calloutRepeater
-            model: 7
-
-            delegate: ButtonCallout {
-                required property int modelData
-
-                // Position relative to renderArea, offset from mouse centre
-                x: renderArea.width  / 2 + root.calloutLayout[modelData].dx - width  / 2
-                y: renderArea.height / 2 + root.calloutLayout[modelData].dy - height / 2
-
-                // Line tip: centre of the mouse zone in renderArea coords
-                lineToX: renderArea.width  / 2 + root.calloutLayout[modelData].lineX
-                lineToY: renderArea.height / 2 + root.calloutLayout[modelData].lineY
-
-                actionName: ButtonModel.actionNameForButton(modelData)
-                buttonName: root.buttonMeta[modelData].name
-                selected:   root.selectedButton === modelData
-
-                onClicked: {
-                    root.selectedButton = modelData
-                    actionsPanel.buttonId          = modelData
-                    actionsPanel.buttonName        = root.buttonMeta[modelData].name
-                    actionsPanel.currentAction     = actionName
-                    actionsPanel.currentActionType = ButtonModel.actionTypeForButton(modelData)
+                onButtonClicked: function(buttonId) {
+                    selectButton(buttonId)
                 }
+            }
 
-                // Keep callout updated when ButtonModel data changes
-                Connections {
-                    target: ButtonModel
-                    function onDataChanged() {
-                        actionName = ButtonModel.actionNameForButton(modelData)
+            // ── Callout cards (children of mouseContainer) ───────────────────
+            Repeater {
+                model: root.calloutData.length
+
+                ButtonCallout {
+                    required property int modelData
+
+                    readonly property var cdata: root.calloutData[modelData]
+                    readonly property int btnId: cdata.buttonId
+
+                    // Hotspot position in mouseContainer coordinates
+                    readonly property real hotX: deviceRender.x + cdata.hotspotXPct * deviceRender.implicitWidth
+                    readonly property real hotY: deviceRender.y + cdata.hotspotYPct * deviceRender.implicitHeight
+
+                    // Position: left-side labels to the left, right-side to the right
+                    x: cdata.side === "left"
+                       ? hotX - width - 24
+                       : hotX + 24
+                    y: hotY - height / 2
+
+                    // Connector line endpoint (the hotspot dot)
+                    lineToX: hotX
+                    lineToY: hotY
+                    lineSide: cdata.side
+
+                    actionName: {
+                        var an = ButtonModel.actionNameForButton(btnId)
+                        return an.length > 0 ? an : cdata.actionDefault
+                    }
+                    buttonName: cdata.buttonLabel
+                    selected:   root.selectedButton === btnId
+
+                    onClicked: selectButton(btnId)
+
+                    Connections {
+                        target: ButtonModel
+                        function onDataChanged() {
+                            var an = ButtonModel.actionNameForButton(btnId)
+                            actionName = an.length > 0 ? an : cdata.actionDefault
+                        }
                     }
                 }
             }
         }
     }
 
-    // ── Actions Panel ──────────────────────────────────────────────────────
+    // ── Actions Panel ────────────────────────────────────────────────────────
     ActionsPanel {
         id: actionsPanel
 
@@ -153,8 +161,27 @@ Item {
         onActionSelected: function(actionName, actionType) {
             if (root.selectedButton >= 0) {
                 ButtonModel.setAction(root.selectedButton, actionName, actionType)
-                // Update all callouts via binding refresh
             }
         }
+    }
+
+    // ── Helper ───────────────────────────────────────────────────────────────
+    function selectButton(buttonId) {
+        root.selectedButton = buttonId
+
+        // Find the callout data for this button
+        var label = ""
+        for (var i = 0; i < calloutData.length; i++) {
+            if (calloutData[i].buttonId === buttonId) {
+                label = calloutData[i].buttonLabel
+                break
+            }
+        }
+
+        var actionName = ButtonModel.actionNameForButton(buttonId)
+        actionsPanel.buttonId          = buttonId
+        actionsPanel.buttonName        = label
+        actionsPanel.currentAction     = actionName
+        actionsPanel.currentActionType = ButtonModel.actionTypeForButton(buttonId)
     }
 }

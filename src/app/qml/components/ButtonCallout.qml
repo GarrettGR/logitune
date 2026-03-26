@@ -1,20 +1,24 @@
 import QtQuick
 
-// White card callout showing an action assignment for one mouse button.
-// When selected: turns accent purple.
-// Positioned absolutely relative to its parent (DeviceRender or ButtonsPage).
+// Dark callout card showing an action assignment for one mouse button (Options+ style).
+// Default: dark gray card with white text.
+// Selected: accent purple card with white text.
+// Connector line runs from the card edge to the hotspot circle.
 Item {
     id: root
 
     // ── Public API ─────────────────────────────────────────────────────────
-    property string actionName: "Left click"
-    property string buttonName: "Left click"
+    property string actionName: "Middle click"
+    property string buttonName: "Middle button"
     property bool   selected:   false
 
     // Connector line endpoint (in parent coordinates)
     property real lineToX: 0
     property real lineToY: 0
     property bool showLine: true
+
+    // "left" = label is left of hotspot, "right" = label is right of hotspot
+    property string lineSide: "right"
 
     signal clicked()
 
@@ -24,85 +28,91 @@ Item {
     // ── Connector line (Canvas) ────────────────────────────────────────────
     Canvas {
         id: lineCanvas
-        // Cover the space between callout and mouse zone
-        anchors.fill: parent
+
+        // The canvas must cover the area between the card and the hotspot.
+        // We extend well beyond the card so the line can reach the hotspot.
+        x: -300
+        y: -300
+        width:  600 + root.width
+        height: 600 + root.height
+
         visible: root.showLine
 
         onPaint: {
             var ctx = getContext("2d")
             ctx.clearRect(0, 0, width, height)
 
-            // Compute callout center in parent coords
-            var fromX = root.x + root.width / 2
-            var fromY = root.y + root.height / 2
+            // Card edge point (in canvas-local coords)
+            // Canvas origin is at (root.x - 300, root.y - 300) in parent space
+            var cardEdgeX, cardEdgeY
+            if (root.lineSide === "left") {
+                // Line from right edge of card to hotspot (which is to the right)
+                cardEdgeX = 300 + root.width
+                cardEdgeY = 300 + root.height / 2
+            } else {
+                // Line from left edge of card to hotspot (which is to the left)
+                cardEdgeX = 300
+                cardEdgeY = 300 + root.height / 2
+            }
 
-            // Draw from callout center to lineToX/lineToY (relative to parent)
-            // We translate to canvas local coordinates
-            var lx = root.lineToX - root.x
-            var ly = root.lineToY - root.y
+            // Hotspot in canvas-local coords
+            var hx = root.lineToX - root.x + 300
+            var hy = root.lineToY - root.y + 300
 
             ctx.beginPath()
-            ctx.moveTo(root.width / 2, root.height / 2)
-            ctx.lineTo(lx, ly)
-            ctx.strokeStyle = root.selected ? "#814EFA" : "#CCCCCC"
+            ctx.moveTo(cardEdgeX, cardEdgeY)
+            ctx.lineTo(hx, hy)
+            ctx.strokeStyle = root.selected ? "#814EFA" : "rgba(255, 255, 255, 0.35)"
             ctx.lineWidth = 1.5
-            ctx.setLineDash([4, 3])
+            ctx.setLineDash([])
             ctx.stroke()
         }
 
-        // Repaint when selection changes
         Connections {
             target: root
             function onSelectedChanged() { lineCanvas.requestPaint() }
+            function onXChanged()        { lineCanvas.requestPaint() }
+            function onYChanged()        { lineCanvas.requestPaint() }
         }
     }
 
     // ── Card ───────────────────────────────────────────────────────────────
     Rectangle {
         id: card
-        implicitWidth:  Math.min(contentCol.implicitWidth + 20, 172)
-        implicitHeight: contentCol.implicitHeight + 16
-        radius: 4
-        color:  root.selected ? "#814EFA" : "#FFFFFF"
-        border.color: root.selected ? "#673EC8" : "#E8E8E8"
+        implicitWidth:  Math.min(contentCol.implicitWidth + 24, 180)
+        implicitHeight: contentCol.implicitHeight + 18
+        radius: 8
+        color:  root.selected ? "#814EFA" : "#222425"
+        border.color: root.selected ? "#673EC8" : "#333536"
         border.width: 1
 
         Behavior on color        { ColorAnimation { duration: 150 } }
         Behavior on border.color { ColorAnimation { duration: 150 } }
 
-        // Drop shadow simulation
-        Rectangle {
-            x: 3; y: 3
-            width: parent.width; height: parent.height
-            radius: card.radius
-            color: Qt.rgba(0, 0, 0, 0.08)
-            z: -1
-        }
-
         Column {
             id: contentCol
-            x: 10
-            y: 8
+            x: 12
+            y: 9
             spacing: 2
 
-            // Action name (primary, bold) — max-width 172px with ellipsis
+            // Action name (primary, bold)
             Text {
                 text: root.actionName
                 font.pixelSize: 12
-                font.bold: true
-                color: root.selected ? "#FFFFFF" : (hoverHandler.hovered ? "#814EFA" : "#222425")
-                width: Math.min(implicitWidth, 152)
+                font.weight: Font.DemiBold
+                color: root.selected ? "#FFFFFF" : (hoverHandler.hovered ? "#B89DFF" : "#FFFFFF")
+                width: Math.min(implicitWidth, 156)
                 elide: Text.ElideRight
 
                 Behavior on color { ColorAnimation { duration: 150 } }
             }
 
-            // Physical button name (secondary) — max-width 190px
+            // Physical button name (secondary)
             Text {
                 text: root.buttonName
                 font.pixelSize: 10
-                color: root.selected ? Qt.rgba(1,1,1,0.75) : "#888888"
-                width: Math.min(implicitWidth, 170)
+                color: root.selected ? Qt.rgba(1,1,1,0.75) : Qt.rgba(1,1,1,0.45)
+                width: Math.min(implicitWidth, 156)
                 elide: Text.ElideRight
 
                 Behavior on color { ColorAnimation { duration: 150 } }
@@ -114,7 +124,7 @@ Item {
             anchors.fill: parent
             radius: card.radius
             color: hoverHandler.hovered && !root.selected
-                   ? Qt.rgba(0, 0, 0, 0.04) : "transparent"
+                   ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
             Behavior on color { ColorAnimation { duration: 100 } }
         }
 
