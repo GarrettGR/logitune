@@ -244,13 +244,15 @@ Rectangle {
             Layout.topMargin: 4
             clip: true
             model: ActionModel
-            spacing: 0
+            spacing: 5
 
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
             delegate: Item {
-                width:  actionList.width
-                height: 48
+                // Row height animates between 32px (unselected) and 48px (selected)
+                width: actionList.width
+                height: rowRect.height  // tracks the animated rectangle height
+
                 required property string name
                 required property string description
                 required property string actionType
@@ -259,68 +261,81 @@ Rectangle {
                 readonly property bool isSelected: name === root.currentAction
 
                 Rectangle {
+                    id: rowRect
                     anchors {
-                        fill: parent
-                        leftMargin:  16
-                        rightMargin: 16
-                        topMargin:   0
-                        bottomMargin: 12
+                        left:  parent.left
+                        right: parent.right
+                        // 4% margin on each side  (width * 0.04)
+                        leftMargin:  actionList.width * 0.04
+                        rightMargin: actionList.width * 0.04
+                        top: parent.top
                     }
+
+                    // Animate height between 32 (normal) and 48 (selected)
+                    height: isSelected ? 48 : 32
+                    Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.InOutQuad } }
+
                     radius: 4
                     color: isSelected
                            ? "#814EFA"
-                           : (rowHover.hovered ? "#EEEEFF" : "transparent")
+                           : (rowHover.hovered ? "#F0EDFF" : "transparent")
+                    border.color: isSelected
+                                  ? "transparent"
+                                  : (rowHover.hovered ? "#D4C5FF" : "transparent")
+                    border.width: 1
 
                     Behavior on color { ColorAnimation { duration: 200 } }
 
-                    RowLayout {
+                    // Radio circle — 18×18px
+                    Rectangle {
+                        id: radioCircle
                         anchors {
-                            fill: parent
-                            leftMargin:  24
-                            rightMargin: 16
+                            left:           parent.left
+                            leftMargin:     15
+                            verticalCenter: parent.verticalCenter
                         }
-                        spacing: 16
+                        width:  18
+                        height: 18
+                        radius: 9
 
-                        // 32x32 icon container with radio indicator
-                        Item {
-                            width: 32; height: 32
+                        // Unselected: flat grey fill, no border
+                        // Selected:   white fill, 6px purple border
+                        color:        isSelected ? "#FFFFFF"
+                                                 : (rowHover.hovered ? "#EAE6F5" : "#E1E2E3")
+                        border.color: isSelected ? "#814EFA" : "transparent"
+                        border.width: isSelected ? 6 : 0
 
-                            Rectangle {
-                                anchors.centerIn: parent
-                                width: 14; height: 14
-                                radius: 7
-                                color: isSelected ? "#FFFFFF" : "transparent"
-                                border.color: isSelected ? "#FFFFFF" : "#BBBBBB"
-                                border.width: 2
+                        Behavior on color        { ColorAnimation { duration: 200 } }
+                        Behavior on border.width { NumberAnimation  { duration: 200 } }
+                    }
 
-                                Rectangle {
-                                    anchors.centerIn: parent
-                                    width: 6; height: 6
-                                    radius: 3
-                                    color: isSelected ? "#814EFA" : "transparent"
-                                }
-                            }
+                    // Label — 14px, normal/bold depending on state
+                    Text {
+                        anchors {
+                            left:           radioCircle.right
+                            leftMargin:     15
+                            right:          parent.right
+                            rightMargin:    8
+                            verticalCenter: parent.verticalCenter
                         }
+                        text:           name
+                        font.pixelSize: 14
+                        font.bold:      isSelected
+                        color:          isSelected  ? "#FFFFFF"
+                                        : (rowHover.hovered ? "#814EFA" : "#222425")
+                        elide:          Text.ElideRight
+                        maximumLineCount: 1
 
-                        Text {
-                            text: name
-                            font.pixelSize: 20
-                            font.bold: true
-                            color: isSelected ? "#FFFFFF" : "#222425"
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-
-                            Behavior on color { ColorAnimation { duration: 200 } }
-                        }
+                        Behavior on color { ColorAnimation { duration: 200 } }
                     }
 
                     HoverHandler { id: rowHover }
 
                     MouseArea {
                         anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
+                        cursorShape:  Qt.PointingHandCursor
                         onClicked: {
-                            root.currentAction = name
+                            root.currentAction     = name
                             root.currentActionType = actionType
                             root.actionSelected(name, actionType)
                         }
