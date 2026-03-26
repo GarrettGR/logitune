@@ -510,21 +510,8 @@ void DeviceManager::enumerateAndSetup()
         }
     }
 
-    // Divert configurable buttons so we receive raw button events
-    if (m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4)) {
-        // Divert these buttons: Back(0x0053), Forward(0x0056), Middle(0x0052),
-        // Gesture(0x00C3), TopButton(0x00C4)
-        // NOT left/right click — those should stay native
-        static const uint16_t kDivertButtons[] = { 0x0052, 0x0053, 0x0056, 0x00C3, 0x00C4 };
-        for (uint16_t cid : kDivertButtons) {
-            auto divertParams = hidpp::features::ReprogControls::buildSetDivert(cid, true);
-            m_features->call(m_transport.get(), m_deviceIndex,
-                             hidpp::FeatureId::ReprogControlsV4,
-                             hidpp::features::ReprogControls::kFnSetControlReporting,
-                             std::span<const uint8_t>(divertParams));
-        }
-        qDebug() << "[DeviceManager] diverted 5 configurable buttons";
-    }
+    // Don't divert buttons on startup — all keep native function.
+    // Buttons are diverted on-demand via divertButton() when user assigns a custom action.
 
     // Update state and emit signals
     bool nameChanged    = (m_deviceName != name);
@@ -809,6 +796,30 @@ void DeviceManager::setScrollConfig(bool hiRes, bool invert)
                        hidpp::features::HiResWheel::kFnSetWheelMode,
                        std::span<const uint8_t>(params));
         qDebug() << "[DeviceManager] Scroll set: hiRes=" << hiRes << "invert=" << invert;
+    });
+}
+
+void DeviceManager::divertButton(uint16_t controlId, bool divert)
+{
+    if (!m_connected || !m_features || !m_transport)
+        return;
+    if (!m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4))
+        return;
+
+    auto *transport = m_transport.get();
+    auto *features = m_features.get();
+    uint8_t devIdx = m_deviceIndex;
+    QMutex *mutex = &m_hidrawMutex;
+
+    QtConcurrent::run([transport, features, devIdx, controlId, divert, mutex]() {
+        QMutexLocker lock(mutex);
+        auto params = hidpp::features::ReprogControls::buildSetDivert(controlId, divert);
+        features->call(transport, devIdx,
+                       hidpp::FeatureId::ReprogControlsV4,
+                       hidpp::features::ReprogControls::kFnSetControlReporting,
+                       std::span<const uint8_t>(params));
+        qDebug() << "[DeviceManager] button" << Qt::hex << controlId
+                 << (divert ? "diverted" : "undiverted");
     });
 }
 

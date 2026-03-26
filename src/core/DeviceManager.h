@@ -60,6 +60,7 @@ public:
     Q_INVOKABLE void setDPI(int value);
     Q_INVOKABLE void setSmartShift(bool enabled, int threshold);
     Q_INVOKABLE void setScrollConfig(bool hiRes, bool invert);
+    Q_INVOKABLE void divertButton(uint16_t controlId, bool divert);
     bool scrollHiRes() const;
     bool scrollInvert() const;
     bool scrollRatchet() const;

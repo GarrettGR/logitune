@@ -61,6 +61,21 @@ int main(int argc, char *argv[])
 
     // ── Signal wiring ────────────────────────────────────────────────────────
 
+    // 0. When ButtonModel changes (user picks action in UI), divert/undivert the button
+    //    CID lookup: buttonIndex → controlId
+    static const uint16_t kButtonCids[] = {
+        0x0050, 0x0051, 0x0052, 0x0053, 0x0056, 0x00C3, 0x00C4
+    };
+    QObject::connect(&buttonModel, &QAbstractListModel::dataChanged,
+        [&buttonModel, &deviceManager](const QModelIndex &topLeft, const QModelIndex &, const QVector<int> &) {
+            int row = topLeft.row();
+            if (row < 0 || row >= 7) return;
+            QString actionType = buttonModel.actionTypeForButton(row);
+            bool needsDivert = (actionType != "default");
+            uint16_t cid = kButtonCids[row];
+            deviceManager.divertButton(cid, needsDivert);
+        });
+
     // 1. Window tracking → ProfileModel (per-app profiles in QML model)
     QObject::connect(&windowTracker, &logitune::WindowTracker::activeWindowChanged,
                      &profileModel,  &logitune::ProfileModel::setActiveByWmClass);
