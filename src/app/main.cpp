@@ -145,19 +145,26 @@ int main(int argc, char *argv[])
         });
 
     // 6. Thumb wheel rotation → inject action based on mode
+    static int thumbAccum = 0;
+    static constexpr int kThumbThreshold = 15; // accumulate this many units before one action step
     QObject::connect(&deviceManager, &logitune::DeviceManager::thumbWheelRotation,
         [&deviceManager, &actionExecutor](int delta) {
             const QString &mode = deviceManager.thumbWheelMode();
-            if (mode == "volume") {
-                if (delta > 0)
-                    actionExecutor.injectKeystroke("VolumeDown");
-                else if (delta < 0)
-                    actionExecutor.injectKeystroke("VolumeUp");
-            } else if (mode == "zoom") {
-                // Ctrl + scroll wheel = zoom in most apps
-                actionExecutor.injectCtrlScroll(delta > 0 ? -1 : 1);
+            thumbAccum += delta;
+
+            if (std::abs(thumbAccum) < kThumbThreshold)
+                return; // not enough rotation yet
+
+            int steps = thumbAccum / kThumbThreshold;
+            thumbAccum %= kThumbThreshold;
+
+            for (int i = 0; i < std::abs(steps); ++i) {
+                if (mode == "volume") {
+                    actionExecutor.injectKeystroke(steps < 0 ? "VolumeUp" : "VolumeDown");
+                } else if (mode == "zoom") {
+                    actionExecutor.injectCtrlScroll(steps < 0 ? 1 : -1);
+                }
             }
-            // "scroll" mode = native, no events reach here
         });
 
     // 7. Gesture event → GestureDetector → profile gesture action → execute
