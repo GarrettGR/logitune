@@ -7,18 +7,18 @@ Item {
     id: root
     signal deviceClicked()
 
-    // ── Top bar ──────────────────────────────────────────────────────────────
+    // ── Top bar — 18.5vh max 144px ──────────────────────────────────────────
     RowLayout {
         id: topBar
         anchors {
             top: parent.top
             left: parent.left
             right: parent.right
-            topMargin: 24
-            leftMargin: 24
-            rightMargin: 24
         }
+        height: Math.min(root.height * 0.185, 144)
         spacing: 12
+
+        Item { width: 24 }  // left margin
 
         Text {
             id: greeting
@@ -28,7 +28,8 @@ Item {
                 if (hour >= 12 && hour < 17) return "Good Afternoon";
                 return "Good Evening";
             }
-            font.pixelSize: 28
+            // Responsive: calc(1vw + 2.8vh) equivalent, clamped 24–36px
+            font.pixelSize: Math.max(24, Math.min(36, root.width * 0.01 + root.height * 0.028))
             font.bold: true
             font.family: "Inter, sans-serif"
             color: "#222425"
@@ -65,6 +66,8 @@ Item {
 
             Behavior on color { ColorAnimation { duration: 150 } }
         }
+
+        Item { width: 24 }  // right margin
     }
 
     // ── Center content ────────────────────────────────────────────────────────

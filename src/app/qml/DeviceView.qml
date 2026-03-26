@@ -13,7 +13,7 @@ Item {
         // ── Left sidebar ─────────────────────────────────────────────────────
         SideNav {
             id: sideNav
-            Layout.preferredWidth: 200
+            Layout.preferredWidth: Math.max(140, Math.min(parent.width * 0.25, 350))
             Layout.fillHeight: true
 
             onPageSelected: function(page) {
@@ -45,18 +45,24 @@ Item {
                     top: parent.top
                     left: parent.left
                     right: parent.right
-                    topMargin: 20
-                    leftMargin: 20
-                    rightMargin: 20
                 }
+                height: Math.min(parent.height * 0.185, 144)
                 spacing: 10
 
-                // Back arrow
-                Text {
-                    text: "\u2190"
-                    font.pixelSize: 22
-                    color: backHover.hovered ? "#814EFA" : "#444444"
-                    Behavior on color { ColorAnimation { duration: 120 } }
+                Item { width: 20 }  // left margin
+
+                // Back arrow — 48x48 container
+                Rectangle {
+                    width: 48; height: 48
+                    color: "transparent"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "\u2190"
+                        font.pixelSize: 22
+                        color: backHover.hovered ? "#814EFA" : "#444444"
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
 
                     HoverHandler { id: backHover }
                     MouseArea {
@@ -68,23 +74,26 @@ Item {
 
                 Text {
                     text: DeviceModel.deviceName || "MX Master 3S"
-                    font.pixelSize: 20
+                    font.pixelSize: Math.max(14, root.width * 0.01 + root.height * 0.028)
                     font.bold: true
                     color: "#222425"
                 }
 
                 Item { Layout.fillWidth: true }
+
+                Item { width: 20 }  // right margin
             }
 
-            // Per-app profile bar
+            // Per-app profile bar — 48px height
             AppProfileBar {
                 id: profileBar
                 anchors {
                     top: header.bottom
                     left: parent.left
-                    topMargin: 12
+                    topMargin: 4
                     leftMargin: 20
                 }
+                height: 48
             }
 
             // Content StackView — default to ButtonsPage

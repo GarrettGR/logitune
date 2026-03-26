@@ -13,8 +13,11 @@ Rectangle {
 
     signal closeRequested
 
-    // ── Geometry / Appearance ───────────────────────────────────────────────
-    width:  340
+    // ── Geometry / Appearance — percentage-based width ────────────────────
+    width: {
+        var w = (parent ? parent.width : 960) * 0.33
+        return Math.max(360, Math.min(w, 478))
+    }
     color:  "#F5F5F5"
     radius: 12
 
@@ -26,14 +29,14 @@ Rectangle {
 
     // x is controlled by the parent page — do not set it here
     Behavior on x {
-        NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+        NumberAnimation { duration: 200; easing.type: Easing.OutQuad }
     }
 
     // ── Content ─────────────────────────────────────────────────────────────
     ColumnLayout {
         anchors {
             fill: parent
-            margins: 20
+            margins: 32
         }
         spacing: 16
 
@@ -50,7 +53,7 @@ Rectangle {
                     if (root.panelType === "pointerspeed")  return "Pointer speed"
                     return ""
                 }
-                font.pixelSize: 15
+                font.pixelSize: 16
                 font.bold: true
                 color: "#222425"
                 Layout.fillWidth: true
@@ -120,8 +123,10 @@ Rectangle {
 
                 Text {
                     text: "Scroll direction"
-                    font.pixelSize: 12
+                    font.pixelSize: 16
+                    font.bold: true
                     color: "#444444"
+                    bottomPadding: 14
                 }
 
                 ButtonGroup { id: directionGroup }
@@ -198,7 +203,8 @@ Rectangle {
 
                 Text {
                     text: "Smooth scrolling"
-                    font.pixelSize: 12
+                    font.pixelSize: 16
+                    font.bold: true
                     color: "#444444"
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width - smoothToggle.width
@@ -210,9 +216,11 @@ Rectangle {
                 }
             }
 
-            // SmartShift toggle
+            // SmartShift toggle — padding: 12px 32px 24px
             Column {
                 width: parent.width
+                topPadding: 12
+                bottomPadding: 24
                 spacing: 12
 
                 Row {
@@ -220,7 +228,8 @@ Rectangle {
 
                     Text {
                         text: "SmartShift"
-                        font.pixelSize: 12
+                        font.pixelSize: 16
+                        font.bold: true
                         color: "#444444"
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - smartShiftToggle.width
@@ -267,7 +276,8 @@ Rectangle {
 
                 Text {
                     text: "Invert direction"
-                    font.pixelSize: 12
+                    font.pixelSize: 16
+                    font.bold: true
                     color: "#444444"
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width - invertToggle.width

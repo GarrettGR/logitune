@@ -28,16 +28,17 @@ Item {
         id: canvas
         anchors {
             fill: parent
-            rightMargin: root.activePanelType !== "" ? detailPanel.width : 0
-        }
-        Behavior on anchors.rightMargin {
-            NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
         }
 
         // ── Mouse render (reuses the shared DeviceRender component) ──
+        // Shifts left 130px when detail panel opens
         DeviceRender {
             id: mouseRender
             anchors.centerIn: parent
+            anchors.horizontalCenterOffset: root.activePanelType !== "" ? -130 : 0
+            Behavior on anchors.horizontalCenterOffset {
+                NumberAnimation { duration: 300; easing.type: Easing.InOutCubic }
+            }
         }
 
         // ── Scroll wheel callout — top-right ───────────────────────────────────

@@ -20,21 +20,23 @@ Item {
         width: parent.width
         spacing: 4
 
-        // Optional label + value row
+        // Label + value row — subtitle style: 16px bold, space-between, mb 14px
         Row {
             width: parent.width
             visible: root.label.length > 0
+            bottomPadding: 14
 
             Text {
                 text: root.label
-                font.pixelSize: 12
+                font.pixelSize: 16
+                font.bold: true
                 color: "#444444"
                 width: parent.width - valueLabel.width
             }
             Text {
                 id: valueLabel
-                text: Math.round(slider.value)
-                font.pixelSize: 12
+                text: Math.round(slider.value) + "%"
+                font.pixelSize: 16
                 color: "#814EFA"
                 font.bold: true
             }

@@ -21,62 +21,65 @@ Item {
         mipmap: true
     }
 
-    // ── Button zone overlays (invisible hit areas) ───────────────────────────
-    // Positions tuned for the 220×326 MX Master 3S render at 3/4 angle.
+    // ── Button zone overlays with hotspot circles ────────────────────────────
+    // Positions tuned for the 220x326 MX Master 3S render at 3/4 angle.
+    // Each zone has a 16x16 hotspot circle (2px border, full radius).
 
-    // Button 0 — Left click (top-left half)
-    MouseArea {
-        x: 20; y: 10
-        width: 90; height: 130
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.buttonClicked(0)
-    }
+    readonly property var hotspotPositions: [
+        // 0: Left click centre
+        { zoneX: 20, zoneY: 10, zoneW: 90, zoneH: 130, dotX: 55,  dotY: 70  },
+        // 1: Right click centre
+        { zoneX: 115, zoneY: 10, zoneW: 90, zoneH: 130, dotX: 160, dotY: 70  },
+        // 2: Middle / scroll wheel
+        { zoneX: 85, zoneY: 40, zoneW: 40, zoneH: 70,  dotX: 105, dotY: 75  },
+        // 3: Back (thumb rear)
+        { zoneX: 0, zoneY: 195, zoneW: 45, zoneH: 40,  dotX: 15,  dotY: 215 },
+        // 4: Forward (thumb front)
+        { zoneX: 0, zoneY: 150, zoneW: 45, zoneH: 40,  dotX: 15,  dotY: 170 },
+        // 5: Thumb / gesture
+        { zoneX: 0, zoneY: 170, zoneW: 40, zoneH: 30,  dotX: 12,  dotY: 185 },
+        // 6: Top button (behind scroll)
+        { zoneX: 150, zoneY: 30, zoneW: 40, zoneH: 25,  dotX: 170, dotY: 42  }
+    ]
 
-    // Button 1 — Right click (top-right half)
-    MouseArea {
-        x: 115; y: 10
-        width: 90; height: 130
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.buttonClicked(1)
-    }
+    Repeater {
+        model: 7
 
-    // Button 2 — Middle / scroll wheel click
-    MouseArea {
-        x: 85; y: 40
-        width: 40; height: 70
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.buttonClicked(2)
-    }
+        Item {
+            required property int modelData
 
-    // Button 3 — Back (thumb rear, left side lower)
-    MouseArea {
-        x: 0; y: 195
-        width: 45; height: 40
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.buttonClicked(3)
-    }
+            // Invisible hit area
+            MouseArea {
+                x: root.hotspotPositions[modelData].zoneX
+                y: root.hotspotPositions[modelData].zoneY
+                width:  root.hotspotPositions[modelData].zoneW
+                height: root.hotspotPositions[modelData].zoneH
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.buttonClicked(modelData)
+            }
 
-    // Button 4 — Forward (thumb front, left side upper)
-    MouseArea {
-        x: 0; y: 150
-        width: 45; height: 40
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.buttonClicked(4)
-    }
+            // 16x16 hotspot circle
+            Rectangle {
+                x: root.hotspotPositions[modelData].dotX - 8
+                y: root.hotspotPositions[modelData].dotY - 8
+                width: 16; height: 16
+                radius: 8
+                color: "transparent"
+                border.color: "#814EFA"
+                border.width: 2
+                opacity: 0.6
 
-    // Button 5 — Thumb / gesture button (left side middle)
-    MouseArea {
-        x: 0; y: 170
-        width: 40; height: 30
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.buttonClicked(5)
-    }
+                Behavior on opacity { NumberAnimation { duration: 200 } }
 
-    // Button 6 — Top button (behind scroll wheel, right side)
-    MouseArea {
-        x: 150; y: 30
-        width: 40; height: 25
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.buttonClicked(6)
+                // Pulse on hover (subtle)
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 6; height: 6
+                    radius: 3
+                    color: "#814EFA"
+                    opacity: 0.5
+                }
+            }
+        }
     }
 }

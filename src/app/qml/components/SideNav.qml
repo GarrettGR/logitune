@@ -29,7 +29,7 @@ Rectangle {
         // Device name area at the top of the sidebar
         RowLayout {
             Layout.fillWidth: true
-            Layout.leftMargin: 16
+            Layout.leftMargin: 35
             Layout.rightMargin: 16
             spacing: 8
 
@@ -58,38 +58,51 @@ Rectangle {
 
             delegate: Item {
                 Layout.fillWidth: true
+                Layout.topMargin: index > 0 ? 17 : 0    // 17px vertical margin between tabs
                 height: 40
                 opacity: modelData.enabled ? 1.0 : 0.4
 
-                // 17px vertical margin between tabs — use top margin on pill
                 Rectangle {
                     id: pill
                     anchors {
                         fill: parent
-                        leftMargin: 8
+                        leftMargin: 12
                         rightMargin: 8
-                        topMargin: 2
-                        bottomMargin: 2
                     }
                     radius: 4
                     color: sideNav.currentPage === modelData.name
-                           ? "#814EFA"
+                           ? "transparent"
                            : (itemHover.hovered && modelData.enabled ? "#F5F5F5" : "transparent")
+                    border.color: sideNav.currentPage === modelData.name ? "#6039B2" : "transparent"
+                    border.width: sideNav.currentPage === modelData.name ? 1 : 0
 
-                    Behavior on color { ColorAnimation { duration: 120 } }
+                    // Subtle drop shadow for active tab
+                    layer.enabled: sideNav.currentPage === modelData.name
+                    layer.effect: Item {}
+
+                    Behavior on color { ColorAnimation { duration: 200 } }
+                    Behavior on border.color { ColorAnimation { duration: 200 } }
 
                     RowLayout {
                         anchors {
                             fill: parent
-                            leftMargin: 12
+                            leftMargin: 7
                             rightMargin: 12
+                            topMargin: 0
+                            bottomMargin: 0
                         }
                         spacing: 10
 
-                        Text {
-                            text: modelData.icon
-                            font.pixelSize: 15
-                            color: sideNav.currentPage === modelData.name ? "white" : "#555555"
+                        // 32x32 icon container
+                        Item {
+                            width: 32; height: 32
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.icon
+                                font.pixelSize: 18
+                                color: sideNav.currentPage === modelData.name ? "#814EFA" : "#555555"
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                            }
                         }
 
                         Text {
@@ -97,10 +110,12 @@ Rectangle {
                             font.pixelSize: 13
                             font.letterSpacing: 0.6
                             font.bold: true
-                            color: sideNav.currentPage === modelData.name ? "white" : "#444444"
+                            color: sideNav.currentPage === modelData.name ? "#814EFA" : "#444444"
                             // Strikethrough when disabled
                             font.strikeout: !modelData.enabled
                             Layout.fillWidth: true
+
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
                     }
                 }
@@ -119,7 +134,7 @@ Rectangle {
             }
         }
 
-        // 17px spacing between nav section and bottom
+        // Bottom fill
         Item { Layout.fillHeight: true }
     }
 }

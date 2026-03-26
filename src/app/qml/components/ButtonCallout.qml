@@ -70,19 +70,24 @@ Item {
         Behavior on color        { ColorAnimation { duration: 150 } }
         Behavior on border.color { ColorAnimation { duration: 150 } }
 
-        // Subtle shadow simulation
-        Rectangle {
-            anchors {
-                fill:         parent
-                topMargin:    2
-                leftMargin:   1
-                rightMargin:  1
-                bottomMargin: -2
+        // Drop shadow — drop-shadow(6px 6px 10px) equivalent
+        layer.enabled: true
+        layer.effect: Item {
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -2
+                radius: card.radius + 2
+                color: Qt.rgba(0, 0, 0, 0.12)
+                z: -1
             }
+        }
+
+        // Subtle offset shadow simulation
+        Rectangle {
+            x: 3; y: 3
+            width: parent.width; height: parent.height
             radius:  card.radius
-            color:   "transparent"
-            border.color: Qt.rgba(0, 0, 0, 0.08)
-            border.width: 1
+            color:   Qt.rgba(0, 0, 0, 0.06)
             z: -1
         }
 
@@ -92,21 +97,25 @@ Item {
             y: 8
             spacing: 2
 
-            // Action name (primary, bold)
+            // Action name (primary, bold) — max-width 172px with ellipsis
             Text {
                 text: root.actionName
                 font.pixelSize: 12
                 font.bold: true
                 color: root.selected ? "#FFFFFF" : (hoverHandler.hovered ? "#814EFA" : "#222425")
+                width: Math.min(implicitWidth, 152)
+                elide: Text.ElideRight
 
                 Behavior on color { ColorAnimation { duration: 150 } }
             }
 
-            // Physical button name (secondary)
+            // Physical button name (secondary) — max-width 190px
             Text {
                 text: root.buttonName
                 font.pixelSize: 10
                 color: root.selected ? Qt.rgba(1,1,1,0.75) : "#888888"
+                width: Math.min(implicitWidth, 170)
+                elide: Text.ElideRight
 
                 Behavior on color { ColorAnimation { duration: 150 } }
             }

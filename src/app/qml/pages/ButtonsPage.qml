@@ -70,10 +70,15 @@ Item {
             right:  actionsPanel.left
         }
 
-        // DeviceRender centred in the available space
+        // DeviceRender centred in the available space, shifts left when panel opens
         DeviceRender {
             id: deviceRender
             anchors.centerIn: parent
+            // Shift left by 130px when actions panel is open (translateX equivalent)
+            anchors.horizontalCenterOffset: root.selectedButton >= 0 ? -130 : 0
+            Behavior on anchors.horizontalCenterOffset {
+                NumberAnimation { duration: 300; easing.type: Easing.InOutCubic }
+            }
 
             onButtonClicked: function(buttonId) {
                 root.selectedButton = buttonId
@@ -140,7 +145,7 @@ Item {
            : parent.width
 
         Behavior on x {
-            NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+            NumberAnimation { duration: 200; easing.type: Easing.OutQuad }
         }
 
         onClosed: root.selectedButton = -1

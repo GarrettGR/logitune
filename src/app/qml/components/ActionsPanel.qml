@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import Logitune
 
 // Slide-in Actions panel from the right edge.
-// Width: 340px. Shows current button's action list + contextual controls.
+// Width: 33% of window, clamped 360–478px.
 Rectangle {
     id: root
 
@@ -17,8 +17,11 @@ Rectangle {
     signal closed()
     signal actionSelected(string actionName, string actionType)
 
-    // ── Geometry ───────────────────────────────────────────────────────────
-    width:  340
+    // ── Geometry — percentage-based width ──────────────────────────────────
+    width: {
+        var w = (parent ? parent.width : 960) * 0.33
+        return Math.max(360, Math.min(w, 478))
+    }
     color:  "#F5F5F5"
     radius: 0
 
@@ -100,11 +103,55 @@ Rectangle {
             color: "#F0F0F0"
         }
 
+        // ── Search bar ───────────────────────────────────────────────────────
+        Item {
+            Layout.fillWidth: true
+            Layout.leftMargin: 16
+            Layout.rightMargin: 16
+            height: 80
+
+            Rectangle {
+                anchors {
+                    fill: parent
+                    topMargin: 16
+                    bottomMargin: 16
+                }
+                radius: 4
+                color: "#FFFFFF"
+                border.color: searchInput.activeFocus ? "#814EFA" : "#E1E2E3"
+                border.width: 1
+
+                Behavior on border.color { ColorAnimation { duration: 200 } }
+
+                TextInput {
+                    id: searchInput
+                    anchors {
+                        fill: parent
+                        leftMargin: 12
+                        rightMargin: 12
+                    }
+                    verticalAlignment: TextInput.AlignVCenter
+                    font.pixelSize: 14
+                    color: "#222425"
+                    clip: true
+
+                    Text {
+                        anchors.fill: parent
+                        verticalAlignment: Text.AlignVCenter
+                        text: "Search actions..."
+                        font.pixelSize: 14
+                        color: "#AAAAAA"
+                        visible: !searchInput.text && !searchInput.activeFocus
+                    }
+                }
+            }
+        }
+
         // ── SMART ACTIONS section ──────────────────────────────────────────
         Item {
             Layout.fillWidth: true
-            Layout.leftMargin:  20
-            Layout.rightMargin: 20
+            Layout.leftMargin:  33
+            Layout.rightMargin: 16
             Layout.topMargin:   12
             implicitHeight: smartHeader.implicitHeight + (smartExpanded ? smartBody.implicitHeight + 8 : 0)
             clip: true
@@ -114,13 +161,15 @@ Rectangle {
             RowLayout {
                 id: smartHeader
                 width: parent.width
+                height: 50
                 spacing: 6
 
                 Text {
                     text: "SMART ACTIONS"
-                    font.pixelSize: 11
+                    font.pixelSize: 14
                     font.letterSpacing: 0.8
                     font.bold: true
+                    font.capitalization: Font.AllUppercase
                     color: "#888888"
                     Layout.fillWidth: true
                 }
@@ -166,19 +215,21 @@ Rectangle {
         // ── OTHER ACTIONS section header ───────────────────────────────────
         Item {
             Layout.fillWidth: true
-            Layout.leftMargin:  20
-            Layout.rightMargin: 20
+            Layout.leftMargin:  33
+            Layout.rightMargin: 16
             Layout.topMargin:   10
-            implicitHeight: 20
+            implicitHeight: 50
 
             RowLayout {
                 width: parent.width
+                height: 50
 
                 Text {
                     text: "OTHER ACTIONS"
-                    font.pixelSize: 11
+                    font.pixelSize: 14
                     font.letterSpacing: 0.8
                     font.bold: true
+                    font.capitalization: Font.AllUppercase
                     color: "#888888"
                     Layout.fillWidth: true
                 }
@@ -199,7 +250,7 @@ Rectangle {
 
             delegate: Item {
                 width:  actionList.width
-                height: isSelected ? 48 : 32
+                height: 48
                 required property string name
                 required property string description
                 required property string actionType
@@ -207,56 +258,59 @@ Rectangle {
 
                 readonly property bool isSelected: name === root.currentAction
 
-                Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-
                 Rectangle {
                     anchors {
                         fill: parent
-                        leftMargin:  8
-                        rightMargin: 8
-                        topMargin:   1
-                        bottomMargin: 1
+                        leftMargin:  16
+                        rightMargin: 16
+                        topMargin:   0
+                        bottomMargin: 12
                     }
                     radius: 4
                     color: isSelected
                            ? "#814EFA"
                            : (rowHover.hovered ? "#EEEEFF" : "transparent")
 
-                    Behavior on color { ColorAnimation { duration: 100 } }
+                    Behavior on color { ColorAnimation { duration: 200 } }
 
                     RowLayout {
                         anchors {
                             fill: parent
-                            leftMargin:  12
-                            rightMargin: 12
+                            leftMargin:  24
+                            rightMargin: 16
                         }
-                        spacing: 10
+                        spacing: 16
 
-                        // Radio indicator
-                        Rectangle {
-                            width: 14; height: 14
-                            radius: 7
-                            color: isSelected ? "#FFFFFF" : "transparent"
-                            border.color: isSelected ? "#FFFFFF" : "#BBBBBB"
-                            border.width: 2
+                        // 32x32 icon container with radio indicator
+                        Item {
+                            width: 32; height: 32
 
                             Rectangle {
                                 anchors.centerIn: parent
-                                width: 6; height: 6
-                                radius: 3
-                                color: isSelected ? "#814EFA" : "transparent"
+                                width: 14; height: 14
+                                radius: 7
+                                color: isSelected ? "#FFFFFF" : "transparent"
+                                border.color: isSelected ? "#FFFFFF" : "#BBBBBB"
+                                border.width: 2
+
+                                Rectangle {
+                                    anchors.centerIn: parent
+                                    width: 6; height: 6
+                                    radius: 3
+                                    color: isSelected ? "#814EFA" : "transparent"
+                                }
                             }
                         }
 
                         Text {
                             text: name
-                            font.pixelSize: 13
-                            font.bold: isSelected
+                            font.pixelSize: 20
+                            font.bold: true
                             color: isSelected ? "#FFFFFF" : "#222425"
                             Layout.fillWidth: true
                             elide: Text.ElideRight
 
-                            Behavior on color { ColorAnimation { duration: 100 } }
+                            Behavior on color { ColorAnimation { duration: 200 } }
                         }
                     }
 
