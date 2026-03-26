@@ -107,6 +107,9 @@ bool ActionExecutor::initUinput()
         KEY_Y, KEY_Z,
         KEY_0, KEY_1, KEY_2, KEY_3, KEY_4,
         KEY_5, KEY_6, KEY_7, KEY_8, KEY_9,
+        KEY_MUTE, KEY_PLAYPAUSE, KEY_SYSRQ,
+        KEY_HOME, KEY_END, KEY_PAGEUP, KEY_PAGEDOWN,
+        KEY_BRIGHTNESSUP, KEY_BRIGHTNESSDOWN,
     };
     for (int k : keys)
         ::ioctl(m_uinputFd, UI_SET_KEYBIT, k);
@@ -256,8 +259,17 @@ std::vector<int> ActionExecutor::parseKeystroke(const QString &combo)
         if (tok == QLatin1String("Delete"))      { keys.push_back(KEY_DELETE);      continue; }
         if (tok == QLatin1String("Up"))          { keys.push_back(KEY_UP);          continue; }
         if (tok == QLatin1String("Down"))        { keys.push_back(KEY_DOWN);        continue; }
-        if (tok == QLatin1String("Left"))        { keys.push_back(KEY_LEFT);        continue; }
-        if (tok == QLatin1String("Right"))       { keys.push_back(KEY_RIGHT);       continue; }
+        if (tok == QLatin1String("Left"))        { keys.push_back(KEY_LEFT);          continue; }
+        if (tok == QLatin1String("Right"))       { keys.push_back(KEY_RIGHT);        continue; }
+        if (tok == QLatin1String("Mute"))        { keys.push_back(KEY_MUTE);         continue; }
+        if (tok == QLatin1String("Play"))        { keys.push_back(KEY_PLAYPAUSE);    continue; }
+        if (tok == QLatin1String("Print"))       { keys.push_back(KEY_SYSRQ);        continue; }
+        if (tok == QLatin1String("Home"))        { keys.push_back(KEY_HOME);         continue; }
+        if (tok == QLatin1String("End"))         { keys.push_back(KEY_END);          continue; }
+        if (tok == QLatin1String("PageUp"))      { keys.push_back(KEY_PAGEUP);       continue; }
+        if (tok == QLatin1String("PageDown"))    { keys.push_back(KEY_PAGEDOWN);     continue; }
+        if (tok == QLatin1String("BrightnessUp"))   { keys.push_back(KEY_BRIGHTNESSUP);   continue; }
+        if (tok == QLatin1String("BrightnessDown")) { keys.push_back(KEY_BRIGHTNESSDOWN); continue; }
 
         // F1–F12 (F11/F12 are not sequential with F1-F10)
         if (tok.startsWith(QLatin1Char('F')) && tok.length() >= 2) {
