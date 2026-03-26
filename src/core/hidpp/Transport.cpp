@@ -26,9 +26,9 @@ std::optional<Report> Transport::trySend(const Report &request, int timeoutMs, i
         return std::nullopt;
     }
 
-    // Read responses, skipping ones that don't match our request
+    // Read responses, skipping HID++ 1.0 DJ noise and non-matching reports
     int readAttempts = 0;
-    while (readAttempts < 10) {
+    while (readAttempts < 20) {
         auto responseBytes = m_device->readReport(timeoutMs);
         if (responseBytes.empty()) {
             if (retriesLeft > 0)
@@ -36,11 +36,19 @@ std::optional<Report> Transport::trySend(const Report &request, int timeoutMs, i
             qDebug() << "[Transport] timeout waiting for response";
             return std::nullopt;
         }
+
+        // Skip HID++ 1.0 DJ notifications (reportId=0x10, byte2 >= 0x80)
+        // These are receiver-level messages, not responses to our 2.0 requests.
+        // Don't count them against the attempt limit.
+        if (responseBytes.size() >= 3 && responseBytes[0] == kShortReportId &&
+            responseBytes[2] >= 0x80) {
+            continue; // DJ noise — keep reading without incrementing attempts
+        }
+
         readAttempts++;
 
         auto response = Report::parse(responseBytes);
         if (!response) {
-            qDebug() << "[Transport] failed to parse response";
             continue;
         }
 

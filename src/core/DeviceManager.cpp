@@ -282,28 +282,54 @@ void DeviceManager::probeDevice(const QString &devNode)
 
         // The sysfs descriptor check above already filtered to the correct interface.
 
-        // Probe device indices 1-6
-        auto transport = std::make_unique<hidpp::Transport>(device.get(), nullptr);
+        // Probe device indices 1-6 with raw write+read.
+        // The Bolt receiver may respond with HID++ 1.0 (short) or 2.0 (long) reports.
+        // We accept ANY response from the correct device index as "device present."
         bool found = false;
         for (int slot = 1; slot <= 6; ++slot) {
-            hidpp::Report ping;
-            ping.reportId    = hidpp::kLongReportId;
-            ping.deviceIndex = static_cast<uint8_t>(slot);
-            ping.featureIndex = 0x00;
-            ping.functionId  = 0x00;
-            ping.softwareId  = 0x0A;
-            ping.params[0]   = 0x00;
-            ping.params[1]   = 0x00;
-            ping.paramLength = 16;
+            // Build a HID++ 2.0 Root ping (long report)
+            uint8_t ping[20] = {};
+            ping[0] = 0x11;  // long report
+            ping[1] = static_cast<uint8_t>(slot);
+            ping[2] = 0x00;  // Root feature index
+            ping[3] = 0x0A;  // functionId=0, softwareId=0x0A
 
             qDebug() << "[DeviceManager] pinging slot" << slot << "on" << devNode;
-            auto resp = transport->sendRequest(ping, 2000);
-            if (resp.has_value() && !resp->isError()) {
-                deviceIndex = static_cast<uint8_t>(slot);
-                found = true;
-                qDebug() << "[DeviceManager] found device at slot" << slot;
-                break;
+            int written = device->writeReport(std::span<const uint8_t>(ping, 20));
+            if (written < 0)
+                continue;
+
+            // Read response — accept short (7b) or long (20b), any format
+            auto resp = device->readReport(500);
+            if (resp.empty())
+                continue;
+
+            // Check if the response is from this device index
+            if (resp.size() >= 4 && resp[1] == static_cast<uint8_t>(slot)) {
+                // Got a response from this slot — device is present
+                // Check it's not an error indicating "no device"
+                // HID++ 1.0 error: byte2=0x8F, byte4=0x00 means no error
+                // HID++ 2.0 error: byte2=0xFF means error
+                bool isError = false;
+                if (resp.size() >= 7 && resp[2] == 0x8F && resp[6] != 0x00) {
+                    isError = true; // HID++ 1.0 error
+                }
+                if (resp.size() >= 7 && resp[2] == 0xFF) {
+                    isError = true; // HID++ 2.0 error
+                }
+
+                if (!isError) {
+                    deviceIndex = static_cast<uint8_t>(slot);
+                    found = true;
+                    qDebug() << "[DeviceManager] found device at slot" << slot
+                             << "(response:" << QByteArray(reinterpret_cast<const char*>(resp.data()),
+                                                           static_cast<int>(resp.size())).toHex() << ")";
+                    break;
+                }
             }
+
+            // Drain any extra data (notifications etc)
+            device->readReport(50);
         }
 
         if (!found) {
