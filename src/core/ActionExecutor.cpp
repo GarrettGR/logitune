@@ -87,9 +87,12 @@ bool ActionExecutor::initUinput()
     if (m_uinputFd < 0)
         return false;
 
-    // Enable key events
+    // Enable key and relative events (for scroll wheel emulation)
     ::ioctl(m_uinputFd, UI_SET_EVBIT, EV_KEY);
     ::ioctl(m_uinputFd, UI_SET_EVBIT, EV_SYN);
+    ::ioctl(m_uinputFd, UI_SET_EVBIT, EV_REL);
+    ::ioctl(m_uinputFd, UI_SET_RELBIT, REL_WHEEL);
+    ::ioctl(m_uinputFd, UI_SET_RELBIT, REL_HWHEEL);
 
     // Register all keycodes we might emit
     const int keys[] = {
@@ -204,6 +207,28 @@ void ActionExecutor::injectKeystroke(const QString &combo)
     // Release all keys in reverse order
     for (auto it = keys.rbegin(); it != keys.rend(); ++it)
         sendKey(*it, false);
+    syncUinput();
+}
+
+void ActionExecutor::injectCtrlScroll(int direction)
+{
+    if (m_uinputFd < 0 || direction == 0)
+        return;
+
+    // Press Ctrl
+    sendKey(KEY_LEFTCTRL, true);
+    syncUinput();
+
+    // Emit scroll wheel event
+    struct input_event ev{};
+    ev.type = EV_REL;
+    ev.code = REL_WHEEL;
+    ev.value = direction; // +1 = scroll up (zoom in), -1 = scroll down (zoom out)
+    ::write(m_uinputFd, &ev, sizeof(ev));
+    syncUinput();
+
+    // Release Ctrl
+    sendKey(KEY_LEFTCTRL, false);
     syncUinput();
 }
 

@@ -154,10 +154,8 @@ int main(int argc, char *argv[])
                 else if (delta < 0)
                     actionExecutor.injectKeystroke("VolumeUp");
             } else if (mode == "zoom") {
-                if (delta > 0)
-                    actionExecutor.injectKeystroke("Ctrl+Down");
-                else if (delta < 0)
-                    actionExecutor.injectKeystroke("Ctrl+Up");
+                // Ctrl + scroll wheel = zoom in most apps
+                actionExecutor.injectCtrlScroll(delta > 0 ? -1 : 1);
             }
             // "scroll" mode = native, no events reach here
         });

@@ -40,6 +40,7 @@ public:
 
     void executeAction(const ButtonAction &action);
     void injectKeystroke(const QString &combo);
+    void injectCtrlScroll(int direction); // +1 = zoom in, -1 = zoom out
     void executeDBusCall(const QString &spec);
     void launchApp(const QString &command);
 
