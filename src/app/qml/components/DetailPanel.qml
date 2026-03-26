@@ -109,6 +109,24 @@ Rectangle {
             width: parent.width
             spacing: 20
 
+            // Guard: don't fire device writes during initial binding
+            property bool ready: false
+            Component.onCompleted: Qt.callLater(function() { ready = true })
+
+            // Scrolling speed — maps to SmartShift threshold (higher = faster freespin trigger)
+            LogituneSlider {
+                width: parent.width
+                label: "Scrolling speed"
+                from: 1
+                to: 100
+                value: DeviceModel.smartShiftThreshold
+                onPressedChanged: {
+                    if (!pressed && ready) {
+                        DeviceModel.setSmartShift(DeviceModel.smartShiftEnabled, value)
+                    }
+                }
+            }
+
             // Scroll direction radio group
             Column {
                 width: parent.width
@@ -125,6 +143,7 @@ Rectangle {
                 ButtonGroup {
                     id: directionGroup
                     onCheckedButtonChanged: {
+                        if (!ready) return
                         var invert = (checkedButton === naturalRadio)
                         DeviceModel.setScrollConfig(DeviceModel.scrollHiRes, invert)
                     }
@@ -214,6 +233,7 @@ Rectangle {
                     id: smoothToggle
                     checked: DeviceModel.scrollHiRes
                     onCheckedChanged: {
+                        if (!ready) return
                         DeviceModel.setScrollConfig(checked, DeviceModel.scrollInvert)
                     }
                 }
@@ -242,6 +262,7 @@ Rectangle {
                         id: smartShiftToggle
                         checked: DeviceModel.smartShiftEnabled
                         onCheckedChanged: {
+                            if (!ready) return
                             DeviceModel.setSmartShift(checked, smartShiftSlider.value)
                         }
                     }
@@ -263,7 +284,7 @@ Rectangle {
                     Connections {
                         target: smartShiftSlider
                         function onPressedChanged() {
-                            if (!smartShiftSlider.pressed) {
+                            if (!smartShiftSlider.pressed && ready) {
                                 DeviceModel.setSmartShift(smartShiftToggle.checked, smartShiftSlider.value)
                             }
                         }
