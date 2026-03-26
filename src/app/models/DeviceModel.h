@@ -44,9 +44,12 @@ public:
     Q_INVOKABLE void setDPI(int value);
     Q_INVOKABLE void setSmartShift(bool enabled, int threshold);
     Q_INVOKABLE void setScrollConfig(bool hiRes, bool invert);
+    Q_INVOKABLE void setThumbWheelMode(const QString &mode);
     Q_INVOKABLE void resetAllProfiles();
+    Q_PROPERTY(QString thumbWheelMode READ thumbWheelMode NOTIFY thumbWheelModeChanged)
     bool scrollHiRes() const;
     bool scrollInvert() const;
+    QString thumbWheelMode() const;
 
     // Called from main integration to sync profile state into the model
     void setCurrentDPI(int dpi);
@@ -63,6 +66,7 @@ signals:
     void smartShiftEnabledChanged();
     void smartShiftThresholdChanged();
     void scrollConfigChanged();
+    void thumbWheelModeChanged();
     void activeProfileNameChanged();
 
 private:

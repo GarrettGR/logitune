@@ -118,6 +118,19 @@ void DeviceModel::setScrollConfig(bool hiRes, bool invert)
     if (m_dm) m_dm->setScrollConfig(hiRes, invert);
 }
 
+QString DeviceModel::thumbWheelMode() const
+{
+    return m_dm ? m_dm->thumbWheelMode() : "scroll";
+}
+
+void DeviceModel::setThumbWheelMode(const QString &mode)
+{
+    if (m_dm) {
+        m_dm->setThumbWheelMode(mode);
+        emit thumbWheelModeChanged();
+    }
+}
+
 void DeviceModel::resetAllProfiles()
 {
     qDebug() << "[DeviceModel] resetAllProfiles requested";

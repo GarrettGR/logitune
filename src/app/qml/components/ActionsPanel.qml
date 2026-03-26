@@ -13,9 +13,19 @@ Rectangle {
     property string buttonName:   ""
     property string currentAction: ""
     property string currentActionType: ""
+    property bool   isWheel:      false  // true for thumb wheel — shows wheel-specific modes
 
     signal closed()
     signal actionSelected(string actionName, string actionType)
+    signal wheelModeSelected(string mode)  // "scroll", "zoom", "volume"
+
+    // Wheel mode options
+    readonly property var wheelModes: [
+        { name: "Horizontal scroll", mode: "scroll",  desc: "Native horizontal scrolling" },
+        { name: "Zoom in/out",       mode: "zoom",    desc: "Ctrl + scroll for zoom" },
+        { name: "Volume control",    mode: "volume",  desc: "Adjust system volume" },
+        { name: "No action",         mode: "none",    desc: "Disable thumb wheel" },
+    ]
 
     // ── Geometry — percentage-based width ──────────────────────────────────
     width: {
@@ -103,11 +113,78 @@ Rectangle {
             color: "#F0F0F0"
         }
 
-        // ── Search bar ───────────────────────────────────────────────────────
+        // ── Wheel mode list (shown when isWheel) ─────────────────────────────
+        ListView {
+            id: wheelList
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.topMargin: 12
+            visible: root.isWheel
+            clip: true
+            model: root.wheelModes
+            spacing: 5
+
+            delegate: Item {
+                width: wheelList.width
+                height: wheelRow.height
+
+                readonly property bool isCurrent: DeviceModel.thumbWheelMode === modelData.mode
+                        || (modelData.mode === "scroll" && DeviceModel.thumbWheelMode === undefined)
+
+                Rectangle {
+                    id: wheelRow
+                    anchors {
+                        left: parent.left; right: parent.right
+                        leftMargin: wheelList.width * 0.04
+                        rightMargin: wheelList.width * 0.04
+                    }
+                    height: isCurrent ? 48 : 32
+                    Behavior on height { NumberAnimation { duration: 200 } }
+                    radius: 4
+                    color: isCurrent ? "#814EFA" : (wheelHover.hovered ? "#F0EDFF" : "transparent")
+                    border.color: isCurrent ? "transparent" : (wheelHover.hovered ? "#D4C5FF" : "transparent")
+                    border.width: 1
+
+                    Rectangle {
+                        anchors { left: parent.left; leftMargin: 15; verticalCenter: parent.verticalCenter }
+                        width: 18; height: 18; radius: 9
+                        color: isCurrent ? "#FFFFFF" : (wheelHover.hovered ? "#EAE6F5" : "#E1E2E3")
+                        border.color: isCurrent ? "#814EFA" : "transparent"
+                        border.width: isCurrent ? 6 : 0
+                    }
+
+                    Text {
+                        anchors {
+                            left: parent.left; leftMargin: 48
+                            right: parent.right; rightMargin: 8
+                            verticalCenter: parent.verticalCenter
+                        }
+                        text: modelData.name
+                        font.pixelSize: 14
+                        font.bold: isCurrent
+                        color: isCurrent ? "#FFFFFF" : (wheelHover.hovered ? "#814EFA" : "#222425")
+                        elide: Text.ElideRight
+                    }
+
+                    HoverHandler { id: wheelHover }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.wheelModeSelected(modelData.mode)
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Search bar (hidden for wheel) ────────────────────────────────────
         Item {
             Layout.fillWidth: true
             Layout.leftMargin: 16
             Layout.rightMargin: 16
+            visible: !root.isWheel
             height: 80
 
             Rectangle {
@@ -151,9 +228,10 @@ Rectangle {
             }
         }
 
-        // ── SMART ACTIONS section ──────────────────────────────────────────
+        // ── SMART ACTIONS section (hidden for wheel) ─────────────────────────
         Item {
             Layout.fillWidth: true
+            visible: !root.isWheel
             Layout.leftMargin:  33
             Layout.rightMargin: 16
             Layout.topMargin:   12
@@ -214,10 +292,12 @@ Rectangle {
             Layout.topMargin: 8
             height: 1
             color: "#F0F0F0"
+            visible: !root.isWheel
         }
 
-        // ── OTHER ACTIONS section header ───────────────────────────────────
+        // ── OTHER ACTIONS section header (hidden for wheel) ──────────────
         Item {
+            visible: !root.isWheel
             Layout.fillWidth: true
             Layout.leftMargin:  33
             Layout.rightMargin: 16
@@ -240,8 +320,9 @@ Rectangle {
             }
         }
 
-        // ── Action list ────────────────────────────────────────────────────
+        // ── Action list (hidden for wheel) ────────────────────────────────
         ListView {
+            visible: !root.isWheel
             id: actionList
             Layout.fillWidth: true
             Layout.fillHeight: true

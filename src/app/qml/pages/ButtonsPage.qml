@@ -167,6 +167,13 @@ Item {
                 ButtonModel.setAction(root.selectedButton, actionName, actionType)
             }
         }
+
+        onWheelModeSelected: function(mode) {
+            DeviceModel.setThumbWheelMode(mode)
+            // Update callout label
+            var modeNames = {"scroll": "Horizontal scroll", "zoom": "Zoom in/out", "volume": "Volume control", "none": "No action"}
+            ButtonModel.setAction(7, modeNames[mode] || mode, mode === "scroll" ? "default" : "wheel-mode")
+        }
     }
 
     // ── Helper ───────────────────────────────────────────────────────────────
@@ -187,5 +194,6 @@ Item {
         actionsPanel.buttonName        = label
         actionsPanel.currentAction     = actionName
         actionsPanel.currentActionType = ButtonModel.actionTypeForButton(buttonId)
+        actionsPanel.isWheel           = (buttonId === 7) // thumb wheel
     }
 }
