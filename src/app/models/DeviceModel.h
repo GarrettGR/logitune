@@ -19,6 +19,8 @@ class DeviceModel : public QObject {
     Q_PROPERTY(int dpiStep READ dpiStep CONSTANT)
     Q_PROPERTY(bool smartShiftEnabled READ smartShiftEnabled NOTIFY smartShiftEnabledChanged)
     Q_PROPERTY(int smartShiftThreshold READ smartShiftThreshold NOTIFY smartShiftThresholdChanged)
+    Q_PROPERTY(bool scrollHiRes READ scrollHiRes NOTIFY scrollConfigChanged)
+    Q_PROPERTY(bool scrollInvert READ scrollInvert NOTIFY scrollConfigChanged)
     Q_PROPERTY(QString activeProfileName READ activeProfileName NOTIFY activeProfileNameChanged)
 
 public:
@@ -41,7 +43,10 @@ public:
 
     Q_INVOKABLE void setDPI(int value);
     Q_INVOKABLE void setSmartShift(bool enabled, int threshold);
+    Q_INVOKABLE void setScrollConfig(bool hiRes, bool invert);
     Q_INVOKABLE void resetAllProfiles();
+    bool scrollHiRes() const;
+    bool scrollInvert() const;
 
     // Called from main integration to sync profile state into the model
     void setCurrentDPI(int dpi);
@@ -57,6 +62,7 @@ signals:
     void currentDPIChanged();
     void smartShiftEnabledChanged();
     void smartShiftThresholdChanged();
+    void scrollConfigChanged();
     void activeProfileNameChanged();
 
 private:

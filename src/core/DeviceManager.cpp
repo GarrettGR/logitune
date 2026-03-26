@@ -3,6 +3,7 @@
 #include "hidpp/features/DeviceName.h"
 #include "hidpp/features/AdjustableDPI.h"
 #include "hidpp/features/SmartShift.h"
+#include "hidpp/features/HiResWheel.h"
 
 #include <QDateTime>
 #include <QDebug>
@@ -459,6 +460,27 @@ void DeviceManager::enumerateAndSetup()
         }
     }
 
+    // Read scroll wheel config
+    if (m_features->hasFeature(hidpp::FeatureId::HiResWheel)) {
+        auto modeResp = m_features->call(m_transport.get(), m_deviceIndex,
+                                         hidpp::FeatureId::HiResWheel,
+                                         hidpp::features::HiResWheel::kFnGetWheelMode);
+        if (modeResp.has_value()) {
+            m_scrollModeByte = modeResp->params[0];
+            auto cfg = hidpp::features::HiResWheel::parseWheelMode(*modeResp);
+            m_scrollHiRes = cfg.hiRes;
+            m_scrollInvert = cfg.invert;
+            qDebug() << "[DeviceManager] Scroll: hiRes=" << m_scrollHiRes << "invert=" << m_scrollInvert;
+        }
+        auto ratchetResp = m_features->call(m_transport.get(), m_deviceIndex,
+                                            hidpp::FeatureId::HiResWheel,
+                                            hidpp::features::HiResWheel::kFnGetRatchetSwitch);
+        if (ratchetResp.has_value()) {
+            m_scrollRatchet = hidpp::features::HiResWheel::parseRatchetSwitch(*ratchetResp);
+            qDebug() << "[DeviceManager] Scroll: ratchet=" << m_scrollRatchet;
+        }
+    }
+
     // Update state and emit signals
     bool nameChanged    = (m_deviceName != name);
     bool levelChanged   = (m_batteryLevel != battLevel);
@@ -636,6 +658,10 @@ int DeviceManager::dpiStep() const { return m_dpiStep; }
 bool DeviceManager::smartShiftEnabled() const { return m_smartShiftEnabled; }
 int DeviceManager::smartShiftThreshold() const { return m_smartShiftThreshold; }
 
+bool DeviceManager::scrollHiRes() const { return m_scrollHiRes; }
+bool DeviceManager::scrollInvert() const { return m_scrollInvert; }
+bool DeviceManager::scrollRatchet() const { return m_scrollRatchet; }
+
 hidpp::FeatureDispatcher *DeviceManager::features() const { return m_features.get(); }
 hidpp::Transport *DeviceManager::transport() const { return m_transport.get(); }
 uint8_t DeviceManager::deviceIndex() const { return m_deviceIndex; }
@@ -705,6 +731,34 @@ void DeviceManager::setSmartShift(bool enabled, int threshold)
                        hidpp::features::SmartShift::kFnSetConfig,
                        std::span<const uint8_t>(params));
         qDebug() << "[DeviceManager] SmartShift set:" << enabled << "threshold:" << threshold;
+    });
+}
+
+void DeviceManager::setScrollConfig(bool hiRes, bool invert)
+{
+    if (!m_connected || !m_features || !m_transport)
+        return;
+    if (!m_features->hasFeature(hidpp::FeatureId::HiResWheel))
+        return;
+
+    m_scrollHiRes = hiRes;
+    m_scrollInvert = invert;
+    emit scrollConfigChanged();
+
+    auto *transport = m_transport.get();
+    auto *features = m_features.get();
+    uint8_t devIdx = m_deviceIndex;
+    uint8_t currentMode = m_scrollModeByte;
+    QMutex *mutex = &m_hidrawMutex;
+
+    QtConcurrent::run([transport, features, devIdx, hiRes, invert, currentMode, mutex]() {
+        QMutexLocker lock(mutex);
+        auto params = hidpp::features::HiResWheel::buildSetWheelMode(currentMode, hiRes, invert);
+        features->call(transport, devIdx,
+                       hidpp::FeatureId::HiResWheel,
+                       hidpp::features::HiResWheel::kFnSetWheelMode,
+                       std::span<const uint8_t>(params));
+        qDebug() << "[DeviceManager] Scroll set: hiRes=" << hiRes << "invert=" << invert;
     });
 }
 

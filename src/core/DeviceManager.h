@@ -27,6 +27,9 @@ class DeviceManager : public QObject {
     Q_PROPERTY(int dpiStep READ dpiStep CONSTANT)
     Q_PROPERTY(bool smartShiftEnabled READ smartShiftEnabled NOTIFY smartShiftChanged)
     Q_PROPERTY(int smartShiftThreshold READ smartShiftThreshold NOTIFY smartShiftChanged)
+    Q_PROPERTY(bool scrollHiRes READ scrollHiRes NOTIFY scrollConfigChanged)
+    Q_PROPERTY(bool scrollInvert READ scrollInvert NOTIFY scrollConfigChanged)
+    Q_PROPERTY(bool scrollRatchet READ scrollRatchet NOTIFY scrollConfigChanged)
 
 public:
     explicit DeviceManager(QObject *parent = nullptr);
@@ -56,6 +59,10 @@ public:
     // Set device settings (calls HID++ directly)
     Q_INVOKABLE void setDPI(int value);
     Q_INVOKABLE void setSmartShift(bool enabled, int threshold);
+    Q_INVOKABLE void setScrollConfig(bool hiRes, bool invert);
+    bool scrollHiRes() const;
+    bool scrollInvert() const;
+    bool scrollRatchet() const;
 
     // Access to internals for other components
     hidpp::FeatureDispatcher *features() const;
@@ -70,6 +77,7 @@ signals:
     void connectionTypeChanged();
     void currentDPIChanged();
     void smartShiftChanged();
+    void scrollConfigChanged();
     void deviceDisconnected();
     void transportSwitched(const QString &newType);
     void divertedButtonPressed(uint16_t controlId, bool pressed);
@@ -120,6 +128,10 @@ private:
     int m_dpiStep = 50;
     bool m_smartShiftEnabled = false;
     int m_smartShiftThreshold = 0;
+    bool m_scrollHiRes = false;
+    bool m_scrollInvert = false;
+    bool m_scrollRatchet = true;
+    uint8_t m_scrollModeByte = 0; // raw mode byte for read-modify-write
 };
 
 } // namespace logitune

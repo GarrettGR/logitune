@@ -29,6 +29,8 @@ void DeviceModel::setDeviceManager(DeviceManager *dm)
                 emit smartShiftEnabledChanged();
                 emit smartShiftThresholdChanged();
             });
+    connect(dm, &DeviceManager::scrollConfigChanged,
+            this, &DeviceModel::scrollConfigChanged);
 }
 
 bool DeviceModel::deviceConnected() const
@@ -99,6 +101,21 @@ void DeviceModel::setDPI(int value)
 void DeviceModel::setSmartShift(bool enabled, int threshold)
 {
     if (m_dm) m_dm->setSmartShift(enabled, threshold);
+}
+
+bool DeviceModel::scrollHiRes() const
+{
+    return m_dm ? m_dm->scrollHiRes() : false;
+}
+
+bool DeviceModel::scrollInvert() const
+{
+    return m_dm ? m_dm->scrollInvert() : false;
+}
+
+void DeviceModel::setScrollConfig(bool hiRes, bool invert)
+{
+    if (m_dm) m_dm->setScrollConfig(hiRes, invert);
 }
 
 void DeviceModel::resetAllProfiles()

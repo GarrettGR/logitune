@@ -2,22 +2,29 @@
 
 namespace logitune::hidpp::features {
 
-ScrollConfig HiResWheel::parseConfig(const Report &r)
+ScrollConfig HiResWheel::parseWheelMode(const Report &r)
 {
-    ScrollConfig cfg{};
-    cfg.hiRes   = (r.params[0] & 0x01) != 0;
-    cfg.invert  = (r.params[0] & 0x02) != 0;
-    // params[1]: 0x01 = ratchet, 0x02 = freespin
-    cfg.ratchet = (r.params[1] == 0x01);
+    // Mode byte: bit0=diversion, bit1=hiRes, bit2=invert
+    uint8_t mode = r.params[0];
+    ScrollConfig cfg;
+    cfg.hiRes   = (mode & 0x02) != 0;
+    cfg.invert  = (mode & 0x04) != 0;
+    cfg.ratchet = false; // filled separately via getRatchetSwitch
     return cfg;
 }
 
-std::vector<uint8_t> HiResWheel::buildSetConfig(bool hiRes, bool invert)
+bool HiResWheel::parseRatchetSwitch(const Report &r)
 {
-    uint8_t flags = 0;
-    if (hiRes)  flags |= 0x01;
-    if (invert) flags |= 0x02;
-    return {flags};
+    return (r.params[0] & 0x01) != 0;
+}
+
+std::vector<uint8_t> HiResWheel::buildSetWheelMode(uint8_t currentMode, bool hiRes, bool invert)
+{
+    // Read-modify-write: preserve bit 0 (diversion), set bits 1+2
+    uint8_t newMode = currentMode & 0x01;
+    if (hiRes)  newMode |= 0x02;
+    if (invert) newMode |= 0x04;
+    return { newMode };
 }
 
 } // namespace logitune::hidpp::features

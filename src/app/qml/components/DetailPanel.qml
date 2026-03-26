@@ -129,12 +129,18 @@ Rectangle {
                     bottomPadding: 14
                 }
 
-                ButtonGroup { id: directionGroup }
+                ButtonGroup {
+                    id: directionGroup
+                    onCheckedButtonChanged: {
+                        var invert = (checkedButton === naturalRadio)
+                        DeviceModel.setScrollConfig(DeviceModel.scrollHiRes, invert)
+                    }
+                }
 
                 RadioButton {
                     id: naturalRadio
                     text: "Natural"
-                    checked: true
+                    checked: DeviceModel.scrollInvert
                     ButtonGroup.group: directionGroup
 
                     contentItem: Text {
@@ -167,6 +173,7 @@ Rectangle {
                 RadioButton {
                     id: standardRadio
                     text: "Standard"
+                    checked: !DeviceModel.scrollInvert
                     ButtonGroup.group: directionGroup
 
                     contentItem: Text {
@@ -212,7 +219,10 @@ Rectangle {
 
                 LogituneToggle {
                     id: smoothToggle
-                    checked: false
+                    checked: DeviceModel.scrollHiRes
+                    onCheckedChanged: {
+                        DeviceModel.setScrollConfig(checked, DeviceModel.scrollInvert)
+                    }
                 }
             }
 
