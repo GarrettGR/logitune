@@ -313,14 +313,17 @@ Rectangle {
     Component {
         id: pointerSpeedContent
 
-        Column {
-            width: parent.width
-            spacing: 24
-            padding: 32
+        Item {
+            width: parent ? parent.width : 340
+            implicitHeight: dpiCol.implicitHeight + 64
 
-            // DPI slider — reads from DeviceModel, writes on release
             Column {
-                width: parent.width - 64
+                id: dpiCol
+                anchors {
+                    left: parent.left; right: parent.right
+                    top: parent.top
+                    margins: 32
+                }
                 spacing: 8
 
                 RowLayout {
@@ -343,6 +346,7 @@ Rectangle {
                 Slider {
                     id: dpiSlider
                     width: parent.width
+                    height: 32
                     from: DeviceModel.minDPI
                     to: DeviceModel.maxDPI
                     stepSize: DeviceModel.dpiStep

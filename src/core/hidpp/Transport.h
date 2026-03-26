@@ -3,6 +3,7 @@
 #include "HidrawDevice.h"
 
 #include <QObject>
+#include <QMutex>
 #include <optional>
 
 namespace logitune::hidpp {
@@ -12,8 +13,12 @@ class Transport : public QObject {
 public:
     explicit Transport(HidrawDevice *device, QObject *parent = nullptr);
 
+    // Thread-safe: can be called from any thread.
+    // If called from a different thread than the one owning the fd,
+    // it uses a mutex to serialize access.
     std::optional<Report> sendRequest(const Report &request, int timeoutMs = 2000);
-    void run();   // I/O loop — blocks until stop() is called
+
+    void run();   // Notification listener loop — call from I/O thread
     void stop();
 
 signals:
@@ -25,6 +30,7 @@ private:
     std::optional<Report> trySend(const Report &request, int timeoutMs, int retriesLeft);
 
     HidrawDevice *m_device;
+    QMutex m_fdMutex;  // Serializes all fd access (read + write)
     bool m_running = false;
 };
 

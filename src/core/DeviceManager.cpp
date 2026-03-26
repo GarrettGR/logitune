@@ -636,9 +636,6 @@ void DeviceManager::setDPI(int value)
     value = qBound(m_minDPI, value, m_maxDPI);
     value = (value / m_dpiStep) * m_dpiStep;
 
-    // Pause I/O thread to avoid fd contention
-    stopIoThread();
-
     auto params = hidpp::features::AdjustableDPI::buildSetDPI(value);
     auto resp = m_features->call(m_transport.get(), m_deviceIndex,
                                  hidpp::FeatureId::AdjustableDPI,
@@ -651,8 +648,6 @@ void DeviceManager::setDPI(int value)
     } else {
         qWarning() << "[DeviceManager] failed to set DPI to" << value;
     }
-
-    startIoThread();
 }
 
 // ---------------------------------------------------------------------------
@@ -668,8 +663,6 @@ void DeviceManager::setSmartShift(bool enabled, int threshold)
 
     threshold = qBound(1, threshold, 255);
 
-    stopIoThread();
-
     auto params = hidpp::features::SmartShift::buildSetConfig(enabled, threshold);
     auto resp = m_features->call(m_transport.get(), m_deviceIndex,
                                  hidpp::FeatureId::SmartShift,
@@ -683,8 +676,6 @@ void DeviceManager::setSmartShift(bool enabled, int threshold)
     } else {
         qWarning() << "[DeviceManager] failed to set SmartShift";
     }
-
-    startIoThread();
 }
 
 } // namespace logitune
