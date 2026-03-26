@@ -59,6 +59,19 @@ DeviceManager::DeviceManager(QObject *parent)
 
 DeviceManager::~DeviceManager()
 {
+    // Undivert all buttons before shutdown to restore native behavior
+    if (m_connected && m_features && m_transport &&
+        m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4)) {
+        static const uint16_t kAllButtons[] = { 0x0052, 0x0053, 0x0056, 0x00C3, 0x00C4 };
+        for (uint16_t cid : kAllButtons) {
+            auto params = hidpp::features::ReprogControls::buildSetDivert(cid, false);
+            m_features->call(m_transport.get(), m_deviceIndex,
+                             hidpp::FeatureId::ReprogControlsV4,
+                             hidpp::features::ReprogControls::kFnSetControlReporting,
+                             std::span<const uint8_t>(params));
+        }
+    }
+
     stopIoThread();
 
     if (m_udevNotifier) {
@@ -510,8 +523,19 @@ void DeviceManager::enumerateAndSetup()
         }
     }
 
-    // Don't divert buttons on startup — all keep native function.
-    // Buttons are diverted on-demand via divertButton() when user assigns a custom action.
+    // Undivert ALL buttons to ensure clean native state on startup.
+    // Previous sessions may have left diversions active on the device.
+    if (m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4)) {
+        static const uint16_t kAllButtons[] = { 0x0052, 0x0053, 0x0056, 0x00C3, 0x00C4 };
+        for (uint16_t cid : kAllButtons) {
+            auto params = hidpp::features::ReprogControls::buildSetDivert(cid, false);
+            m_features->call(m_transport.get(), m_deviceIndex,
+                             hidpp::FeatureId::ReprogControlsV4,
+                             hidpp::features::ReprogControls::kFnSetControlReporting,
+                             std::span<const uint8_t>(params));
+        }
+        qDebug() << "[DeviceManager] all buttons undiverted (clean native state)";
+    }
 
     // Update state and emit signals
     bool nameChanged    = (m_deviceName != name);
