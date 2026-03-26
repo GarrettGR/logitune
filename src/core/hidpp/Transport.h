@@ -3,7 +3,6 @@
 #include "HidrawDevice.h"
 
 #include <QObject>
-#include <QMutex>
 #include <optional>
 
 namespace logitune::hidpp {
@@ -30,7 +29,6 @@ private:
     std::optional<Report> trySend(const Report &request, int timeoutMs, int retriesLeft);
 
     HidrawDevice *m_device;
-    QMutex m_fdMutex;  // Serializes all fd access (read + write)
     bool m_running = false;
 };
 

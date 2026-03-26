@@ -338,8 +338,25 @@ void DeviceManager::probeDevice(const QString &devNode)
     // Enumerate features and read initial state
     enumerateAndSetup();
 
-    // Start I/O thread
-    startIoThread();
+    // Kernel-driven notification: QSocketNotifier fires when hidraw has data
+    if (!m_hidrawNotifier) {
+        m_hidrawNotifier = new QSocketNotifier(m_device->fd(), QSocketNotifier::Read, this);
+        connect(m_hidrawNotifier, &QSocketNotifier::activated, this, [this]() {
+            // tryLock: if a settings write holds the mutex, skip — data stays in fd buffer
+            // and the notifier will fire again when the mutex is released
+            if (!m_hidrawMutex.tryLock())
+                return;
+            auto bytes = m_device->readReport(0); // non-blocking, data already available
+            m_hidrawMutex.unlock();
+            if (bytes.empty())
+                return;
+            auto report = hidpp::Report::parse(bytes);
+            if (!report)
+                return;
+            handleNotification(*report);
+        });
+    }
+    m_hidrawNotifier->setEnabled(true);
 }
 
 // ---------------------------------------------------------------------------
@@ -637,26 +654,24 @@ void DeviceManager::setDPI(int value)
     value = qBound(m_minDPI, value, m_maxDPI);
     value = (value / m_dpiStep) * m_dpiStep;
 
-    // Optimistically update UI immediately
+    // Optimistic UI update
     m_currentDPI = value;
     emit currentDPIChanged();
 
-    // Send HID++ command asynchronously on a worker thread
+    // Run HID++ write on background thread, mutex blocks notifier during write+read
     auto *transport = m_transport.get();
     auto *features = m_features.get();
     uint8_t devIdx = m_deviceIndex;
+    QMutex *mutex = &m_hidrawMutex;
 
-    QtConcurrent::run([transport, features, devIdx, value]() {
+    QtConcurrent::run([transport, features, devIdx, value, mutex]() {
+        QMutexLocker lock(mutex);
         auto params = hidpp::features::AdjustableDPI::buildSetDPI(value);
-        auto resp = features->call(transport, devIdx,
-                                   hidpp::FeatureId::AdjustableDPI,
-                                   hidpp::features::AdjustableDPI::kFnSetSensorDpi,
-                                   params);
-        if (resp.has_value()) {
-            qDebug() << "[DeviceManager] DPI set to" << value;
-        } else {
-            qWarning() << "[DeviceManager] failed to set DPI to" << value;
-        }
+        features->call(transport, devIdx,
+                       hidpp::FeatureId::AdjustableDPI,
+                       hidpp::features::AdjustableDPI::kFnSetSensorDpi,
+                       params);
+        qDebug() << "[DeviceManager] DPI set to" << value;
     });
 }
 
@@ -680,18 +695,16 @@ void DeviceManager::setSmartShift(bool enabled, int threshold)
     auto *transport = m_transport.get();
     auto *features = m_features.get();
     uint8_t devIdx = m_deviceIndex;
+    QMutex *mutex = &m_hidrawMutex;
 
-    QtConcurrent::run([transport, features, devIdx, enabled, threshold]() {
+    QtConcurrent::run([transport, features, devIdx, enabled, threshold, mutex]() {
+        QMutexLocker lock(mutex);
         auto params = hidpp::features::SmartShift::buildSetConfig(enabled, threshold);
-        auto resp = features->call(transport, devIdx,
-                                   hidpp::FeatureId::SmartShift,
-                                   hidpp::features::SmartShift::kFnSetConfig,
-                                   std::span<const uint8_t>(params));
-        if (resp.has_value()) {
-            qDebug() << "[DeviceManager] SmartShift set:" << enabled << "threshold:" << threshold;
-        } else {
-            qWarning() << "[DeviceManager] failed to set SmartShift";
-        }
+        features->call(transport, devIdx,
+                       hidpp::FeatureId::SmartShift,
+                       hidpp::features::SmartShift::kFnSetConfig,
+                       std::span<const uint8_t>(params));
+        qDebug() << "[DeviceManager] SmartShift set:" << enabled << "threshold:" << threshold;
     });
 }
 

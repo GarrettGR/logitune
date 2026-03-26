@@ -12,7 +12,6 @@ Transport::Transport(HidrawDevice *device, QObject *parent)
 
 std::optional<Report> Transport::sendRequest(const Report &request, int timeoutMs)
 {
-    QMutexLocker lock(&m_fdMutex);
     return trySend(request, timeoutMs, /*retriesLeft=*/3);
 }
 
@@ -85,20 +84,16 @@ void Transport::run()
     qDebug() << "[Transport] I/O thread started, listening for notifications";
     m_running = true;
     while (m_running) {
-        // Try to acquire the mutex — if sendRequest holds it, just skip this cycle
-        if (m_fdMutex.tryLock(10)) {
-            auto bytes = m_device->readReport(/*timeoutMs=*/100);
-            if (!bytes.empty()) {
-                auto report = Report::parse(bytes);
-                if (report) {
-                    if (report->isError()) {
-                        emit deviceError(report->errorCode(), report->params[0]);
-                    } else {
-                        emit notificationReceived(*report);
-                    }
+        auto bytes = m_device->readReport(/*timeoutMs=*/100);
+        if (!bytes.empty()) {
+            auto report = Report::parse(bytes);
+            if (report) {
+                if (report->isError()) {
+                    emit deviceError(report->errorCode(), report->params[0]);
+                } else {
+                    emit notificationReceived(*report);
                 }
             }
-            m_fdMutex.unlock();
         }
     }
     qDebug() << "[Transport] I/O thread stopped";
