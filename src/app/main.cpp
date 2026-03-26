@@ -97,22 +97,22 @@ int main(int argc, char *argv[])
     // 5. Diverted button press → profile action lookup → execute
     QObject::connect(&deviceManager, &logitune::DeviceManager::divertedButtonPressed,
         [&profileEngine, &actionExecutor](uint16_t controlId, bool pressed) {
-            if (!pressed) return; // act only on press, not release
+            qDebug() << "[main] button event: CID=" << Qt::hex << controlId << "pressed=" << pressed;
+            if (!pressed) return;
 
             const auto &profile = profileEngine.activeProfile();
 
-            // Map controlId to button index 0-6.
-            // MX Master 3S control IDs (from ReprogControls enumeration):
+            // Map controlId to button index (from real device enumeration):
             //   0x0050 = left button  → 0
             //   0x0051 = right button → 1
             //   0x0052 = middle/wheel → 2
-            //   0x0053 = back        → 3
-            //   0x0054 = forward     → 4
-            //   0x00d0 = thumb wheel → 5
-            //   0x00c3 = gesture     → 6
+            //   0x0053 = back         → 3
+            //   0x0056 = forward      → 4
+            //   0x00C3 = gesture      → 5
+            //   0x00C4 = top button   → 6
             static const std::unordered_map<uint16_t, int> kControlMap = {
                 {0x0050, 0}, {0x0051, 1}, {0x0052, 2},
-                {0x0053, 3}, {0x0054, 4}, {0x00d0, 5}, {0x00c3, 6}
+                {0x0053, 3}, {0x0056, 4}, {0x00C3, 5}, {0x00C4, 6}
             };
 
             auto it = kControlMap.find(controlId);
@@ -124,7 +124,28 @@ int main(int argc, char *argv[])
             int idx = it->second;
             if (idx < 0 || idx >= static_cast<int>(profile.buttons.size())) return;
 
-            actionExecutor.executeAction(profile.buttons[idx]);
+            const auto &action = profile.buttons[idx];
+            qDebug() << "[main] executing action: type=" << static_cast<int>(action.type)
+                     << "payload=" << action.payload << "for button idx" << idx;
+
+            if (action.type == logitune::ButtonAction::Default) {
+                // TEST: Back button (idx 3) → inject Ctrl+C
+                if (idx == 3) {
+                    qDebug() << "[main] TEST: injecting Ctrl+C for Back button";
+                    actionExecutor.injectKeystroke("Ctrl+C");
+                    return;
+                }
+                // TEST: Forward button (idx 4) → inject Ctrl+V
+                if (idx == 4) {
+                    qDebug() << "[main] TEST: injecting Ctrl+V for Forward button";
+                    actionExecutor.injectKeystroke("Ctrl+V");
+                    return;
+                }
+                qDebug() << "[main] button" << idx << "has default action, skipping";
+                return;
+            }
+
+            actionExecutor.executeAction(action);
         });
 
     // 6. Gesture event → GestureDetector → profile gesture action → execute

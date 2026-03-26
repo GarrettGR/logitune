@@ -4,6 +4,7 @@
 #include "hidpp/features/AdjustableDPI.h"
 #include "hidpp/features/SmartShift.h"
 #include "hidpp/features/HiResWheel.h"
+#include "hidpp/features/ReprogControls.h"
 
 #include <QDateTime>
 #include <QDebug>
@@ -509,6 +510,22 @@ void DeviceManager::enumerateAndSetup()
         }
     }
 
+    // Divert configurable buttons so we receive raw button events
+    if (m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4)) {
+        // Divert these buttons: Back(0x0053), Forward(0x0056), Middle(0x0052),
+        // Gesture(0x00C3), TopButton(0x00C4)
+        // NOT left/right click — those should stay native
+        static const uint16_t kDivertButtons[] = { 0x0052, 0x0053, 0x0056, 0x00C3, 0x00C4 };
+        for (uint16_t cid : kDivertButtons) {
+            auto divertParams = hidpp::features::ReprogControls::buildSetDivert(cid, true);
+            m_features->call(m_transport.get(), m_deviceIndex,
+                             hidpp::FeatureId::ReprogControlsV4,
+                             hidpp::features::ReprogControls::kFnSetControlReporting,
+                             std::span<const uint8_t>(divertParams));
+        }
+        qDebug() << "[DeviceManager] diverted 5 configurable buttons";
+    }
+
     // Update state and emit signals
     bool nameChanged    = (m_deviceName != name);
     bool levelChanged   = (m_batteryLevel != battLevel);
@@ -599,9 +616,14 @@ void DeviceManager::handleNotification(const hidpp::Report &report)
     if (m_features && m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4)) {
         auto idx = m_features->featureIndex(hidpp::FeatureId::ReprogControlsV4);
         if (idx.has_value() && report.featureIndex == *idx) {
+            qDebug() << "[DeviceManager] ReprogControls raw params:"
+                     << Qt::hex << report.params[0] << report.params[1]
+                     << report.params[2] << report.params[3] << report.params[4];
             uint16_t controlId = (static_cast<uint16_t>(report.params[0]) << 8)
                                  | report.params[1];
-            bool pressed = (report.params[2] != 0);
+            // In ReprogControls v4 diverted events, CID != 0 means button is pressed,
+            // CID == 0 means all buttons released
+            bool pressed = (controlId != 0);
             emit divertedButtonPressed(controlId, pressed);
             return;
         }
