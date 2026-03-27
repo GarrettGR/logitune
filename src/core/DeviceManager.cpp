@@ -642,6 +642,24 @@ void DeviceManager::handleNotification(const hidpp::Report &report)
         }
     }
 
+    // SmartShift notification — physical button toggled ratchet/freespin
+    if (m_features && m_features->hasFeature(hidpp::FeatureId::SmartShift)) {
+        auto idx = m_features->featureIndex(hidpp::FeatureId::SmartShift);
+        if (idx.has_value() && report.featureIndex == *idx) {
+            // The notification contains the new status directly
+            auto cfg = hidpp::features::SmartShift::parseConfig(report);
+            bool newEnabled = cfg.isRatchet();
+            if (m_smartShiftEnabled != newEnabled) {
+                m_smartShiftEnabled = newEnabled;
+                m_smartShiftThreshold = cfg.autoDisengage;
+                qDebug() << "[DeviceManager] SmartShift button toggled:"
+                         << (newEnabled ? "ratchet" : "freespin");
+                emit smartShiftChanged();
+            }
+            return;
+        }
+    }
+
     // ReprogControls (diverted button) notification
     if (m_features && m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4)) {
         auto idx = m_features->featureIndex(hidpp::FeatureId::ReprogControlsV4);
