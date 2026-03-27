@@ -336,11 +336,12 @@ int main(int argc, char *argv[])
 
     // 7. Gesture event → GestureDetector → resolve direction → execute
     // Default gesture map: "Window navigation" preset (matches Options+)
+    // Default gesture map — matches logid.cfg KDE shortcuts
     static QMap<QString, QString> gestureKeystrokes = {
-        {"up",    "Super+D"},         // Show desktop
-        {"down",  "Super+A"},         // Activities/App expose (KDE: Super+A)
-        {"left",  "Ctrl+Alt+Left"},   // Previous virtual desktop
-        {"right", "Ctrl+Alt+Right"},  // Next virtual desktop
+        {"down",  "Super+D"},              // Show Desktop
+        {"left",  "Ctrl+Super+Left"},      // Switch desktop left
+        {"right", "Ctrl+Super+Right"},     // Switch desktop right
+        {"click", "Super+W"},              // Window Switcher / Overview
     };
     QObject::connect(&deviceManager, &logitune::DeviceManager::gestureEvent,
         [&actionExecutor](int dx, int dy, bool released) {
