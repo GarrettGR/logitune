@@ -36,8 +36,8 @@ Item {
             id: mouseRender
             imageSource: "qrc:/Logitune/qml/assets/mx-master-3s-side.png"
             showHotspots: false  // hide button hotspots — we draw our own 3 circles below
-            implicitWidth: 340
-            implicitHeight: 503
+            implicitWidth: 280
+            implicitHeight: 414
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: root.activePanelType !== "" ? -130 : 0
             Behavior on anchors.horizontalCenterOffset {
