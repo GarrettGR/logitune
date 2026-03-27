@@ -18,22 +18,31 @@ ControlInfo ReprogControls::parseControlInfo(const Report &r)
     return info;
 }
 
-// From logid: setControlReporting flags byte layout:
-// byte[2] bits: 0=divert, 1=persist
-// byte[3] bits: 0=rawXYDiverted, 1=persistRawXY (need ChangeRawXYDivert flag)
-// byte[4] bits: for forceRawXY
+// From logid ReprogControlsV4::setControlReporting:
+// params[2] = flags byte (all flags in one byte):
+//   bit 0: TemporaryDiverted
+//   bit 1: ChangeTemporaryDivert
+//   bit 2: PersistentlyDiverted
+//   bit 3: ChangePersistentDivert
+//   bit 4: RawXYDiverted
+//   bit 5: ChangeRawXYDivert
+// params[3-4] = remap target CID (0 = no remap)
 std::vector<uint8_t> ReprogControls::buildSetDivert(uint16_t controlId, bool divert, bool rawXY)
 {
-    uint8_t flags = divert ? 0x03 : 0x00; // divert + persist
-    uint8_t rawFlags = 0;
+    uint8_t flags = 0;
+    if (divert) {
+        flags |= 0x03; // TemporaryDiverted + ChangeTemporaryDivert
+    } else {
+        flags |= 0x02; // ChangeTemporaryDivert (clear divert)
+    }
     if (rawXY) {
-        rawFlags = 0x03; // rawXYDiverted + persistRawXY
+        flags |= 0x30; // RawXYDiverted + ChangeRawXYDivert
     }
     return {
         static_cast<uint8_t>(controlId >> 8),
         static_cast<uint8_t>(controlId & 0xFF),
         flags,
-        rawFlags
+        0x00, 0x00  // remap target CID (none)
     };
 }
 
