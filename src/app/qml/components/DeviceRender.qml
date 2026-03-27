@@ -12,6 +12,7 @@ Item {
 
     // Allow parent to override the image source per page
     property string imageSource: "qrc:/Logitune/qml/assets/mx-master-3s.png"
+    property bool showHotspots: true  // set false on Point & Scroll page
 
     // ── Mouse image ──────────────────────────────────────────────────────────
     Image {
@@ -59,7 +60,7 @@ Item {
     ]
 
     Repeater {
-        model: root.hotspotPositions.length
+        model: root.showHotspots ? root.hotspotPositions.length : 0
 
         Item {
             required property int modelData

@@ -35,6 +35,7 @@ Item {
         DeviceRender {
             id: mouseRender
             imageSource: "qrc:/Logitune/qml/assets/mx-master-3s-side.png"
+            showHotspots: false
             implicitWidth: 340
             implicitHeight: 503
             anchors.centerIn: parent
