@@ -35,6 +35,8 @@ Item {
         DeviceRender {
             id: mouseRender
             imageSource: "qrc:/Logitune/qml/assets/mx-master-3s-side.png"
+            implicitWidth: 340
+            implicitHeight: 503
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: root.activePanelType !== "" ? -130 : 0
             Behavior on anchors.horizontalCenterOffset {
@@ -56,6 +58,8 @@ Item {
             calloutType: "scrollwheel"
             title: "Scroll wheel"
             settings: [
+                "Scroll direction: " + (DeviceModel.scrollInvert ? "Natural" : "Standard"),
+                "Smooth scrolling: " + (DeviceModel.scrollHiRes ? "On" : "Off"),
                 "SmartShift: " + (DeviceModel.smartShiftEnabled ? "On" : "Off")
             ]
 
