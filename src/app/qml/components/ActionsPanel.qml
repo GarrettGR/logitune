@@ -512,20 +512,22 @@ Rectangle {
 
                 Repeater {
                     model: [
-                        { dir: "\u2191", label: "Up",    action: "" },
-                        { dir: "\u2193", label: "Down",  action: "Show desktop" },
-                        { dir: "\u2190", label: "Left",  action: "Desktop left" },
-                        { dir: "\u2192", label: "Right", action: "Desktop right" },
-                        { dir: "\u25C9", label: "Click", action: "Task switcher" },
+                        { dir: "\u2191", label: "Up",    key: "up" },
+                        { dir: "\u2193", label: "Down",  key: "down" },
+                        { dir: "\u2190", label: "Left",  key: "left" },
+                        { dir: "\u2192", label: "Right", key: "right" },
+                        { dir: "\u25C9", label: "Click", key: "click" },
                     ]
 
                     delegate: Rectangle {
                         width: parent.width
                         height: 36
                         radius: 4
-                        color: "#FFFFFF"
-                        border.color: "#F0F0F0"
+                        color: gestureRowHover.hovered ? "#F0EDFF" : "#FFFFFF"
+                        border.color: gestureRowHover.hovered ? "#D4C5FF" : "#F0F0F0"
                         border.width: 1
+
+                        readonly property string actionName: DeviceModel.gestureActionName(modelData.key)
 
                         RowLayout {
                             anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
@@ -543,9 +545,86 @@ Rectangle {
                                 Layout.fillWidth: true
                             }
                             Text {
-                                text: modelData.action || "None"
+                                text: actionName || "None"
                                 font.pixelSize: 11
-                                color: modelData.action ? "#814EFA" : "#AAAAAA"
+                                color: actionName ? "#814EFA" : "#AAAAAA"
+                            }
+                        }
+
+                        HoverHandler { id: gestureRowHover }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                gestureDirectionPicker.direction = modelData.key
+                                gestureDirectionPicker.dirLabel = modelData.label
+                                gestureDirectionPicker.visible = true
+                            }
+                        }
+                    }
+                }
+
+                // ── Gesture direction action picker (inline) ─────────
+                Column {
+                    id: gestureDirectionPicker
+                    visible: false
+                    width: parent.width
+                    spacing: 2
+                    topPadding: 8
+
+                    property string direction: ""
+                    property string dirLabel: ""
+
+                    Text {
+                        text: "Assign action to " + gestureDirectionPicker.dirLabel + ":"
+                        font.pixelSize: 11
+                        font.bold: true
+                        color: "#444444"
+                        bottomPadding: 4
+                    }
+
+                    Repeater {
+                        model: [
+                            { name: "None",                 keystroke: "" },
+                            { name: "Show desktop",         keystroke: "Super+D" },
+                            { name: "Task switcher",        keystroke: "Super+W" },
+                            { name: "Switch desktop left",  keystroke: "Ctrl+Super+Left" },
+                            { name: "Switch desktop right", keystroke: "Ctrl+Super+Right" },
+                            { name: "Copy",                 keystroke: "Ctrl+C" },
+                            { name: "Paste",                keystroke: "Ctrl+V" },
+                            { name: "Undo",                 keystroke: "Ctrl+Z" },
+                            { name: "Redo",                 keystroke: "Ctrl+Shift+Z" },
+                            { name: "Close window",         keystroke: "Alt+F4" },
+                            { name: "Mute",                 keystroke: "Mute" },
+                            { name: "Play/Pause",           keystroke: "Play" },
+                        ]
+
+                        Rectangle {
+                            width: parent.width
+                            height: 28
+                            radius: 4
+                            color: gpHover.hovered ? "#F0EDFF" : "transparent"
+
+                            Text {
+                                anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
+                                text: modelData.name
+                                font.pixelSize: 11
+                                color: gpHover.hovered ? "#814EFA" : "#444444"
+                            }
+
+                            HoverHandler { id: gpHover }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    DeviceModel.setGestureAction(
+                                        gestureDirectionPicker.direction,
+                                        modelData.name === "None" ? "" : modelData.name,
+                                        modelData.keystroke)
+                                    gestureDirectionPicker.visible = false
+                                }
                             }
                         }
                     }

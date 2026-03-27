@@ -131,6 +131,24 @@ void DeviceModel::setThumbWheelMode(const QString &mode)
     }
 }
 
+void DeviceModel::setGestureAction(const QString &direction, const QString &actionName, const QString &keystroke)
+{
+    m_gestures[direction] = qMakePair(actionName, keystroke);
+    emit gestureChanged();
+}
+
+QString DeviceModel::gestureActionName(const QString &direction) const
+{
+    auto it = m_gestures.find(direction);
+    return it != m_gestures.end() ? it.value().first : QString();
+}
+
+QString DeviceModel::gestureKeystroke(const QString &direction) const
+{
+    auto it = m_gestures.find(direction);
+    return it != m_gestures.end() ? it.value().second : QString();
+}
+
 void DeviceModel::resetAllProfiles()
 {
     qDebug() << "[DeviceModel] resetAllProfiles requested";

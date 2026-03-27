@@ -118,17 +118,22 @@ int main(int argc, char *argv[])
             QString aName = buttonModel.actionNameForButton(i);
             p.buttons[static_cast<std::size_t>(i)] = buttonEntryToAction(aType, aName);
         }
+        // Save gesture actions
+        for (const auto &dir : {"up", "down", "left", "right", "click"}) {
+            QString ks = deviceModel.gestureKeystroke(dir);
+            if (!ks.isEmpty())
+                p.gestures[dir] = {logitune::ButtonAction::Keystroke, ks};
+        }
         profileEngine.updateActiveProfile(p);
         qDebug() << "[main] profile saved:" << profileEngine.activeProfileName();
     };
 
-    // ── Gesture keystrokes (matches logid.cfg) ────────────────────────────────
-    static QMap<QString, QString> gestureKeystrokes = {
-        {"down",  "Super+D"},              // Show Desktop
-        {"left",  "Ctrl+Super+Left"},      // Switch desktop left
-        {"right", "Ctrl+Super+Right"},     // Switch desktop right
-        {"click", "Super+W"},              // Window Switcher / Overview
-    };
+    // ── Gesture defaults (matches logid.cfg) ────────────────────────────────
+    deviceModel.setGestureAction("up",    "",              "");
+    deviceModel.setGestureAction("down",  "Show desktop",  "Super+D");
+    deviceModel.setGestureAction("left",  "Switch desktop left",  "Ctrl+Super+Left");
+    deviceModel.setGestureAction("right", "Switch desktop right", "Ctrl+Super+Right");
+    deviceModel.setGestureAction("click", "Task switcher", "Super+W");
 
     // ── Signal wiring ────────────────────────────────────────────────────────
 
@@ -271,6 +276,23 @@ int main(int argc, char *argv[])
                 deviceManager.divertButton(kProfileButtonCids[i], needsDivert, needsRawXY);
             }
 
+            // Restore gesture actions from profile
+            for (auto it = p.gestures.begin(); it != p.gestures.end(); ++it) {
+                if (it->second.type == logitune::ButtonAction::Keystroke && !it->second.payload.isEmpty()) {
+                    // Reverse lookup: find display name for this keystroke
+                    QString name = it->second.payload;
+                    int count = actionModel.rowCount();
+                    for (int j = 0; j < count; ++j) {
+                        QModelIndex mi = actionModel.index(j);
+                        if (actionModel.data(mi, logitune::ActionModel::PayloadRole).toString() == it->second.payload) {
+                            name = actionModel.data(mi, logitune::ActionModel::NameRole).toString();
+                            break;
+                        }
+                    }
+                    deviceModel.setGestureAction(it->first, name, it->second.payload);
+                }
+            }
+
             qDebug() << "[main] profile applied: DPI=" << p.dpi
                      << "SmartShift=" << p.smartShiftEnabled
                      << "scrollInvert=" << (p.scrollDirection == "natural");
@@ -289,6 +311,8 @@ int main(int argc, char *argv[])
         [&saveCurrentState](const QModelIndex &, const QModelIndex &, const QVector<int> &) {
             saveCurrentState();
         });
+    QObject::connect(&deviceModel, &logitune::DeviceModel::gestureChanged,
+                     [&saveCurrentState]() { saveCurrentState(); });
 
     // 5. Diverted button press → profile action lookup → execute
     // Gesture state — accumulate raw XY deltas from HID++ while button held
@@ -307,7 +331,7 @@ int main(int argc, char *argv[])
         });
 
     QObject::connect(&deviceManager, &logitune::DeviceManager::divertedButtonPressed,
-        [&buttonModel, &actionModel, &actionExecutor, &deviceManager](uint16_t controlId, bool pressed) {
+        [&buttonModel, &actionModel, &actionExecutor, &deviceManager, &deviceModel](uint16_t controlId, bool pressed) {
 
             // Map controlId to button index
             static const std::unordered_map<uint16_t, int> kControlMap = {
@@ -332,10 +356,10 @@ int main(int argc, char *argv[])
                     dir = "click";
                 }
 
-                auto git = gestureKeystrokes.find(dir);
-                if (git != gestureKeystrokes.end() && !git.value().isEmpty()) {
-                    qDebug() << "[main] gesture" << dir << "→" << git.value();
-                    actionExecutor.injectKeystroke(git.value());
+                QString keystroke = deviceModel.gestureKeystroke(dir);
+                if (!keystroke.isEmpty()) {
+                    qDebug() << "[main] gesture" << dir << "→" << keystroke;
+                    actionExecutor.injectKeystroke(keystroke);
                 }
                 return;
             }
@@ -399,7 +423,7 @@ int main(int argc, char *argv[])
 
     // 7. Gesture event → GestureDetector → resolve direction → execute
     QObject::connect(&deviceManager, &logitune::DeviceManager::gestureEvent,
-        [&actionExecutor](int dx, int dy, bool released) {
+        [&actionExecutor, &deviceModel](int dx, int dy, bool released) {
             actionExecutor.gestureDetector().addDelta(dx, dy);
             if (released) {
                 auto dir = actionExecutor.gestureDetector().resolve();
@@ -415,10 +439,10 @@ int main(int argc, char *argv[])
                     default: return;
                 }
 
-                auto it = gestureKeystrokes.find(dirName);
-                if (it != gestureKeystrokes.end() && !it.value().isEmpty()) {
-                    qDebug() << "[main] gesture:" << dirName << "→" << it.value();
-                    actionExecutor.injectKeystroke(it.value());
+                QString ks = deviceModel.gestureKeystroke(dirName);
+                if (!ks.isEmpty()) {
+                    qDebug() << "[main] gesture:" << dirName << "→" << ks;
+                    actionExecutor.injectKeystroke(ks);
                 }
             }
         });

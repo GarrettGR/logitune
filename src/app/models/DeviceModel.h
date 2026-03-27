@@ -1,5 +1,7 @@
 #pragma once
 #include "DeviceManager.h"
+#include <QMap>
+#include <QPair>
 #include <QObject>
 #include <qqmlintegration.h>
 
@@ -46,6 +48,9 @@ public:
     Q_INVOKABLE void setScrollConfig(bool hiRes, bool invert);
     Q_INVOKABLE void setThumbWheelMode(const QString &mode);
     Q_INVOKABLE void resetAllProfiles();
+    Q_INVOKABLE void setGestureAction(const QString &direction, const QString &actionName, const QString &keystroke);
+    Q_INVOKABLE QString gestureActionName(const QString &direction) const;
+    Q_INVOKABLE QString gestureKeystroke(const QString &direction) const;
     Q_PROPERTY(QString thumbWheelMode READ thumbWheelMode NOTIFY thumbWheelModeChanged)
     bool scrollHiRes() const;
     bool scrollInvert() const;
@@ -68,9 +73,11 @@ signals:
     void scrollConfigChanged();
     void thumbWheelModeChanged();
     void activeProfileNameChanged();
+    void gestureChanged();
 
 private:
     DeviceManager *m_dm = nullptr;
+    QMap<QString, QPair<QString, QString>> m_gestures; // direction → (actionName, keystroke)
     int m_currentDPI = 1000;
     bool m_smartShiftEnabled = true;
     int m_smartShiftThreshold = 128;
