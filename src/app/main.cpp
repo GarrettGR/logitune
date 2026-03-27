@@ -119,6 +119,14 @@ int main(int argc, char *argv[])
         qDebug() << "[main] profile saved:" << profileEngine.activeProfileName();
     };
 
+    // ── Gesture keystrokes (matches logid.cfg) ────────────────────────────────
+    static QMap<QString, QString> gestureKeystrokes = {
+        {"down",  "Super+D"},              // Show Desktop
+        {"left",  "Ctrl+Super+Left"},      // Switch desktop left
+        {"right", "Ctrl+Super+Right"},     // Switch desktop right
+        {"click", "Super+W"},              // Window Switcher / Overview
+    };
+
     // ── Signal wiring ────────────────────────────────────────────────────────
 
     // 0. When ButtonModel changes (user picks action in UI), divert/undivert the button
@@ -304,8 +312,13 @@ int main(int argc, char *argv[])
                 deviceManager.setSmartShift(!current, deviceManager.smartShiftThreshold());
                 qDebug() << "[main] SmartShift toggled to" << !current;
             } else if (actionType == "gesture-trigger") {
-                // Gesture mode: the actual gesture detection happens via GestureV2 events
-                // (wired separately below). The button press just enters gesture mode.
+                // No hold+swipe on MX Master 3S (GestureV2 not available).
+                // Simple click triggers the "click" gesture action.
+                auto it = gestureKeystrokes.find("click");
+                if (it != gestureKeystrokes.end() && !it.value().isEmpty()) {
+                    qDebug() << "[main] gesture click →" << it.value();
+                    actionExecutor.injectKeystroke(it.value());
+                }
             } else if (actionType == "app-launch" && !payload.isEmpty()) {
                 actionExecutor.launchApp(payload);
             }
@@ -335,14 +348,6 @@ int main(int argc, char *argv[])
         });
 
     // 7. Gesture event → GestureDetector → resolve direction → execute
-    // Default gesture map: "Window navigation" preset (matches Options+)
-    // Default gesture map — matches logid.cfg KDE shortcuts
-    static QMap<QString, QString> gestureKeystrokes = {
-        {"down",  "Super+D"},              // Show Desktop
-        {"left",  "Ctrl+Super+Left"},      // Switch desktop left
-        {"right", "Ctrl+Super+Right"},     // Switch desktop right
-        {"click", "Super+W"},              // Window Switcher / Overview
-    };
     QObject::connect(&deviceManager, &logitune::DeviceManager::gestureEvent,
         [&actionExecutor](int dx, int dy, bool released) {
             actionExecutor.gestureDetector().addDelta(dx, dy);

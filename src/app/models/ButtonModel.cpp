@@ -12,8 +12,8 @@ ButtonModel::ButtonModel(QObject *parent)
         { 2, "Middle click", "Middle click",      "default"         },
         { 3, "Back",         "Back",              "default"         },
         { 4, "Forward",      "Forward",           "default"         },
-        { 5, "Thumb",        "Gesture button",    "default"         },
-        { 6, "Top",          "Shift wheel mode",  "default"         },
+        { 5, "Thumb",        "Gestures",          "gesture-trigger" },
+        { 6, "Top",          "Shift wheel mode",  "smartshift-toggle" },
         { 7, "Thumb wheel",  "Horizontal scroll", "default"         },
     };
 }
