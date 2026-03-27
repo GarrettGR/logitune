@@ -42,7 +42,7 @@ Rectangle {
             top:    parent.top
             margins: 12
         }
-        spacing: 4
+        spacing: 1
 
         // Title
         Text {
@@ -60,7 +60,7 @@ Rectangle {
             delegate: Text {
                 text: modelData
                 font.pixelSize: 13
-                lineHeight: 1.4
+                lineHeight: 1.1
                 lineHeightMode: Text.ProportionalHeight
                 color: "#FFFFFF"
                 opacity: 0.85
