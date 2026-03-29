@@ -15,10 +15,15 @@ std::optional<Report> Transport::sendRequest(const Report &request, int timeoutM
     return trySend(request, timeoutMs, /*retriesLeft=*/1);
 }
 
+bool Transport::sendRequestAsync(const Report &request)
+{
+    auto bytes = request.serialize();
+    int written = m_device->writeReport(std::span<const uint8_t>(bytes));
+    return written > 0;
+}
+
 std::optional<Report> Transport::trySend(const Report &request, int timeoutMs, int retriesLeft)
 {
-    // Mutex must be held by caller
-
     auto bytes = request.serialize();
     int written = m_device->writeReport(bytes);
     if (written < 0) {
@@ -87,29 +92,5 @@ std::optional<Report> Transport::trySend(const Report &request, int timeoutMs, i
     return std::nullopt;
 }
 
-void Transport::run()
-{
-    qDebug() << "[Transport] I/O thread started, listening for notifications";
-    m_running = true;
-    while (m_running) {
-        auto bytes = m_device->readReport(/*timeoutMs=*/100);
-        if (!bytes.empty()) {
-            auto report = Report::parse(bytes);
-            if (report) {
-                if (report->isError()) {
-                    emit deviceError(report->errorCode(), report->params[0]);
-                } else {
-                    emit notificationReceived(*report);
-                }
-            }
-        }
-    }
-    qDebug() << "[Transport] I/O thread stopped";
-}
-
-void Transport::stop()
-{
-    m_running = false;
-}
 
 } // namespace logitune::hidpp

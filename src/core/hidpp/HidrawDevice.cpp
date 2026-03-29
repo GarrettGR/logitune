@@ -74,9 +74,8 @@ int HidrawDevice::writeReport(std::span<const uint8_t> data)
         return -1;
     int ret = static_cast<int>(::write(m_fd, data.data(), data.size()));
     if (ret < 0) {
-        fprintf(stderr, "[HidrawDevice] write(%s fd=%d) failed: %s (errno=%d) size=%zu first_bytes=%02x%02x%02x%02x\n",
-                qPrintable(m_path), m_fd, strerror(errno), errno, data.size(),
-                data.size()>0?data[0]:0, data.size()>1?data[1]:0, data.size()>2?data[2]:0, data.size()>3?data[3]:0);
+        fprintf(stderr, "[HidrawDevice] write(fd=%d) failed: %s (errno=%d)\n",
+                m_fd, strerror(errno), errno);
     }
     return ret;
 }

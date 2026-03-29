@@ -40,12 +40,22 @@ Rectangle {
         return Math.max(360, Math.min(w, 478))
     }
     color:  Theme.surface
-    radius: 0
+    radius: 12
+    clip: true
+
+
+    // Flat right edge (panel sits at window edge)
+    Rectangle {
+        anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+        width: parent.radius
+        color: parent.color
+    }
 
     // Left border
     Rectangle {
-        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+        x: 0; y: parent.radius
         width: 1
+        height: parent.height - parent.radius * 2
         color: Theme.border
     }
 
@@ -343,12 +353,18 @@ Rectangle {
             delegate: Item {
                 // Row height animates between 32px (unselected) and 48px (selected)
                 width: actionList.width
-                height: rowRect.height  // tracks the animated rectangle height
 
                 required property string name
                 required property string description
                 required property string actionType
                 required property int    index
+
+                readonly property bool matchesSearch:
+                    searchInput.text.length === 0 ||
+                    name.toLowerCase().indexOf(searchInput.text.toLowerCase()) !== -1
+
+                visible: matchesSearch
+                height: matchesSearch ? rowRect.height : 0
 
                 readonly property bool isSelected: name === root.currentAction
 
@@ -489,6 +505,12 @@ Rectangle {
 
                 KeystrokeCapture {
                     width: parent.width
+                    onKeystrokeCaptured: function(ks) {
+                        if (ks.length > 0 && root.buttonId >= 0) {
+                            root.currentAction = ks
+                            root.actionSelected(ks, "keystroke")
+                        }
+                    }
                 }
             }
         }
@@ -508,6 +530,83 @@ Rectangle {
                     leftMargin: 20; rightMargin: 20; topMargin: 12
                 }
                 spacing: 4
+
+                Text {
+                    text: "Presets"
+                    font.pixelSize: 12
+                    font.bold: true
+                    color: "#444444"
+                    bottomPadding: 4
+                }
+
+                Row {
+                    width: parent.width
+                    spacing: 6
+
+                    Repeater {
+                        model: [
+                            {
+                                label: "Navigation",
+                                up: { name: "", keystroke: "" },
+                                down: { name: "Show desktop", keystroke: "Super+D" },
+                                left: { name: "Switch desktop left", keystroke: "Ctrl+Super+Left" },
+                                right: { name: "Switch desktop right", keystroke: "Ctrl+Super+Right" },
+                                click: { name: "Task switcher", keystroke: "Super+W" }
+                            },
+                            {
+                                label: "Media",
+                                up: { name: "", keystroke: "" },
+                                down: { name: "Mute", keystroke: "Mute" },
+                                left: { name: "Play/Pause", keystroke: "Play" },
+                                right: { name: "Play/Pause", keystroke: "Play" },
+                                click: { name: "", keystroke: "" }
+                            },
+                            {
+                                label: "Window",
+                                up: { name: "", keystroke: "" },
+                                down: { name: "Show desktop", keystroke: "Super+D" },
+                                left: { name: "", keystroke: "" },
+                                right: { name: "", keystroke: "" },
+                                click: { name: "Close window", keystroke: "Alt+F4" }
+                            }
+                        ]
+
+                        Rectangle {
+                            width: (parent.width - 12) / 3
+                            height: 30
+                            radius: 4
+                            color: presetHover.hovered ? Theme.hoverBg : Theme.cardBg
+                            border.color: presetHover.hovered ? Theme.accentHover : Theme.border
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.label
+                                font.pixelSize: 11
+                                font.bold: true
+                                color: presetHover.hovered ? Theme.accent : Theme.text
+                            }
+
+                            HoverHandler { id: presetHover }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    var dirs = ["up", "down", "left", "right", "click"]
+                                    for (var i = 0; i < dirs.length; i++) {
+                                        var d = dirs[i]
+                                        var preset = modelData[d]
+                                        DeviceModel.setGestureAction(d, preset.name, preset.keystroke)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Spacer between presets and directions
+                Item { width: 1; height: 8 }
 
                 Text {
                     text: "Gesture directions"

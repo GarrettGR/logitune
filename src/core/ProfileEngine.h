@@ -1,27 +1,14 @@
 #pragma once
+#include "ButtonAction.h"
 #include <QObject>
 #include <QString>
 #include <QMap>
-#include <QTimer>
+#include <QFileSystemWatcher>
 #include <QSettings>
 #include <array>
 #include <map>
 
 namespace logitune {
-
-struct ButtonAction {
-    enum Type { Default, Keystroke, Media, DBus, GestureTrigger, AppLaunch };
-    Type type = Default;
-    QString payload;
-
-    static ButtonAction parse(const QString &str);
-    QString serialize() const;
-
-    bool operator==(const ButtonAction &o) const {
-        return type == o.type && payload == o.payload;
-    }
-    bool operator!=(const ButtonAction &o) const { return !(*this == o); }
-};
 
 struct Profile {
     int version = 1;
@@ -33,8 +20,9 @@ struct Profile {
     bool smoothScrolling = false;
     QString scrollDirection = "standard";  // "standard" or "natural"
     bool hiResScroll = true;
-    std::array<ButtonAction, 7> buttons;   // indexed 0-6
+    std::array<ButtonAction, 8> buttons;   // indexed 0-7 (includes thumb wheel virtual entry)
     std::map<QString, ButtonAction> gestures;  // "up","down","left","right","click"
+    QString thumbWheelMode = "scroll";  // "scroll", "zoom", "volume", "none"
 };
 
 struct ProfileDelta {
@@ -59,28 +47,34 @@ public:
 
     // Instance methods
     void setDeviceConfigDir(const QString &dir);
-    Profile activeProfile() const;
-    QString activeProfileName() const;
     QStringList profileNames() const;
-    void switchToProfile(const QString &name);
-    void updateActiveProfile(const Profile &p);  // saves in-place to disk, no signals
-    void switchForApp(const QString &wmClass);  // debounced
+    void createProfileForApp(const QString &wmClass, const QString &profileName);
+    void removeAppProfile(const QString &wmClass);
+
+    // --- Profile cache (Task 1) ---
+    Profile& cachedProfile(const QString &name);
+    QString displayProfile() const;
+    QString hardwareProfile() const;
+    void setDisplayProfile(const QString &name);
+    void setHardwareProfile(const QString &name);
+    void saveProfileToDisk(const QString &name);
+    QString profileForApp(const QString &wmClass) const;
 
 signals:
-    void activeProfileChanged(const Profile &profile);
-    void profileDelta(const ProfileDelta &delta, const Profile &newProfile);
+    void displayProfileChanged(const Profile &profile);
+    void hardwareProfileChanged(const Profile &profile);
 
 private:
     QString m_configDir;
-    Profile m_activeProfile;
-    QString m_activeProfileName;
     QMap<QString, QString> m_appBindings;
-    QTimer m_debounceTimer;  // 200ms for app switching
-    QString m_pendingAppClass;
+    QMap<QString, Profile> m_cache;
+    QString m_displayProfile;
+    QString m_hardwareProfile;
+    QFileSystemWatcher m_fileWatcher;
+    bool m_selfWrite = false;  // suppress reload during our own save
 
     QString profilePath(const QString &name) const;
     QString appBindingsPath() const;
-    void doSwitchForApp(const QString &wmClass);
 };
 
 } // namespace logitune

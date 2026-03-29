@@ -91,7 +91,7 @@ Item {
                 width: 200
                 height: 296
                 anchors.horizontalCenter: parent.horizontalCenter
-                source: "qrc:/Logitune/qml/assets/mx-master-3s.png"
+                source: DeviceModel.frontImage
                 fillMode: Image.PreserveAspectFit
                 smooth: true
                 mipmap: true

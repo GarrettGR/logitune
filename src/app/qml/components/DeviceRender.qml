@@ -15,6 +15,12 @@ Item {
     property string imageSource: "qrc:/Logitune/qml/assets/mx-master-3s.png"
     property bool showHotspots: true  // set false on Point & Scroll page
 
+    // Painted-rect properties — actual rendered area after PreserveAspectFit
+    readonly property real paintedX: (width - mouseImage.paintedWidth) / 2
+    readonly property real paintedY: (height - mouseImage.paintedHeight) / 2
+    readonly property real paintedW: mouseImage.paintedWidth
+    readonly property real paintedH: mouseImage.paintedHeight
+
     // ── Mouse image ──────────────────────────────────────────────────────────
     Image {
         id: mouseImage
@@ -68,20 +74,20 @@ Item {
 
             readonly property var hp: root.hotspotPositions[modelData]
 
-            // Invisible hit area (percentage-based)
+            // Invisible hit area (percentage-based, positioned within painted rect)
             MouseArea {
-                x: hp.zoneX * root.implicitWidth
-                y: hp.zoneY * root.implicitHeight
-                width:  hp.zoneW * root.implicitWidth
-                height: hp.zoneH * root.implicitHeight
+                x: root.paintedX + hp.zoneX * root.paintedW
+                y: root.paintedY + hp.zoneY * root.paintedH
+                width:  hp.zoneW * root.paintedW
+                height: hp.zoneH * root.paintedH
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.buttonClicked(hp.buttonId)
             }
 
             // 18x18 hotspot circle — white for dark background
             Rectangle {
-                x: hp.dotXPct * root.implicitWidth  - 9
-                y: hp.dotYPct * root.implicitHeight - 9
+                x: root.paintedX + hp.dotXPct * root.paintedW  - 9
+                y: root.paintedY + hp.dotYPct * root.paintedH - 9
                 width: 18; height: 18
                 radius: 9
                 color: "transparent"

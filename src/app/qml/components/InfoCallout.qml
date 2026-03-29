@@ -2,9 +2,9 @@ import QtQuick
 import QtQuick.Layouts
 import Logitune
 
-// Purple rounded callout card — summarises a group of settings.
-// Click to open the corresponding DetailPanel.
-Rectangle {
+// Callout card for Point & Scroll page — matches ButtonCallout style.
+// Shows a title and summary settings lines. Click to open DetailPanel.
+Item {
     id: root
 
     // ── Public API ──────────────────────────────────────────────────────────
@@ -14,69 +14,73 @@ Rectangle {
 
     signal calloutClicked(string type)
 
-    // ── Geometry / Appearance ───────────────────────────────────────────────
-    implicitWidth:  Math.min(Math.max(contentCol.implicitWidth + 32, 160), 220)
-    implicitHeight: contentCol.implicitHeight + 24
+    implicitWidth:  card.implicitWidth
+    implicitHeight: card.implicitHeight
 
-    // Gradient from top to bottom — colors follow theme
-    gradient: Gradient {
-        orientation: Gradient.Vertical
-        GradientStop { position: 0.0; color: Theme.calloutGradientTop }
-        GradientStop { position: 1.0; color: Theme.calloutGradientBottom }
-    }
-    radius: 4
-
-    // Slight brightness boost on hover
+    // ── Card ────────────────────────────────────────────────────────────────
     Rectangle {
-        anchors.fill: parent
-        radius: parent.radius
-        color: hoverHandler.hovered ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
-        Behavior on color { ColorAnimation { duration: 120 } }
-    }
+        id: card
+        implicitWidth:  Math.min(Math.max(contentCol.implicitWidth + 24, 160), 220)
+        implicitHeight: contentCol.implicitHeight + 18
+        radius: 8
+        color: Theme.cardBg
+        border.color: Theme.cardBorder
+        border.width: 1
 
-    // ── Content ─────────────────────────────────────────────────────────────
-    Column {
-        id: contentCol
-        anchors {
-            left:   parent.left
-            right:  parent.right
-            top:    parent.top
-            margins: 12
-        }
-        spacing: 1
-
-        // Title
-        Text {
-            text: root.title
-            font.pixelSize: 14
-            font.bold: true
-            color: "#FFFFFF"
-            width: parent.width
-            elide: Text.ElideRight
+        // Drop shadow
+        Rectangle {
+            x: 4; y: 4
+            width: parent.width; height: parent.height
+            radius: parent.radius
+            color: Qt.rgba(0, 0, 0, 0.1)
+            z: -1
         }
 
-        // Settings lines
-        Repeater {
-            model: root.settings
-            delegate: Text {
-                text: modelData
-                font.pixelSize: 13
-                lineHeight: 1.1
-                lineHeightMode: Text.ProportionalHeight
-                color: "#FFFFFF"
-                opacity: 0.85
-                width: parent.width
+        Column {
+            id: contentCol
+            x: 12
+            y: 9
+            spacing: 2
+
+            // Title (bold, accent on hover)
+            Text {
+                text: root.title
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+                color: hoverHandler.hovered ? Theme.accent : Theme.text
+                width: Math.min(implicitWidth, 196)
                 elide: Text.ElideRight
+
+                Behavior on color { ColorAnimation { duration: 150 } }
+            }
+
+            // Settings lines
+            Repeater {
+                model: root.settings
+                delegate: Text {
+                    text: modelData
+                    font.pixelSize: 10
+                    color: Theme.textSecondary
+                    width: Math.min(implicitWidth, 196)
+                    elide: Text.ElideRight
+                }
             }
         }
-    }
 
-    // ── Interaction ─────────────────────────────────────────────────────────
-    HoverHandler { id: hoverHandler }
+        // Hover overlay
+        Rectangle {
+            anchors.fill: parent
+            radius: card.radius
+            color: hoverHandler.hovered ? Qt.rgba(0, 0, 0, 0.04) : "transparent"
+            Behavior on color { ColorAnimation { duration: 100 } }
+        }
 
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.calloutClicked(root.calloutType)
+        HoverHandler { id: hoverHandler }
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.calloutClicked(root.calloutType)
+        }
     }
 }

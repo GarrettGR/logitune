@@ -69,6 +69,8 @@ Profile ProfileEngine::loadProfile(const QString &path)
     p.scrollDirection     = s.value("Scroll/direction", "standard").toString();
     p.hiResScroll         = s.value("Scroll/hires", true).toBool();
 
+    p.thumbWheelMode      = s.value("ThumbWheel/mode", "scroll").toString();
+
     s.beginGroup("Buttons");
     const QStringList buttonKeys = s.childKeys();
     for (const QString &key : buttonKeys) {
@@ -91,6 +93,7 @@ Profile ProfileEngine::loadProfile(const QString &path)
 void ProfileEngine::saveProfile(const QString &path, const Profile &profile)
 {
     QSettings s(path, QSettings::IniFormat);
+    s.clear();  // wipe all keys before writing — prevents duplicate sections
 
     s.setValue("General/version", profile.version);
     s.setValue("General/name",    profile.name);
@@ -104,6 +107,8 @@ void ProfileEngine::saveProfile(const QString &path, const Profile &profile)
     s.setValue("Scroll/mode",      profile.smoothScrolling ? "smooth" : "ratchet");
     s.setValue("Scroll/direction", profile.scrollDirection);
     s.setValue("Scroll/hires",     profile.hiResScroll);
+
+    s.setValue("ThumbWheel/mode",  profile.thumbWheelMode);
 
     s.beginGroup("Buttons");
     for (std::size_t i = 0; i < profile.buttons.size(); ++i)
@@ -156,7 +161,8 @@ ProfileDelta ProfileEngine::diff(const Profile &a, const Profile &b)
 
     delta.scrollChanged = (a.smoothScrolling  != b.smoothScrolling  ||
                            a.scrollDirection  != b.scrollDirection  ||
-                           a.hiResScroll      != b.hiResScroll);
+                           a.hiResScroll      != b.hiResScroll      ||
+                           a.thumbWheelMode   != b.thumbWheelMode);
 
     delta.buttonsChanged  = (a.buttons  != b.buttons);
     delta.gesturesChanged = (a.gestures != b.gestures);
@@ -171,40 +177,26 @@ ProfileDelta ProfileEngine::diff(const Profile &a, const Profile &b)
 ProfileEngine::ProfileEngine(QObject *parent)
     : QObject(parent)
 {
-    m_debounceTimer.setSingleShot(true);
-    m_debounceTimer.setInterval(200);
-
-    connect(&m_debounceTimer, &QTimer::timeout, this, [this]() {
-        doSwitchForApp(m_pendingAppClass);
-    });
 }
 
 void ProfileEngine::setDeviceConfigDir(const QString &dir)
 {
     m_configDir = dir;
+    m_cache.clear();
+
+    QDir d(dir);
+    if (d.exists()) {
+        for (const auto &f : d.entryList({"*.conf"}, QDir::Files)) {
+            if (f == "app-bindings.conf") continue;
+            QString name = QFileInfo(f).baseName();
+            m_cache[name] = loadProfile(d.filePath(f));
+        }
+    }
 
     // Load app bindings if the file exists
     const QString bindingsFile = appBindingsPath();
     if (QFileInfo::exists(bindingsFile))
         m_appBindings = loadAppBindings(bindingsFile);
-}
-
-Profile ProfileEngine::activeProfile() const
-{
-    return m_activeProfile;
-}
-
-QString ProfileEngine::activeProfileName() const
-{
-    return m_activeProfileName;
-}
-
-void ProfileEngine::updateActiveProfile(const Profile &p)
-{
-    if (m_configDir.isEmpty() || m_activeProfileName.isEmpty())
-        return;
-    m_activeProfile = p;
-    saveProfile(profilePath(m_activeProfileName), p);
 }
 
 QStringList ProfileEngine::profileNames() const
@@ -222,20 +214,113 @@ QStringList ProfileEngine::profileNames() const
     return names;
 }
 
-void ProfileEngine::switchToProfile(const QString &name)
+void ProfileEngine::createProfileForApp(const QString &wmClass, const QString &profileName)
 {
-    const Profile prev = m_activeProfile;
-    m_activeProfileName = name;
-    m_activeProfile = loadProfile(profilePath(name));
-    const ProfileDelta delta = diff(prev, m_activeProfile);
-    emit activeProfileChanged(m_activeProfile);
-    emit profileDelta(delta, m_activeProfile);
+    if (m_configDir.isEmpty() || wmClass.isEmpty() || profileName.isEmpty())
+        return;
+
+    // Only create if the profile doesn't already exist (loaded from disk at startup).
+    // Without this guard, every app restart would overwrite saved customizations.
+    if (!m_cache.contains(profileName)) {
+        m_cache[profileName] = m_cache.value(QStringLiteral("default"));
+        m_cache[profileName].name = profileName;
+        saveProfile(profilePath(profileName), m_cache[profileName]);
+    }
+
+    m_appBindings[wmClass] = profileName;
+    saveAppBindings(appBindingsPath(), m_appBindings);
 }
 
-void ProfileEngine::switchForApp(const QString &wmClass)
+void ProfileEngine::removeAppProfile(const QString &wmClass)
 {
-    m_pendingAppClass = wmClass;
-    m_debounceTimer.start();
+    if (m_configDir.isEmpty() || wmClass.isEmpty())
+        return;
+
+    const QString profileName = m_appBindings.value(wmClass);
+    if (profileName.isEmpty())
+        return;
+
+    // Remove the profile file
+    QFile::remove(profilePath(profileName));
+
+    // Remove from cache
+    m_cache.remove(profileName);
+
+    // Remove from app bindings and save
+    m_appBindings.remove(wmClass);
+    saveAppBindings(appBindingsPath(), m_appBindings);
+
+    // If the removed profile was displayed or on hardware, switch back to default
+    if (m_displayProfile == profileName)
+        setDisplayProfile(QStringLiteral("default"));
+    if (m_hardwareProfile == profileName)
+        setHardwareProfile(QStringLiteral("default"));
+
+    qDebug() << "[ProfileEngine] removed profile" << profileName << "for app" << wmClass;
+}
+
+// ---------------------------------------------------------------------------
+// Profile cache (Task 1)
+// ---------------------------------------------------------------------------
+
+Profile& ProfileEngine::cachedProfile(const QString &name)
+{
+    if (!m_cache.contains(name)) {
+        m_cache[name] = Profile{};
+        m_cache[name].name = name;
+    }
+    return m_cache[name];
+}
+
+QString ProfileEngine::displayProfile() const
+{
+    return m_displayProfile;
+}
+
+QString ProfileEngine::hardwareProfile() const
+{
+    return m_hardwareProfile;
+}
+
+void ProfileEngine::setDisplayProfile(const QString &name)
+{
+    if (m_displayProfile == name) return;
+    m_displayProfile = name;
+    emit displayProfileChanged(cachedProfile(name));
+}
+
+void ProfileEngine::setHardwareProfile(const QString &name)
+{
+    if (m_hardwareProfile == name) return;
+    m_hardwareProfile = name;
+    emit hardwareProfileChanged(cachedProfile(name));
+}
+
+void ProfileEngine::saveProfileToDisk(const QString &name)
+{
+    if (!m_cache.contains(name) || m_configDir.isEmpty()) return;
+    saveProfile(profilePath(name), m_cache[name]);
+}
+
+QString ProfileEngine::profileForApp(const QString &wmClass) const
+{
+    // Case-insensitive lookup — KWin reports lowercase, .desktop files may differ
+    for (auto it = m_appBindings.cbegin(); it != m_appBindings.cend(); ++it) {
+        if (it.key().compare(wmClass, Qt::CaseInsensitive) == 0)
+            return it.value();
+    }
+
+    // KWin may report "org.kde.dolphin" while .desktop has StartupWMClass="dolphin"
+    // Try matching the last component after the last dot
+    QString shortClass = wmClass.contains('.') ? wmClass.section('.', -1) : QString();
+    if (!shortClass.isEmpty()) {
+        for (auto it = m_appBindings.cbegin(); it != m_appBindings.cend(); ++it) {
+            if (it.key().compare(shortClass, Qt::CaseInsensitive) == 0)
+                return it.value();
+        }
+    }
+
+    return QStringLiteral("default");
 }
 
 // ---------------------------------------------------------------------------
@@ -250,15 +335,6 @@ QString ProfileEngine::profilePath(const QString &name) const
 QString ProfileEngine::appBindingsPath() const
 {
     return m_configDir + "/app-bindings.conf";
-}
-
-void ProfileEngine::doSwitchForApp(const QString &wmClass)
-{
-    if (!m_appBindings.contains(wmClass))
-        return;
-
-    const QString profileName = m_appBindings.value(wmClass);
-    switchToProfile(profileName);
 }
 
 } // namespace logitune

@@ -4,8 +4,8 @@ import QtQuick
 QtObject {
     id: theme
 
-    // Dark mode flag — set from C++ via ThemeBridge context property
-    readonly property bool dark: ThemeBridge.isDark
+    // Dark mode — initialized from system theme via C++, toggled by user in Settings
+    property bool dark: false
 
     // Colors
     readonly property color accent: dark ? "#00EAD0" : "#814EFA"
@@ -22,10 +22,6 @@ QtObject {
     readonly property color selectedBg: accent
     readonly property color batteryGreen: "#79E053"
     readonly property color batteryWarning: "#FFA414"
-
-    // Callout colors for Point & Scroll page
-    readonly property color calloutGradientTop: dark ? "#00EAD0" : "#A04EFA"
-    readonly property color calloutGradientBottom: dark ? "#00C4AD" : "#814EFA"
 
     // Sidebar active tab
     readonly property color activeTabBg: accent

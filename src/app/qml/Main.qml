@@ -8,7 +8,7 @@ ApplicationWindow {
     visible: true
     title: "Logitune"
     color: Theme.background
-    minimumWidth: 800; minimumHeight: 540
+    minimumWidth: 960; minimumHeight: 680
 
     onClosing: function(close) {
         close.accepted = false

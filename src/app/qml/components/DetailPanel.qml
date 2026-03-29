@@ -20,9 +20,22 @@ Rectangle {
     }
     color:  Theme.surface
     radius: 12
+    clip: true
 
-    // Drop shadow illusion via a slightly larger, lighter rect behind
-    layer.enabled: true
+    // Flat right edge (panel sits at window edge)
+    Rectangle {
+        anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+        width: parent.radius
+        color: parent.color
+    }
+
+    // Left border
+    Rectangle {
+        x: 0; y: parent.radius
+        width: 1
+        height: parent.height - parent.radius * 2
+        color: Theme.border
+    }
 
     // ── Slide-in animation ──────────────────────────────────────────────────
     property bool opened: false
@@ -128,11 +141,6 @@ Rectangle {
 
                 ButtonGroup {
                     id: directionGroup
-                    onCheckedButtonChanged: {
-                        if (!ready) return
-                        var invert = (checkedButton === naturalRadio)
-                        DeviceModel.setScrollConfig(DeviceModel.scrollHiRes, invert)
-                    }
                 }
 
                 RadioButton {
@@ -140,6 +148,7 @@ Rectangle {
                     text: "Natural"
                     checked: DeviceModel.scrollInvert
                     ButtonGroup.group: directionGroup
+                    onClicked: DeviceModel.setScrollConfig(DeviceModel.scrollHiRes, true)
 
                     contentItem: Text {
                         leftPadding: naturalRadio.indicator.width + naturalRadio.spacing
@@ -173,6 +182,7 @@ Rectangle {
                     text: "Standard"
                     checked: !DeviceModel.scrollInvert
                     ButtonGroup.group: directionGroup
+                    onClicked: DeviceModel.setScrollConfig(DeviceModel.scrollHiRes, false)
 
                     contentItem: Text {
                         leftPadding: standardRadio.indicator.width + standardRadio.spacing
@@ -218,10 +228,7 @@ Rectangle {
                 LogituneToggle {
                     id: smoothToggle
                     checked: DeviceModel.scrollHiRes
-                    onCheckedChanged: {
-                        if (!ready) return
-                        DeviceModel.setScrollConfig(checked, DeviceModel.scrollInvert)
-                    }
+                    onToggled: DeviceModel.setScrollConfig(checked, DeviceModel.scrollInvert)
                 }
             }
 
@@ -247,10 +254,7 @@ Rectangle {
                     LogituneToggle {
                         id: smartShiftToggle
                         checked: DeviceModel.smartShiftEnabled
-                        onCheckedChanged: {
-                            if (!ready) return
-                            DeviceModel.setSmartShift(checked, smartShiftSlider.value)
-                        }
+                        onToggled: DeviceModel.setSmartShift(checked, smartShiftSlider.value)
                     }
                 }
 

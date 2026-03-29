@@ -98,6 +98,7 @@ Item {
             cursorShape: Qt.IBeamCursor
             onClicked: {
                 field.capturing = true
+                DeviceModel.blockGlobalShortcuts(true)
                 captureItem.forceActiveFocus()
             }
         }
@@ -108,12 +109,20 @@ Item {
         id: captureItem
         width: 0; height: 0
 
+        onActiveFocusChanged: {
+            if (!activeFocus && field.capturing) {
+                field.capturing = false
+                DeviceModel.blockGlobalShortcuts(false)
+            }
+        }
+
         Keys.onPressed: function(event) {
             if (!field.capturing) return
 
             // Escape cancels capture
             if (event.key === Qt.Key_Escape) {
                 field.capturing = false
+                DeviceModel.blockGlobalShortcuts(false)
                 event.accepted = true
                 return
             }
@@ -148,6 +157,7 @@ Item {
             root.keystroke = combo
             root.keystrokeCaptured(combo)
             field.capturing = false
+            DeviceModel.blockGlobalShortcuts(false)
             event.accepted = true
         }
     }

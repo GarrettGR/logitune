@@ -13,7 +13,7 @@ Item {
         // ── Left sidebar ─────────────────────────────────────────────────────
         SideNav {
             id: sideNav
-            Layout.preferredWidth: Math.max(140, Math.min(parent.width * 0.25, 350))
+            Layout.preferredWidth: 200
             Layout.fillHeight: true
 
             onPageSelected: function(page) {
@@ -46,7 +46,7 @@ Item {
                     left: parent.left
                     right: parent.right
                 }
-                height: Math.min(parent.height * 0.185, 144)
+                height: 80
                 spacing: 10
 
                 Item { width: 20 }  // left margin
@@ -74,7 +74,7 @@ Item {
 
                 Text {
                     text: DeviceModel.deviceName || "MX Master 3S"
-                    font.pixelSize: Math.max(14, root.width * 0.01 + root.height * 0.028)
+                    font.pixelSize: 22
                     font.bold: true
                     color: Theme.text
                 }
@@ -84,14 +84,16 @@ Item {
                 Item { width: 20 }  // right margin
             }
 
-            // Per-app profile bar — 48px height
+            // Per-app profile bar — Options+ style chips
             AppProfileBar {
                 id: profileBar
                 anchors {
                     top: header.bottom
                     left: parent.left
+                    right: parent.right
                     topMargin: 4
                     leftMargin: 20
+                    rightMargin: 20
                 }
                 height: 48
             }

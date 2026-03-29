@@ -12,7 +12,6 @@ constexpr uint8_t kLongReportId  = 0x11;   // 20 bytes total
 constexpr int kShortReportSize = 7;
 constexpr int kLongReportSize  = 20;
 
-constexpr uint8_t kDeviceIndexReceiver = 0xFF;
 constexpr uint8_t kDeviceIndexDirect   = 0xFF;
 
 constexpr uint16_t kVendorLogitech    = 0x046d;
@@ -25,6 +24,7 @@ enum class FeatureId : uint16_t {
     FeatureSet      = 0x0001,
     DeviceName      = 0x0005,
     BatteryUnified  = 0x1004,
+    ChangeHost      = 0x1814,
     ReprogControlsV4= 0x1b04,
     SmartShift      = 0x2110,
     HiResWheel      = 0x2121,

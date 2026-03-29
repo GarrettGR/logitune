@@ -15,31 +15,18 @@ Item {
     // Currently selected button (-1 = none)
     property int selectedButton: -1
 
-    // ── Callout layout data ────────────────────────────────────────────────
-    // Only configurable buttons (no left/right click).
-    // hotspotXPct / hotspotYPct: percentage of mouse image where the hotspot dot sits.
-    // side: "left" means label goes to the left of the hotspot, "right" to the right.
-    // buttonId: maps to ButtonModel index.
-    readonly property var calloutData: [
-        // Middle button — dot at (71%, 15%), RIGHT side label
-        { buttonId: 2, hotspotXPct: 0.71, hotspotYPct: 0.15, side: "right",
-          actionDefault: "Middle click", buttonLabel: "Middle button" },
-        // Top / ModeShift — dot at (81%, 34%), RIGHT side label
-        { buttonId: 6, hotspotXPct: 0.81, hotspotYPct: 0.34, side: "right",
-          actionDefault: "Shift wheel mode", buttonLabel: "Top button" },
-        // ThumbWheel — dot at (55%, 51.5%), RIGHT side label
-        { buttonId: 7, hotspotXPct: 0.55, hotspotYPct: 0.515, side: "right",
-          actionDefault: "Horizontal scroll", buttonLabel: "Thumb wheel" },
-        // Forward — dot at (35%, 43%), LEFT side label
-        { buttonId: 4, hotspotXPct: 0.35, hotspotYPct: 0.43, side: "left",
-          actionDefault: "Forward", buttonLabel: "Forward button" },
-        // Back — dot stays at (45%, 60%) but label is offset down 20%
-        { buttonId: 3, hotspotXPct: 0.45, hotspotYPct: 0.60, side: "left", labelOffsetYPct: 0.20,
-          actionDefault: "Back", buttonLabel: "Back button" },
-        // Gesture — dot at (8%, 58%), LEFT side label
-        { buttonId: 5, hotspotXPct: 0.08, hotspotYPct: 0.58, side: "left",
-          actionDefault: "Gestures", buttonLabel: "Gesture button" },
-    ]
+    // Close side panel when profile tab changes
+    Connections {
+        target: DeviceModel
+        function onActiveProfileNameChanged() {
+            root.selectedButton = -1
+        }
+    }
+
+    // ── Callout layout data — read from device descriptor ────────────────
+    // Each entry has: buttonId, hotspotXPct, hotspotYPct, side, labelOffsetYPct,
+    //                  actionDefault, buttonLabel, configurable
+    readonly property var calloutData: DeviceModel.buttonHotspots
 
     // ── Background (follows system theme) ────────────────────────────────────
     Rectangle {
@@ -47,9 +34,14 @@ Item {
         color: Theme.background
     }
 
-    // ── Dismiss panel by clicking the background ─────────────────────────────
+    // ── Dismiss panel by clicking the background (only covers render area, not panel) ──
     MouseArea {
-        anchors.fill: parent
+        anchors {
+            left: parent.left
+            top: parent.top
+            bottom: parent.bottom
+            right: actionsPanel.left
+        }
         enabled: root.selectedButton >= 0
         onClicked: root.selectedButton = -1
     }
@@ -73,6 +65,15 @@ Item {
 
             anchors.verticalCenter: parent.verticalCenter
 
+            // Scale down when available space is tight
+            readonly property real fitScale: Math.min(1.0, Math.max(0.55, renderArea.width / width))
+            scale: fitScale
+            transformOrigin: Item.Center
+
+            Behavior on scale {
+                NumberAnimation { duration: 300; easing.type: Easing.InOutCubic }
+            }
+
             // Centre horizontally; shift left when panel opens
             x: (parent.width - width) / 2 + (root.selectedButton >= 0 ? -60 : 0)
 
@@ -80,13 +81,13 @@ Item {
                 NumberAnimation { duration: 300; easing.type: Easing.InOutCubic }
             }
 
-            // DeviceRender centred in mouseContainer — side view for buttons page
+            // DeviceRender — side view for buttons page
             DeviceRender {
                 id: deviceRender
                 anchors.centerIn: parent
                 implicitWidth:  280
                 implicitHeight: 414
-                imageSource: "qrc:/Logitune/qml/assets/mx-master-3s-side.png"
+                imageSource: DeviceModel.sideImage
 
                 onButtonClicked: function(buttonId) {
                     selectButton(buttonId)
@@ -103,12 +104,12 @@ Item {
                     readonly property var cdata: root.calloutData[modelData]
                     readonly property int btnId: cdata.buttonId
 
-                    // Hotspot position in mouseContainer coordinates
-                    readonly property real hotX: deviceRender.x + cdata.hotspotXPct * deviceRender.implicitWidth
-                    readonly property real hotY: deviceRender.y + cdata.hotspotYPct * deviceRender.implicitHeight
+                    // Hotspot position in mouseContainer coordinates (using painted rect)
+                    readonly property real hotX: deviceRender.x + deviceRender.paintedX + cdata.hotspotXPct * deviceRender.paintedW
+                    readonly property real hotY: deviceRender.y + deviceRender.paintedY + cdata.hotspotYPct * deviceRender.paintedH
 
                     // Label offset (some labels need to shift to avoid overlap)
-                    readonly property real labelOffY: (cdata.labelOffsetYPct || 0) * deviceRender.implicitHeight
+                    readonly property real labelOffY: (cdata.labelOffsetYPct || 0) * deviceRender.paintedH
 
                     // Position: left-side labels to the left, right-side to the right
                     x: cdata.side === "left"

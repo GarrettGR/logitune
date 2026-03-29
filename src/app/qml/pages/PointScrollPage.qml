@@ -20,111 +20,138 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Theme.background
-        radius: 0
     }
 
-    // ── Canvas: device render + overlaid callouts ─────────────────────────────
+    // ── Dismiss panel by clicking background ─────────────────────────────────
+    MouseArea {
+        anchors.fill: parent
+        enabled: root.activePanelType !== ""
+        onClicked: root.activePanelType = ""
+    }
+
+    // ── Render area (shrinks when panel opens, same as ButtonsPage) ──────────
     Item {
         id: canvas
         anchors {
-            fill: parent
+            left:   parent.left
+            top:    parent.top
+            bottom: parent.bottom
+            right:  detailPanel.left
         }
 
-        // ── Mouse render (reuses the shared DeviceRender component) ──
-        // Shifts left 130px when detail panel opens
-        DeviceRender {
-            id: mouseRender
-            imageSource: "qrc:/Logitune/qml/assets/mx-master-3s-side.png"
-            showHotspots: false  // hide button hotspots — we draw our own 3 circles below
-            implicitWidth: 280
-            implicitHeight: 414
-            anchors.centerIn: parent
-            anchors.horizontalCenterOffset: root.activePanelType !== "" ? -130 : 0
-            Behavior on anchors.horizontalCenterOffset {
+        // ── Mouse + callouts group ──
+        Item {
+            id: renderGroup
+            width: mouseRender.implicitWidth + 460  // match ButtonsPage: room for callouts
+            height: 414
+            anchors.verticalCenter: parent.verticalCenter
+
+            // Scale down when available space is tight
+            readonly property real fitScale: Math.min(1.0, Math.max(0.55, canvas.width / width))
+            scale: fitScale
+            transformOrigin: Item.Center
+
+            Behavior on scale {
                 NumberAnimation { duration: 300; easing.type: Easing.InOutCubic }
             }
-        }
 
-        // ── Point & Scroll hotspot circles (3 only) ─────────────────────────
-        // From Options+ core_metadata.json: device_point_scroll_image markers
-        Repeater {
-            model: [
-                { xPct: 0.73, yPct: 0.16 },  // Scroll wheel
-                { xPct: 0.55, yPct: 0.51 },  // Thumb wheel
-                { xPct: 0.83, yPct: 0.54 },  // Pointer speed
-            ]
-            Rectangle {
-                x: mouseRender.x + modelData.xPct * mouseRender.implicitWidth - 9
-                y: mouseRender.y + modelData.yPct * mouseRender.implicitHeight - 9
-                width: 18; height: 18; radius: 9
-                color: "transparent"
-                border.color: Theme.accent
-                border.width: 2
-                opacity: 0.7
+            // Centre horizontally
+            x: (parent.width - width) / 2
+
+            Behavior on x {
+                NumberAnimation { duration: 300; easing.type: Easing.InOutCubic }
+            }
+
+            DeviceRender {
+                id: mouseRender
+                imageSource: DeviceModel.sideImage
+                showHotspots: false
+                implicitWidth: 280
+                implicitHeight: 414
+                anchors.centerIn: parent
+            }
+
+            // ── Scroll hotspot data from device descriptor ───────────────────
+            readonly property var scrollHotspotsData: DeviceModel.scrollHotspots
+
+            // ── Point & Scroll hotspot circles — driven by descriptor ────────
+            Repeater {
+                model: renderGroup.scrollHotspotsData
+                Rectangle {
+                    x: mouseRender.x + mouseRender.paintedX + modelData.xPct * mouseRender.paintedW - 9
+                    y: mouseRender.y + mouseRender.paintedY + modelData.yPct * mouseRender.paintedH - 9
+                    width: 18; height: 18; radius: 9
+                    color: "transparent"
+                    border.color: Theme.accent
+                    border.width: 2
+                    opacity: 0.7
+                }
+            }
+
+            // ── Scroll wheel callout — positioned from descriptor hotspot [0]
+            InfoCallout {
+                id: scrollCallout
+                readonly property var hs: renderGroup.scrollHotspotsData.length > 0 ? renderGroup.scrollHotspotsData[0] : null
+                readonly property real hsX: hs ? hs.xPct : 0.73
+                readonly property real hsY: hs ? hs.yPct : 0.16
+                x: mouseRender.x + mouseRender.paintedX + mouseRender.paintedW * hsX + 16
+                y: mouseRender.y + mouseRender.paintedY + mouseRender.paintedH * hsY - height / 2
+
+                calloutType: "scrollwheel"
+                title: "Scroll wheel"
+                settings: [
+                    "Scroll direction: " + (DeviceModel.scrollInvert ? "Natural" : "Standard"),
+                    "Smooth scrolling: " + (DeviceModel.scrollHiRes ? "On" : "Off"),
+                    "SmartShift: " + (DeviceModel.smartShiftEnabled ? "On" : "Off")
+                ]
+
+                onCalloutClicked: function(type) {
+                    root.activePanelType = (root.activePanelType === type) ? "" : type
+                }
+            }
+
+            // ── Thumb wheel callout — positioned from descriptor hotspot [1]
+            InfoCallout {
+                id: thumbCallout
+                readonly property var hs: renderGroup.scrollHotspotsData.length > 1 ? renderGroup.scrollHotspotsData[1] : null
+                readonly property real hsX: hs ? hs.xPct : 0.55
+                readonly property real hsY: hs ? hs.yPct : 0.51
+                x: mouseRender.x + mouseRender.paintedX + mouseRender.paintedW * hsX - width - 16
+                y: mouseRender.y + mouseRender.paintedY + mouseRender.paintedH * hsY - height / 2
+
+                calloutType: "thumbwheel"
+                title: "Thumb wheel"
+                settings: [
+                    "Speed: 50%",
+                    "Direction: Normal"
+                ]
+
+                onCalloutClicked: function(type) {
+                    root.activePanelType = (root.activePanelType === type) ? "" : type
+                }
+            }
+
+            // ── Pointer speed callout — positioned from descriptor hotspot [2]
+            InfoCallout {
+                id: pointerCallout
+                readonly property var hs: renderGroup.scrollHotspotsData.length > 2 ? renderGroup.scrollHotspotsData[2] : null
+                readonly property real hsX: hs ? hs.xPct : 0.83
+                readonly property real hsY: hs ? hs.yPct : 0.54
+                x: mouseRender.x + mouseRender.paintedX + mouseRender.paintedW * hsX + 16
+                y: mouseRender.y + mouseRender.paintedY + mouseRender.paintedH * hsY - height / 2
+
+                calloutType: "pointerspeed"
+                title: "Pointer speed"
+                settings: [
+                    "DPI: " + DeviceModel.currentDPI
+                ]
+
+                onCalloutClicked: function(type) {
+                    root.activePanelType = (root.activePanelType === type) ? "" : type
+                }
             }
         }
 
-        // ── Scroll wheel callout — right of scroll wheel circle (73%, 16%)
-        InfoCallout {
-            id: scrollCallout
-            x: mouseRender.x + mouseRender.implicitWidth * 0.73 + 16
-            y: mouseRender.y + mouseRender.implicitHeight * 0.16 - height / 2
-
-            calloutType: "scrollwheel"
-            title: "Scroll wheel"
-            settings: [
-                "Scroll direction: " + (DeviceModel.scrollInvert ? "Natural" : "Standard"),
-                "Smooth scrolling: " + (DeviceModel.scrollHiRes ? "On" : "Off"),
-                "SmartShift: " + (DeviceModel.smartShiftEnabled ? "On" : "Off")
-            ]
-
-            onCalloutClicked: function(type) {
-                root.activePanelType = (root.activePanelType === type) ? "" : type
-            }
-        }
-
-        // ── Thumb wheel callout — left of thumb wheel circle (55%, 51%)
-        InfoCallout {
-            id: thumbCallout
-            x: mouseRender.x + mouseRender.implicitWidth * 0.55 - width - 16
-            y: mouseRender.y + mouseRender.implicitHeight * 0.51 - height / 2
-
-            calloutType: "thumbwheel"
-            title: "Thumb wheel"
-            settings: [
-                "Speed: 50%",
-                "Direction: Normal"
-            ]
-
-            onCalloutClicked: function(type) {
-                root.activePanelType = (root.activePanelType === type) ? "" : type
-            }
-        }
-
-        // ── Pointer speed callout — right of pointer speed circle (83%, 54%)
-        InfoCallout {
-            id: pointerCallout
-            x: mouseRender.x + mouseRender.implicitWidth * 0.83 + 16
-            y: mouseRender.y + mouseRender.implicitHeight * 0.54 - height / 2
-
-            calloutType: "pointerspeed"
-            title: "Pointer speed"
-            settings: [
-                "DPI: " + DeviceModel.currentDPI
-            ]
-
-            onCalloutClicked: function(type) {
-                root.activePanelType = (root.activePanelType === type) ? "" : type
-            }
-        }
-
-        // ── Click-outside-panel overlay ────────────────────────────────────────
-        MouseArea {
-            anchors.fill: parent
-            enabled: root.activePanelType !== ""
-            onClicked: root.activePanelType = ""
-            // Transparent — just captures clicks to close the panel
-        }
     }
 
     // ── Detail panel (slides in from the right) ────────────────────────────────

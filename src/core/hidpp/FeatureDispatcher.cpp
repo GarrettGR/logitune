@@ -9,6 +9,7 @@ static constexpr FeatureId kKnownFeatures[] = {
     FeatureId::FeatureSet,
     FeatureId::DeviceName,
     FeatureId::BatteryUnified,
+    FeatureId::ChangeHost,
     FeatureId::ReprogControlsV4,
     FeatureId::SmartShift,
     FeatureId::HiResWheel,
@@ -96,6 +97,30 @@ std::optional<Report> FeatureDispatcher::call(Transport *transport, uint8_t devi
         req.params[i] = params[i];
 
     return transport->sendRequest(req);
+}
+
+bool FeatureDispatcher::callAsync(Transport *transport, uint8_t deviceIndex,
+                                  FeatureId feature, uint8_t functionId,
+                                  std::span<const uint8_t> params)
+{
+    auto idx = featureIndex(feature);
+    if (!idx)
+        return false;
+
+    Report req;
+    req.reportId     = kLongReportId;
+    req.deviceIndex  = deviceIndex;
+    req.featureIndex = *idx;
+    req.functionId   = functionId;
+    req.softwareId   = 0x01;
+
+    int len = static_cast<int>(params.size());
+    if (len > 16) len = 16;
+    req.paramLength = len;
+    for (int i = 0; i < len; ++i)
+        req.params[i] = params[i];
+
+    return transport->sendRequestAsync(req);
 }
 
 } // namespace logitune::hidpp

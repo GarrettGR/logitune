@@ -105,9 +105,9 @@ Item {
             y: 9
             spacing: 2
 
-            // Action name (primary, bold)
+            // Physical button name (primary, bold)
             Text {
-                text: root.actionName
+                text: root.buttonName
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
                 color: root.selected ? Theme.activeTabText : (hoverHandler.hovered ? Theme.accent : Theme.text)
@@ -117,9 +117,9 @@ Item {
                 Behavior on color { ColorAnimation { duration: 150 } }
             }
 
-            // Physical button name (secondary)
+            // Action name (secondary)
             Text {
-                text: root.buttonName
+                text: root.actionName
                 font.pixelSize: 10
                 color: root.selected ? Qt.rgba(1,1,1,0.75) : "#999999"
                 width: Math.min(implicitWidth, 156)

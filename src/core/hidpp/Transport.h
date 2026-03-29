@@ -3,6 +3,7 @@
 #include "HidrawDevice.h"
 
 #include <QObject>
+#include <atomic>
 #include <optional>
 
 namespace logitune::hidpp {
@@ -12,13 +13,10 @@ class Transport : public QObject {
 public:
     explicit Transport(HidrawDevice *device, QObject *parent = nullptr);
 
-    // Thread-safe: can be called from any thread.
-    // If called from a different thread than the one owning the fd,
-    // it uses a mutex to serialize access.
     std::optional<Report> sendRequest(const Report &request, int timeoutMs = 2000);
 
-    void run();   // Notification listener loop — call from I/O thread
-    void stop();
+    /// Fire-and-forget write — no response wait. Returns true if write succeeded.
+    bool sendRequestAsync(const Report &request);
 
 signals:
     void notificationReceived(const Report &report);
@@ -29,7 +27,7 @@ private:
     std::optional<Report> trySend(const Report &request, int timeoutMs, int retriesLeft);
 
     HidrawDevice *m_device;
-    bool m_running = false;
+    std::atomic<bool> m_running{false};
 };
 
 } // namespace logitune::hidpp

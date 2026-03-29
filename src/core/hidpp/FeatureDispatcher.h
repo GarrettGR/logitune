@@ -34,6 +34,11 @@ public:
                                FeatureId feature, uint8_t functionId,
                                std::span<const uint8_t> params = {});
 
+    // Fire-and-forget: write only, no response wait. For settings writes.
+    bool callAsync(Transport *transport, uint8_t deviceIndex,
+                   FeatureId feature, uint8_t functionId,
+                   std::span<const uint8_t> params = {});
+
 private:
     std::unordered_map<FeatureId, uint8_t, FeatureIdHash> m_featureMap;
 };

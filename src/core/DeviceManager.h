@@ -4,7 +4,6 @@
 #include "hidpp/Transport.h"
 #include "hidpp/FeatureDispatcher.h"
 #include <QObject>
-#include <QThread>
 #include <QSocketNotifier>
 #include <memory>
 
@@ -12,6 +11,9 @@ struct udev;
 struct udev_monitor;
 
 namespace logitune {
+
+class DeviceRegistry;
+class IDevice;
 
 class DeviceManager : public QObject {
     Q_OBJECT
@@ -31,16 +33,19 @@ class DeviceManager : public QObject {
     Q_PROPERTY(bool scrollRatchet READ scrollRatchet NOTIFY scrollConfigChanged)
 
 public:
-    explicit DeviceManager(QObject *parent = nullptr);
+    explicit DeviceManager(DeviceRegistry *registry, QObject *parent = nullptr);
     ~DeviceManager();
 
     void start();
 
     // Static helpers (testable without hardware)
     static bool isReceiver(uint16_t pid);
-    static bool isDirectDevice(uint16_t pid);
+    bool isDirectDevice(uint16_t pid) const;
     static uint8_t deviceIndexForDirect();
     static uint8_t deviceIndexForReceiver(int slot);
+
+    // Active device descriptor (available after connect)
+    const IDevice* activeDevice() const;
 
     // Properties
     bool deviceConnected() const;
@@ -61,6 +66,7 @@ public:
     Q_INVOKABLE void setScrollConfig(bool hiRes, bool invert);
     Q_INVOKABLE void divertButton(uint16_t controlId, bool divert, bool rawXY = false);
     Q_INVOKABLE void setThumbWheelMode(const QString &mode); // "scroll", "zoom", "volume"
+    void touchResponseTime();  // prevent false sleep/wake detection during intentional writes
     bool scrollHiRes() const;
     bool scrollInvert() const;
     bool scrollRatchet() const;
@@ -70,6 +76,11 @@ public:
     QString deviceSerial() const;
     uint16_t deviceVid() const;
     uint16_t devicePid() const;
+
+    // Easy-Switch host info
+    int currentHost() const;   // 0-based, -1 if unknown
+    int hostCount() const;
+    bool isHostPaired(int host) const;
 
     // Access to internals for other components
     hidpp::FeatureDispatcher *features() const;
@@ -92,7 +103,6 @@ signals:
     void transportSwitched(const QString &newType);
     void divertedButtonPressed(uint16_t controlId, bool pressed);
     void gestureRawXY(int16_t dx, int16_t dy);  // raw mouse deltas from diverted gesture button
-    void gestureEvent(int dx, int dy, bool released);
     void deviceWoke();
 
 private slots:
@@ -104,22 +114,25 @@ private:
     void probeDevice(const QString &devNode);
     void disconnectDevice();
     void handleNotification(const hidpp::Report &report);
-    void startIoThread();
-    void stopIoThread();
     void enumerateAndSetup();
 
     // Sleep/wake
     void checkSleepWake();
     qint64 m_lastResponseTime = 0;
+    bool m_enumerating = false;
 
     // Transport failover
     QStringList m_availableTransports;
 
+    DeviceRegistry *m_registry = nullptr;
+    const IDevice *m_activeDevice = nullptr;
+
     std::unique_ptr<hidpp::HidrawDevice> m_device;
+    std::unique_ptr<hidpp::HidrawDevice> m_receiverDevice;  // kept open for transport switching
     std::unique_ptr<hidpp::Transport> m_transport;
     std::unique_ptr<hidpp::FeatureDispatcher> m_features;
-    QThread m_ioThread;
     QSocketNotifier *m_hidrawNotifier = nullptr;
+    QSocketNotifier *m_receiverNotifier = nullptr;  // listens for DJ device-arrival when no device on slots
 
     struct udev *m_udev = nullptr;
     struct udev_monitor *m_udevMon = nullptr;
@@ -146,6 +159,9 @@ private:
     bool m_scrollRatchet = true;
     uint8_t m_scrollModeByte = 0;
     QString m_thumbWheelMode = "scroll"; // "scroll", "zoom", "volume"
+    int m_currentHost = -1;   // Easy-Switch: 0-based, -1 if unknown
+    int m_hostCount = 0;
+    QVector<bool> m_hostPaired;
 };
 
 } // namespace logitune

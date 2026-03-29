@@ -28,17 +28,37 @@ Item {
             Row {
                 width: parent.width
                 Text { text: "Firmware version"; width: 160; color: Theme.textSecondary; font.pixelSize: 13 }
-                Text { text: "12.00.11"; color: Theme.text; font.pixelSize: 13 }
+                Text { text: "Unknown"; color: Theme.text; font.pixelSize: 13 }
             }
             Row {
                 width: parent.width
                 Text { text: "Serial number"; width: 160; color: Theme.textSecondary; font.pixelSize: 13 }
-                Text { text: "XXXX-XXXX"; color: Theme.text; font.pixelSize: 13 }
+                Text { text: DeviceModel.deviceSerial; color: Theme.text; font.pixelSize: 13 }
             }
             Row {
                 width: parent.width
                 Text { text: "Per-app profiles"; width: 160; color: Theme.textSecondary; font.pixelSize: 13 }
                 Text { text: "Active"; color: Theme.batteryGreen; font.pixelSize: 13 }
+            }
+
+            // Separator
+            Rectangle { width: parent.width; height: 1; color: Theme.border }
+
+            // Dark mode toggle
+            Row {
+                width: parent.width
+                Text {
+                    text: "Dark mode"
+                    font.pixelSize: 13
+                    color: Theme.text
+                    width: parent.width - darkToggle.width
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                LogituneToggle {
+                    id: darkToggle
+                    checked: Theme.dark
+                    onCheckedChanged: Theme.dark = checked
+                }
             }
 
             // Separator

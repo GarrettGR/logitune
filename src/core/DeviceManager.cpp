@@ -1,4 +1,6 @@
 #include "DeviceManager.h"
+#include "DeviceRegistry.h"
+#include "interfaces/IDevice.h"
 #include "hidpp/features/Battery.h"
 #include "hidpp/features/DeviceName.h"
 #include "hidpp/features/AdjustableDPI.h"
@@ -11,6 +13,7 @@
 #include <QFile>
 #include <QHash>
 #include <QSocketNotifier>
+#include <QTimer>
 
 #include <libudev.h>
 #include <fcntl.h>
@@ -33,9 +36,9 @@ bool DeviceManager::isReceiver(uint16_t pid)
     return pid == hidpp::kPidBoltReceiver || pid == hidpp::kPidUnifyReceiver;
 }
 
-bool DeviceManager::isDirectDevice(uint16_t pid)
+bool DeviceManager::isDirectDevice(uint16_t pid) const
 {
-    return pid == hidpp::kPidMxMaster3s;
+    return m_registry && m_registry->findByPid(pid) != nullptr;
 }
 
 uint8_t DeviceManager::deviceIndexForDirect()
@@ -52,8 +55,9 @@ uint8_t DeviceManager::deviceIndexForReceiver(int slot)
 // Construction / destruction
 // ---------------------------------------------------------------------------
 
-DeviceManager::DeviceManager(QObject *parent)
+DeviceManager::DeviceManager(DeviceRegistry *registry, QObject *parent)
     : QObject(parent)
+    , m_registry(registry)
 {
 }
 
@@ -61,18 +65,17 @@ DeviceManager::~DeviceManager()
 {
     // Undivert all buttons before shutdown to restore native behavior
     if (m_connected && m_features && m_transport &&
-        m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4)) {
-        static const uint16_t kAllButtons[] = { 0x0052, 0x0053, 0x0056, 0x00C3, 0x00C4 };
-        for (uint16_t cid : kAllButtons) {
-            auto params = hidpp::features::ReprogControls::buildSetDivert(cid, false);
-            m_features->call(m_transport.get(), m_deviceIndex,
-                             hidpp::FeatureId::ReprogControlsV4,
-                             hidpp::features::ReprogControls::kFnSetControlReporting,
-                             std::span<const uint8_t>(params));
+        m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4) && m_activeDevice) {
+        for (const auto &ctrl : m_activeDevice->controls()) {
+            if (ctrl.configurable && ctrl.controlId != 0) {
+                auto params = hidpp::features::ReprogControls::buildSetDivert(ctrl.controlId, false);
+                m_features->call(m_transport.get(), m_deviceIndex,
+                                 hidpp::FeatureId::ReprogControlsV4,
+                                 hidpp::features::ReprogControls::kFnSetControlReporting,
+                                 std::span<const uint8_t>(params));
+            }
         }
     }
-
-    stopIoThread();
 
     if (m_udevNotifier) {
         m_udevNotifier->setEnabled(false);
@@ -211,8 +214,27 @@ void DeviceManager::onUdevEvent(const QString &action, const QString &devNode)
         if (!m_availableTransports.contains(devNode))
             m_availableTransports.append(devNode);
 
-        if (!m_connected)
+        if (!m_connected) {
             probeDevice(devNode);
+        } else {
+            // Already connected — but the new device might be the same mouse on a different transport.
+            // Ping the current device to check if it's still alive.
+            if (m_device && m_transport && m_features &&
+                m_features->hasFeature(hidpp::FeatureId::Root)) {
+                hidpp::Report ping;
+                ping.reportId = hidpp::kLongReportId;
+                ping.deviceIndex = m_deviceIndex;
+                ping.featureIndex = 0x00;
+                ping.functionId = 0;
+                ping.softwareId = 0x0A;
+                auto resp = m_transport->sendRequest(ping, 500);
+                if (!resp.has_value()) {
+                    qDebug() << "[DeviceManager] current device unresponsive, switching to" << devNode;
+                    disconnectDevice();
+                    probeDevice(devNode);
+                }
+            }
+        }
     } else if (action == QLatin1String("remove")) {
         m_availableTransports.removeAll(devNode);
 
@@ -288,11 +310,8 @@ void DeviceManager::probeDevice(const QString &devNode)
     QString connType;
 
     if (isReceiver(pid)) {
-        // Bolt receiver PID -> connection type "Bolt"; Unifying -> "Bolt" is debatable
-        // but per spec: Bolt = 0xc548, Unifying = 0xc52b. We label both as "Bolt" for
-        // simplicity since MX Master 3S only supports Bolt among receivers.
         connType = (pid == hidpp::kPidBoltReceiver) ? QStringLiteral("Bolt")
-                                                    : QStringLiteral("Bolt");
+                                                    : QStringLiteral("Unifying");
 
         // The sysfs descriptor check above already filtered to the correct interface.
 
@@ -349,7 +368,48 @@ void DeviceManager::probeDevice(const QString &devNode)
         }
 
         if (!found) {
-            qDebug() << "[DeviceManager] no device found on any slot of" << devNode;
+            qDebug() << "[DeviceManager] no device on any slot of" << devNode << "— keeping receiver open for DJ notifications";
+            // Keep receiver open separately so it survives if another transport connects
+            m_receiverDevice = std::move(device);
+            if (m_receiverNotifier) {
+                delete m_receiverNotifier;
+                m_receiverNotifier = nullptr;
+            }
+            m_receiverNotifier = new QSocketNotifier(m_receiverDevice->fd(), QSocketNotifier::Read, this);
+            connect(m_receiverNotifier, &QSocketNotifier::activated, this, [this, devNode]() {
+                if (!m_receiverDevice) return;
+                auto bytes = m_receiverDevice->readReport(0);
+                if (bytes.empty()) {
+                    // fd error (device removed) — clean up
+                    if (m_receiverNotifier) {
+                        m_receiverNotifier->setEnabled(false);
+                        delete m_receiverNotifier;
+                        m_receiverNotifier = nullptr;
+                    }
+                    m_receiverDevice.reset();
+                    return;
+                }
+                // Any HID++ traffic from a device index 1-6 means a device is present
+                if (bytes.size() >= 3 && bytes[1] >= 1 && bytes[1] <= 6) {
+                    uint8_t slot = bytes[1];
+                    qDebug() << "[DeviceManager] receiver got data from slot" << slot
+                             << "— device arrived on receiver, switching transport";
+                    // Disable receiver notifier
+                    if (m_receiverNotifier) {
+                        m_receiverNotifier->setEnabled(false);
+                        delete m_receiverNotifier;
+                        m_receiverNotifier = nullptr;
+                    }
+                    m_receiverDevice.reset();
+                    // Disconnect current transport (if any) and switch
+                    if (m_connected)
+                        disconnectDevice();
+                    // Delay to let device finish sending wake-up notifications
+                    QTimer::singleShot(500, this, [this, devNode]() {
+                        probeDevice(devNode);
+                    });
+                }
+            });
             return;
         }
     } else if (isDirectDevice(pid)) {
@@ -385,6 +445,7 @@ void DeviceManager::probeDevice(const QString &devNode)
     if (!m_hidrawNotifier) {
         m_hidrawNotifier = new QSocketNotifier(m_device->fd(), QSocketNotifier::Read, this);
         connect(m_hidrawNotifier, &QSocketNotifier::activated, this, [this]() {
+            if (!m_device) return;
             auto bytes = m_device->readReport(0);
             if (bytes.empty())
                 return;
@@ -403,12 +464,16 @@ void DeviceManager::probeDevice(const QString &devNode)
 
 void DeviceManager::enumerateAndSetup()
 {
+    if (m_enumerating) return;
+    m_enumerating = true;
     qDebug() << "[DeviceManager] enumerateAndSetup: deviceIndex=" << Qt::hex << m_deviceIndex;
     m_features = std::make_unique<hidpp::FeatureDispatcher>();
 
     bool ok = m_features->enumerate(m_transport.get(), m_deviceIndex);
     if (!ok) {
         qWarning() << "[DeviceManager] feature enumeration failed";
+        m_enumerating = false;
+        return;
     } else {
         qDebug() << "[DeviceManager] feature enumeration succeeded";
     }
@@ -443,9 +508,8 @@ void DeviceManager::enumerateAndSetup()
     if (name.isEmpty())
         name = QStringLiteral("Logitech Device");
 
-    // Stable device identifier from product ID + name hash
-    QString serial = QString::number(m_device->info().productId, 16)
-                     + QStringLiteral("-") + QString::number(qHash(name), 16);
+    // Stable device identifier from name hash (same across Bolt/BT/USB)
+    QString serial = QString::number(qHash(name), 16);
     qDebug() << "[DeviceManager] device id:" << serial;
 
     // Read battery
@@ -524,16 +588,34 @@ void DeviceManager::enumerateAndSetup()
         }
     }
 
+    // Look up the device descriptor from the registry.
+    // For direct connections the PID matches; for Bolt receiver the device name
+    // (read via HID++ DeviceName feature) identifies the device behind the receiver.
+    m_activeDevice = nullptr;
+    if (m_registry) {
+        m_activeDevice = m_registry->findByPid(m_device->info().productId);
+        if (!m_activeDevice && !name.isEmpty())
+            m_activeDevice = m_registry->findByName(name);
+    }
+    if (m_activeDevice)
+        qDebug() << "[DeviceManager] matched device descriptor:" << m_activeDevice->deviceName();
+    else
+        qDebug() << "[DeviceManager] no device descriptor found for PID"
+                 << Qt::hex << m_device->info().productId << "name:" << name;
+
     // Undivert ALL buttons to ensure clean native state on startup.
     // Previous sessions may have left diversions active on the device.
     if (m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4)) {
-        static const uint16_t kAllButtons[] = { 0x0052, 0x0053, 0x0056, 0x00C3, 0x00C4 };
-        for (uint16_t cid : kAllButtons) {
-            auto params = hidpp::features::ReprogControls::buildSetDivert(cid, false);
-            m_features->call(m_transport.get(), m_deviceIndex,
-                             hidpp::FeatureId::ReprogControlsV4,
-                             hidpp::features::ReprogControls::kFnSetControlReporting,
-                             std::span<const uint8_t>(params));
+        if (m_activeDevice) {
+            for (const auto &ctrl : m_activeDevice->controls()) {
+                if (ctrl.configurable && ctrl.controlId != 0) {
+                    auto params = hidpp::features::ReprogControls::buildSetDivert(ctrl.controlId, false);
+                    m_features->call(m_transport.get(), m_deviceIndex,
+                                     hidpp::FeatureId::ReprogControlsV4,
+                                     hidpp::features::ReprogControls::kFnSetControlReporting,
+                                     std::span<const uint8_t>(params));
+                }
+            }
         }
         qDebug() << "[DeviceManager] all buttons undiverted (clean native state)";
     }
@@ -556,6 +638,33 @@ void DeviceManager::enumerateAndSetup()
 
     qDebug() << "[DeviceManager] battery:" << battLevel << "% charging:" << battCharging;
 
+    // Read current Easy-Switch host (ChangeHost 0x1814)
+    int currentHost = -1;
+    int hostCount = 0;
+    if (m_features->hasFeature(hidpp::FeatureId::ChangeHost)) {
+        auto resp = m_features->call(m_transport.get(), m_deviceIndex,
+                                     hidpp::FeatureId::ChangeHost, 0x00); // GetHostInfo
+        if (resp.has_value()) {
+            hostCount = resp->params[0];
+            currentHost = resp->params[1];
+            qDebug() << "[DeviceManager] Easy-Switch: host" << currentHost << "of" << hostCount;
+
+            // Query cookies to determine which slots are paired
+            auto cookieResp = m_features->call(m_transport.get(), m_deviceIndex,
+                                               hidpp::FeatureId::ChangeHost, 0x02); // GetCookies
+            m_hostPaired.clear();
+            m_hostPaired.resize(hostCount, false);
+            if (cookieResp.has_value()) {
+                for (int i = 0; i < hostCount && i < 16; ++i) {
+                    m_hostPaired[i] = (cookieResp->params[i] != 0);
+                }
+                qDebug() << "[DeviceManager] Easy-Switch paired slots:" << m_hostPaired;
+            }
+        }
+    }
+    m_currentHost = currentHost;
+    m_hostCount = hostCount;
+
     m_deviceName     = name;
     m_deviceSerial   = serial;
     m_deviceVid      = m_device->info().vendorId;
@@ -574,6 +683,7 @@ void DeviceManager::enumerateAndSetup()
     // Record response time for sleep/wake tracking
     m_lastResponseTime = QDateTime::currentMSecsSinceEpoch();
 
+    m_enumerating = false;
     emit deviceSetupComplete();
 }
 
@@ -583,8 +693,10 @@ void DeviceManager::enumerateAndSetup()
 
 void DeviceManager::disconnectDevice()
 {
-    stopIoThread();
+    // Don't touch m_receiverNotifier/m_receiverDevice — they live independently
+    // for transport switching detection
 
+    m_activeDevice = nullptr;
     m_features.reset();
     m_transport.reset();
     m_device.reset();
@@ -619,10 +731,9 @@ void DeviceManager::handleNotification(const hidpp::Report &report)
     qDebug() << "[DeviceManager] notification: featureIndex=" << Qt::hex << report.featureIndex
              << "functionId=" << report.functionId;
 
-    // Track last response time for sleep/wake detection
-    qint64 now = QDateTime::currentMSecsSinceEpoch();
-    checkSleepWake();
-    m_lastResponseTime = now;
+    // Sleep/wake re-enumeration disabled — udev handles real disconnects.
+    // The 2-minute threshold caused false re-enumerations during normal use,
+    // resetting button diversions and thumb wheel mode mid-session.
 
     // Battery notification (feature index matches BatteryUnified)
     if (m_features && m_features->hasFeature(hidpp::FeatureId::BatteryUnified)) {
@@ -709,17 +820,6 @@ void DeviceManager::handleNotification(const hidpp::Report &report)
         }
     }
 
-    // GestureV2 notification
-    if (m_features && m_features->hasFeature(hidpp::FeatureId::GestureV2)) {
-        auto idx = m_features->featureIndex(hidpp::FeatureId::GestureV2);
-        if (idx.has_value() && report.featureIndex == *idx) {
-            int dx = static_cast<int8_t>(report.params[0]);
-            int dy = static_cast<int8_t>(report.params[1]);
-            bool released = (report.params[2] != 0);
-            emit gestureEvent(dx, dy, released);
-            return;
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -735,42 +835,21 @@ void DeviceManager::checkSleepWake()
     constexpr qint64 kSleepThresholdMs = 120000; // 2 minutes
 
     if ((now - m_lastResponseTime) > kSleepThresholdMs) {
-        qDebug() << "DeviceManager: device woke from sleep, re-enumerating features";
-        // Re-enumerate features and re-read state after wake
-        if (m_transport && m_device && m_device->isOpen()) {
-            enumerateAndSetup();
-        }
-        emit deviceWoke();
+        if (m_enumerating) return; // prevent re-entrant enumeration on wake
+        m_enumerating = true; // block further wake attempts until timer fires
+        qDebug() << "[DeviceManager] device woke from sleep, deferring re-enumeration (500ms)";
+        QTimer::singleShot(500, this, [this]() {
+            m_enumerating = false;
+            qDebug() << "[DeviceManager] wake timer fired, re-enumerating features";
+            if (m_transport && m_device && m_device->isOpen()) {
+                enumerateAndSetup();
+            }
+            m_lastResponseTime = QDateTime::currentMSecsSinceEpoch();
+            emit deviceWoke();
+        });
     }
 }
 
-// ---------------------------------------------------------------------------
-// I/O thread management
-// ---------------------------------------------------------------------------
-
-void DeviceManager::startIoThread()
-{
-    if (m_ioThread.isRunning())
-        return;
-
-    hidpp::Transport *transport = m_transport.get();
-    connect(&m_ioThread, &QThread::started, transport, &hidpp::Transport::run,
-            Qt::DirectConnection);
-
-    m_ioThread.start();
-}
-
-void DeviceManager::stopIoThread()
-{
-    if (!m_ioThread.isRunning())
-        return;
-
-    if (m_transport)
-        m_transport->stop();
-
-    m_ioThread.quit();
-    m_ioThread.wait(3000);
-}
 
 // ---------------------------------------------------------------------------
 // Property accessors
@@ -798,6 +877,7 @@ uint8_t DeviceManager::deviceIndex() const { return m_deviceIndex; }
 QString DeviceManager::deviceSerial() const { return m_deviceSerial; }
 uint16_t DeviceManager::deviceVid() const { return m_deviceVid; }
 uint16_t DeviceManager::devicePid() const { return m_devicePid; }
+const IDevice* DeviceManager::activeDevice() const { return m_activeDevice; }
 
 // ---------------------------------------------------------------------------
 // setDPI() — change mouse DPI via HID++
@@ -816,14 +896,11 @@ void DeviceManager::setDPI(int value)
     m_currentDPI = value;
     emit currentDPIChanged();
 
-    // Synchronous HID++ write — disable notifier to prevent fd contention
-    if (m_hidrawNotifier) m_hidrawNotifier->setEnabled(false);
     auto params = hidpp::features::AdjustableDPI::buildSetDPI(value);
-    m_features->call(m_transport.get(), m_deviceIndex,
-                     hidpp::FeatureId::AdjustableDPI,
-                     hidpp::features::AdjustableDPI::kFnSetSensorDpi,
-                     params);
-    if (m_hidrawNotifier) m_hidrawNotifier->setEnabled(true);
+    m_features->callAsync(m_transport.get(), m_deviceIndex,
+                          hidpp::FeatureId::AdjustableDPI,
+                          hidpp::features::AdjustableDPI::kFnSetSensorDpi,
+                          params);
 }
 
 // ---------------------------------------------------------------------------
@@ -846,13 +923,11 @@ void DeviceManager::setSmartShift(bool enabled, int threshold)
     uint8_t mode = enabled ? 2 : 1;
     uint8_t ad = static_cast<uint8_t>(threshold);
 
-    if (m_hidrawNotifier) m_hidrawNotifier->setEnabled(false);
     auto params = hidpp::features::SmartShift::buildSetConfig(mode, ad);
-    m_features->call(m_transport.get(), m_deviceIndex,
-                     hidpp::FeatureId::SmartShift,
-                     hidpp::features::SmartShift::kFnSetStatus,
-                     std::span<const uint8_t>(params));
-    if (m_hidrawNotifier) m_hidrawNotifier->setEnabled(true);
+    m_features->callAsync(m_transport.get(), m_deviceIndex,
+                          hidpp::FeatureId::SmartShift,
+                          hidpp::features::SmartShift::kFnSetStatus,
+                          std::span<const uint8_t>(params));
     qDebug() << "[DeviceManager] SmartShift set: mode=" << mode << "autoDisengage=" << ad;
 }
 
@@ -867,13 +942,11 @@ void DeviceManager::setScrollConfig(bool hiRes, bool invert)
     m_scrollInvert = invert;
     emit scrollConfigChanged();
 
-    if (m_hidrawNotifier) m_hidrawNotifier->setEnabled(false);
     auto params = hidpp::features::HiResWheel::buildSetWheelMode(m_scrollModeByte, hiRes, invert);
-    m_features->call(m_transport.get(), m_deviceIndex,
-                     hidpp::FeatureId::HiResWheel,
-                     hidpp::features::HiResWheel::kFnSetWheelMode,
-                     std::span<const uint8_t>(params));
-    if (m_hidrawNotifier) m_hidrawNotifier->setEnabled(true);
+    m_features->callAsync(m_transport.get(), m_deviceIndex,
+                          hidpp::FeatureId::HiResWheel,
+                          hidpp::features::HiResWheel::kFnSetWheelMode,
+                          std::span<const uint8_t>(params));
 }
 
 void DeviceManager::divertButton(uint16_t controlId, bool divert, bool rawXY)
@@ -883,38 +956,50 @@ void DeviceManager::divertButton(uint16_t controlId, bool divert, bool rawXY)
     if (!m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4))
         return;
 
-    if (m_hidrawNotifier) m_hidrawNotifier->setEnabled(false);
     auto params = hidpp::features::ReprogControls::buildSetDivert(controlId, divert, rawXY);
-    m_features->call(m_transport.get(), m_deviceIndex,
-                     hidpp::FeatureId::ReprogControlsV4,
-                     hidpp::features::ReprogControls::kFnSetControlReporting,
-                     std::span<const uint8_t>(params));
-    if (m_hidrawNotifier) m_hidrawNotifier->setEnabled(true);
+    m_features->callAsync(m_transport.get(), m_deviceIndex,
+                          hidpp::FeatureId::ReprogControlsV4,
+                          hidpp::features::ReprogControls::kFnSetControlReporting,
+                          std::span<const uint8_t>(params));
     qDebug() << "[DeviceManager] button" << Qt::hex << controlId
              << (divert ? "diverted" : "undiverted") << (rawXY ? "+rawXY" : "");
 }
 
 QString DeviceManager::thumbWheelMode() const { return m_thumbWheelMode; }
+int DeviceManager::currentHost() const { return m_currentHost; }
+int DeviceManager::hostCount() const { return m_hostCount; }
+bool DeviceManager::isHostPaired(int host) const {
+    if (host < 0 || host >= m_hostPaired.size()) return false;
+    return m_hostPaired[host];
+}
+
+void DeviceManager::touchResponseTime()
+{
+    m_lastResponseTime = QDateTime::currentMSecsSinceEpoch();
+}
 
 void DeviceManager::setThumbWheelMode(const QString &mode)
 {
-    if (!m_connected || !m_features || !m_transport)
+    if (!m_connected || !m_features || !m_transport) {
+        qDebug() << "[DeviceManager] setThumbWheelMode SKIPPED (not connected):" << mode;
         return;
-    if (!m_features->hasFeature(hidpp::FeatureId::ThumbWheel))
+    }
+    if (!m_features->hasFeature(hidpp::FeatureId::ThumbWheel)) {
+        qDebug() << "[DeviceManager] setThumbWheelMode SKIPPED (no feature):" << mode;
         return;
+    }
 
     bool divert = (mode != "scroll"); // "scroll" = native, anything else = diverted
+    qDebug() << "[DeviceManager] setThumbWheelMode:" << mode << "divert:" << divert;
     m_thumbWheelMode = mode;
     emit thumbWheelModeChanged();
 
-    if (m_hidrawNotifier) m_hidrawNotifier->setEnabled(false);
     std::array<uint8_t, 2> twParams = {
         static_cast<uint8_t>(divert ? 0x01 : 0x00), 0x00
     };
-    m_features->call(m_transport.get(), m_deviceIndex,
-                     hidpp::FeatureId::ThumbWheel, 0x02,
-                     std::span<const uint8_t>(twParams));
-    if (m_hidrawNotifier) m_hidrawNotifier->setEnabled(true);
+    m_features->callAsync(m_transport.get(), m_deviceIndex,
+                          hidpp::FeatureId::ThumbWheel, 0x02,
+                          std::span<const uint8_t>(twParams));
 }
 
 } // namespace logitune

@@ -1,12 +1,11 @@
 #pragma once
+#include "ButtonAction.h"
+#include "interfaces/IInputInjector.h"
 #include <QObject>
 #include <QString>
 #include <vector>
 
 namespace logitune {
-
-// Forward declaration — ButtonAction is defined in ProfileEngine.h (Task 8)
-struct ButtonAction;
 
 enum class GestureDirection { None, Up, Down, Left, Right, Click };
 
@@ -32,19 +31,15 @@ struct DBusCall {
 class ActionExecutor : public QObject {
     Q_OBJECT
 public:
-    explicit ActionExecutor(QObject *parent = nullptr);
-    ~ActionExecutor();
-
-    bool initUinput();   // Create /dev/uinput virtual keyboard
-    void shutdown();     // Destroy uinput device
+    explicit ActionExecutor(IInputInjector *injector, QObject *parent = nullptr);
 
     void executeAction(const ButtonAction &action);
     void injectKeystroke(const QString &combo);
-    void injectCtrlScroll(int direction); // +1 = zoom in, -1 = zoom out
+    void injectCtrlScroll(int direction);
     void executeDBusCall(const QString &spec);
     void launchApp(const QString &command);
 
-    // Static helpers (testable)
+    // Static helpers (testable) — parseKeystroke forwards to UinputInjector
     static std::vector<int> parseKeystroke(const QString &combo);
     static DBusCall parseDBusAction(const QString &spec);
     static QString gestureDirectionName(GestureDirection dir);
@@ -52,10 +47,8 @@ public:
     GestureDetector &gestureDetector();
 
 private:
-    int m_uinputFd = -1;
+    IInputInjector *m_injector;
     GestureDetector m_gestureDetector;
-    void sendKey(int keycode, bool press);
-    void syncUinput();
 };
 
 } // namespace logitune
