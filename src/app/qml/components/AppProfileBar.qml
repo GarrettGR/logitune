@@ -6,88 +6,168 @@ import Logitune
 Item {
     id: profileBar
     implicitHeight: 48
-    implicitWidth: chipRow.implicitWidth
 
     property var _allApps: []
 
-    // ── Chip row ────────────────────────────────────────────────────────────
-    Row {
-        id: chipRow
-        anchors.verticalCenter: parent.verticalCenter
+    // Whether chips overflow the visible area
+    readonly property bool overflowing: chipRow.implicitWidth > chipClip.width
+
+    // Scroll offset (pixels)
+    property real scrollOffset: 0
+
+    function scrollLeft() {
+        scrollOffset = Math.max(0, scrollOffset - 120)
+    }
+    function scrollRight() {
+        var maxScroll = Math.max(0, chipRow.implicitWidth - chipClip.width)
+        scrollOffset = Math.min(maxScroll, scrollOffset + 120)
+    }
+
+    RowLayout {
+        anchors.fill: parent
         spacing: 6
 
-        // Profile chips — one per entry in ProfileModel
-        Repeater {
-            model: ProfileModel
+        // ── Clipped chip area ────────────────────────────────────────────
+        Item {
+            id: chipClip
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
 
-            delegate: Rectangle {
-                id: chip
-                width: chipLabel.implicitWidth + (model.icon ? 46 : 24)
-                height: 32
-                radius: 6
-                color: model.isActive ? Theme.accent
-                     : chipHover.hovered ? Theme.hoverBg : Theme.surface
-                border.color: model.isActive ? "transparent" : Theme.border
-                border.width: 1
+            Row {
+                id: chipRow
+                anchors.verticalCenter: parent.verticalCenter
+                x: profileBar.overflowing ? -profileBar.scrollOffset
+                   : (chipClip.width - chipRow.implicitWidth) / 2
+                spacing: 6
 
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on x { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
-                HoverHandler { id: chipHover }
+                Repeater {
+                    model: ProfileModel
 
-                Row {
-                    anchors.centerIn: parent
-                    spacing: 6
+                    delegate: Rectangle {
+                        width: chipLabel.implicitWidth + (model.icon ? 46 : 24)
+                        height: 32
+                        radius: 6
+                        color: model.isActive ? Theme.accent
+                             : chipHover.hovered ? Theme.hoverBg : Theme.surface
+                        border.color: model.isActive ? "transparent" : Theme.border
+                        border.width: 1
 
-                    Image {
-                        width: 16; height: 16
-                        anchors.verticalCenter: parent.verticalCenter
-                        source: model.icon ? "image://icon/" + model.icon : ""
-                        sourceSize: Qt.size(16, 16)
-                        visible: status === Image.Ready
-                    }
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                    Text {
-                        id: chipLabel
-                        text: model.name
-                        font.pixelSize: 12
-                        font.bold: model.isActive
-                        color: model.isActive ? Theme.activeTabText : Theme.text
-                        elide: Text.ElideRight
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
+                        HoverHandler { id: chipHover }
 
-                // Hardware active indicator — small accent bar below the chip
-                Rectangle {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: -4
-                    width: 6; height: 3; radius: 1.5
-                    color: Theme.accent
-                    visible: model.isHwActive && !model.isActive
-                }
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: 6
 
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    cursorShape: Qt.PointingHandCursor
+                            Image {
+                                width: 16; height: 16
+                                anchors.verticalCenter: parent.verticalCenter
+                                source: model.icon ? "image://icon/" + model.icon : ""
+                                sourceSize: Qt.size(16, 16)
+                                visible: status === Image.Ready
+                            }
 
-                    onClicked: function(mouse) {
-                        if (mouse.button === Qt.RightButton && model.index > 0) {
-                            contextMenu.profileIndex = model.index
-                            contextMenu.profileName = model.name
-                            contextMenu.popup()
-                        } else if (mouse.button === Qt.LeftButton) {
-                            ProfileModel.selectTab(model.index)
+                            Text {
+                                id: chipLabel
+                                text: model.name
+                                font.pixelSize: 12
+                                font.bold: model.isActive
+                                color: model.isActive ? Theme.activeTabText : Theme.text
+                                elide: Text.ElideRight
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: -4
+                            width: 6; height: 3; radius: 1.5
+                            color: Theme.accent
+                            visible: model.isHwActive && !model.isActive
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            cursorShape: Qt.PointingHandCursor
+
+                            onClicked: function(mouse) {
+                                if (mouse.button === Qt.RightButton && model.index > 0) {
+                                    contextMenu.profileIndex = model.index
+                                    contextMenu.profileName = model.name
+                                    contextMenu.popup()
+                                } else if (mouse.button === Qt.LeftButton) {
+                                    ProfileModel.selectTab(model.index)
+                                }
+                            }
                         }
                     }
                 }
             }
+
+            // Horizontal scroll via mouse wheel
+            WheelHandler {
+                onWheel: function(event) {
+                    if (!profileBar.overflowing) return
+                    var d = event.angleDelta.x !== 0 ? event.angleDelta.x : event.angleDelta.y
+                    if (d > 0) profileBar.scrollLeft()
+                    else if (d < 0) profileBar.scrollRight()
+                }
+            }
         }
 
-        // ── "+ ADD APPLICATION" button ───────────────────────────────────────
+        // ── Scroll arrows (right side, only when overflowing) ────────────
+        Row {
+            spacing: 2
+            visible: profileBar.overflowing
+            Layout.alignment: Qt.AlignVCenter
+
+            Rectangle {
+                width: 24; height: 24; radius: 12
+                color: leftHover.hovered ? Theme.hoverBg : Theme.surface
+                border.color: Theme.border; border.width: 1
+                opacity: profileBar.scrollOffset > 0 ? 1.0 : 0.3
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "\u2039"; font.pixelSize: 14; color: Theme.text
+                }
+                HoverHandler { id: leftHover }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: profileBar.scrollLeft()
+                }
+            }
+
+            Rectangle {
+                width: 24; height: 24; radius: 12
+                color: rightHover.hovered ? Theme.hoverBg : Theme.surface
+                border.color: Theme.border; border.width: 1
+                opacity: profileBar.scrollOffset < (chipRow.implicitWidth - chipClip.width) ? 1.0 : 0.3
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "\u203A"; font.pixelSize: 14; color: Theme.text
+                }
+                HoverHandler { id: rightHover }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: profileBar.scrollRight()
+                }
+            }
+        }
+
+        // ── "+ Add application" button (always visible, outside scroll) ──
         Rectangle {
             id: addBtn
+            Layout.alignment: Qt.AlignVCenter
             width: addLabel.implicitWidth + 24
             height: 32
             radius: 6
@@ -114,7 +194,6 @@ Item {
                     if (dropdown.opened) {
                         dropdown.close()
                     } else {
-                        // Load installed apps
                         profileBar._allApps = DeviceModel.runningApplications()
                         dropdown.open()
                         searchInput.text = ""
@@ -140,11 +219,11 @@ Item {
         }
     }
 
-    // ── Dropdown panel (Popup floats above all content) ────────────────────
+    // ── Dropdown panel ──────────────────────────────────────────────────────
     Popup {
         id: dropdown
         x: addBtn.x
-        y: chipRow.y + chipRow.height + 6
+        y: addBtn.y + addBtn.height + 6
         width: 280
         padding: 8
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
@@ -160,7 +239,6 @@ Item {
             width: parent.width
             spacing: 4
 
-            // Search field
             TextField {
                 id: searchInput
                 width: parent.width
@@ -177,7 +255,6 @@ Item {
                 }
             }
 
-            // App list (filtered by search)
             ListView {
                 width: parent.width
                 height: 300
