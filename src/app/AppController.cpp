@@ -1,4 +1,6 @@
 #include "AppController.h"
+#include "desktop/KDeDesktop.h"
+#include "input/UinputInjector.h"
 #include <QDir>
 #include <QFile>
 #include <QStandardPaths>
@@ -10,21 +12,41 @@ namespace logitune {
 // Construction / init --------------------------------------------------------
 
 AppController::AppController(QObject *parent)
+    : AppController(nullptr, nullptr, parent)
+{
+}
+
+AppController::AppController(IDesktopIntegration *desktop, IInputInjector *injector, QObject *parent)
     : QObject(parent)
     , m_deviceManager(&m_registry)
-    , m_actionExecutor(&m_injector)
+    , m_actionExecutor(nullptr)
 {
+    if (desktop) {
+        m_desktop = desktop;
+    } else {
+        m_ownedDesktop = std::make_unique<KDeDesktop>();
+        m_desktop = m_ownedDesktop.get();
+    }
+
+    if (injector) {
+        m_injector = injector;
+    } else {
+        m_ownedInjector = std::make_unique<UinputInjector>();
+        m_injector = m_ownedInjector.get();
+    }
+
+    m_actionExecutor.setInjector(m_injector);
 }
 
 void AppController::init()
 {
     // Wire DeviceModel to DeviceManager
     m_deviceModel.setDeviceManager(&m_deviceManager);
-    m_deviceModel.setDesktopIntegration(&m_windowTracker);
+    m_deviceModel.setDesktopIntegration(m_desktop);
     // Init uinput
     fprintf(stderr, "[logitune] creating UinputInjector...\n");
     fprintf(stderr, "[logitune] init uinput...\n");
-    if (!m_injector.init()) {
+    if (!m_injector->init()) {
         qWarning() << "[AppController] UinputInjector: uinput init failed (no /dev/uinput access?). Keystrokes will not be injected.";
     }
 
@@ -42,7 +64,7 @@ void AppController::init()
 void AppController::startMonitoring()
 {
     m_deviceManager.start();
-    m_windowTracker.start();
+    m_desktop->start();
 }
 
 // Signal wiring --------------------------------------------------------------
@@ -54,7 +76,7 @@ void AppController::wireSignals()
             this, &AppController::onUserButtonChanged);
 
     // 1. Window focus change -> apply profile to hardware + update UI
-    connect(&m_windowTracker, &IDesktopIntegration::activeWindowChanged,
+    connect(m_desktop, &IDesktopIntegration::activeWindowChanged,
             this, &AppController::onWindowFocusChanged);
 
     // 2. Tab click -> show cached profile in UI (no hardware writes)
@@ -232,7 +254,7 @@ void AppController::onDeviceSetupComplete()
 
         // Build wmClass -> icon lookup from installed apps
         QMap<QString, QString> iconLookup;
-        const auto apps = m_windowTracker.runningApplications();
+        const auto apps = m_desktop->runningApplications();
         for (const auto &app : apps) {
             auto map = app.toMap();
             iconLookup[map[QStringLiteral("wmClass")].toString().toLower()]

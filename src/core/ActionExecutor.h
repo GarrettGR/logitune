@@ -31,7 +31,8 @@ struct DBusCall {
 class ActionExecutor : public QObject {
     Q_OBJECT
 public:
-    explicit ActionExecutor(IInputInjector *injector, QObject *parent = nullptr);
+    explicit ActionExecutor(IInputInjector *injector = nullptr, QObject *parent = nullptr);
+    void setInjector(IInputInjector *injector);
 
     void executeAction(const ButtonAction &action);
     void injectKeystroke(const QString &combo);

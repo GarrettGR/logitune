@@ -20,6 +20,7 @@ target_sources(logitune-core PRIVATE
     devices/MxMaster3sDescriptor.cpp
     interfaces/IDesktopIntegration.cpp
     interfaces/IInputInjector.cpp
+    interfaces/ITransport.cpp
     desktop/KDeDesktop.cpp
     desktop/GenericDesktop.cpp
     input/UinputInjector.cpp

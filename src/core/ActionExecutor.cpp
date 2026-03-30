@@ -45,6 +45,11 @@ ActionExecutor::ActionExecutor(IInputInjector *injector, QObject *parent)
 {
 }
 
+void ActionExecutor::setInjector(IInputInjector *injector)
+{
+    m_injector = injector;
+}
+
 // ---------------------------------------------------------------------------
 // Action dispatch
 // ---------------------------------------------------------------------------

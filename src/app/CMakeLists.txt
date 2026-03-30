@@ -1,10 +1,22 @@
-qt_add_executable(logitune
-    main.cpp
+# ── Static library: models + AppController (linkable from tests) ──────────
+add_library(logitune-app-lib STATIC
     AppController.cpp
     models/DeviceModel.cpp
     models/ButtonModel.cpp
     models/ActionModel.cpp
     models/ProfileModel.cpp
+)
+
+target_include_directories(logitune-app-lib PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/models
+)
+
+target_link_libraries(logitune-app-lib PUBLIC logitune-core Qt6::Quick)
+
+# ── Executable: main entry point + QML module ────────────────────────────
+qt_add_executable(logitune
+    main.cpp
 )
 
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
@@ -39,11 +51,6 @@ qt_add_qml_module(logitune
         qml/assets/mx-master-3s-side.png
 )
 
-target_include_directories(logitune PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/models
-)
-
-target_link_libraries(logitune PRIVATE logitune-core Qt6::Quick Qt6::Svg Qt6::DBus Qt6::Widgets)
+target_link_libraries(logitune PRIVATE logitune-app-lib Qt6::Svg Qt6::DBus Qt6::Widgets)
 
 install(TARGETS logitune DESTINATION bin)

@@ -2,10 +2,10 @@
 #include "DeviceManager.h"
 #include "DeviceRegistry.h"
 #include "interfaces/IDevice.h"
+#include "interfaces/IDesktopIntegration.h"
+#include "interfaces/IInputInjector.h"
 #include "ProfileEngine.h"
 #include "ActionExecutor.h"
-#include "input/UinputInjector.h"
-#include "desktop/KDeDesktop.h"
 #include "models/DeviceModel.h"
 #include "models/ButtonModel.h"
 #include "models/ActionModel.h"
@@ -22,6 +22,7 @@ class AppController : public QObject {
     Q_OBJECT
 public:
     explicit AppController(QObject *parent = nullptr);
+    AppController(IDesktopIntegration *desktop, IInputInjector *injector, QObject *parent = nullptr);
 
     /// Create all subsystems, wire signals, set gesture defaults.
     /// Call this once after construction but before QML loads.
@@ -67,10 +68,14 @@ private:
     ButtonModel    m_buttonModel;
     ActionModel    m_actionModel;
     ProfileModel   m_profileModel;
-    KDeDesktop     m_windowTracker;
     ProfileEngine  m_profileEngine;
-    UinputInjector m_injector;
     ActionExecutor m_actionExecutor;
+
+    // Injected dependencies (owned when created internally)
+    std::unique_ptr<IDesktopIntegration> m_ownedDesktop;
+    std::unique_ptr<IInputInjector>      m_ownedInjector;
+    IDesktopIntegration *m_desktop  = nullptr;
+    IInputInjector      *m_injector = nullptr;
 
     // Active device descriptor (set on connect)
     const IDevice *m_currentDevice = nullptr;
