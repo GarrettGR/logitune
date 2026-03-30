@@ -1,4 +1,4 @@
-# ── Static library: models + AppController (linkable from tests) ──────────
+# ── Static library: models + AppController + QML module (linkable from tests) ─
 add_library(logitune-app-lib STATIC
     AppController.cpp
     models/DeviceModel.cpp
@@ -7,6 +7,7 @@ add_library(logitune-app-lib STATIC
     models/ProfileModel.cpp
     dialogs/GitHubIssueBuilder.cpp
     dialogs/CrashReportDialog.cpp
+    TrayManager.cpp
 )
 
 target_include_directories(logitune-app-lib PUBLIC
@@ -16,16 +17,12 @@ target_include_directories(logitune-app-lib PUBLIC
 
 target_link_libraries(logitune-app-lib PUBLIC logitune-core Qt6::Quick Qt6::Widgets)
 
-# ── Executable: main entry point + QML module ────────────────────────────
-qt_add_executable(logitune
-    main.cpp
-)
-
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
-qt_add_qml_module(logitune
+qt_add_qml_module(logitune-app-lib
     URI Logitune
     VERSION 1.0
+    RESOURCE_PREFIX /
     QML_FILES
         qml/Theme.qml
         qml/Main.qml
@@ -53,7 +50,12 @@ qt_add_qml_module(logitune
         qml/assets/mx-master-3s-side.png
 )
 
-target_link_libraries(logitune PRIVATE logitune-app-lib Qt6::Svg Qt6::DBus Qt6::Widgets)
+# ── Executable: main entry point ─────────────────────────────────────────
+qt_add_executable(logitune
+    main.cpp
+)
+
+target_link_libraries(logitune PRIVATE logitune-app-lib logitune-app-libplugin Qt6::Svg Qt6::DBus Qt6::Widgets)
 target_link_options(logitune PRIVATE -rdynamic)
 
 install(TARGETS logitune DESTINATION bin)

@@ -4,18 +4,18 @@
 #include <QSettings>
 #include <signal.h>
 #include <QQmlApplicationEngine>
-#include <QSystemTrayIcon>
-#include <QMenu>
-#include <QAction>
 #include <QQuickWindow>
 #include <QQuickImageProvider>
 #include <QIcon>
 #include <QTimer>
+#include <QLockFile>
+#include <QStandardPaths>
 
 #include "AppController.h"
 #include "logging/LogManager.h"
 #include "logging/CrashHandler.h"
 #include "dialogs/CrashReportDialog.h"
+#include "TrayManager.h"
 
 int main(int argc, char *argv[])
 {
@@ -26,6 +26,15 @@ int main(int argc, char *argv[])
     app.setOrganizationName("Logitune");
     app.setApplicationName("Logitune");
     app.setApplicationVersion("0.1.0");
+    app.setQuitOnLastWindowClosed(false);  // tray icon keeps app alive
+
+    // Single-instance guard — prevent two instances fighting over the device
+    QLockFile lockFile(QStandardPaths::writableLocation(QStandardPaths::TempLocation)
+                       + "/logitune.lock");
+    if (!lockFile.tryLock(100)) {
+        qCritical() << "Another instance of Logitune is already running";
+        return 1;
+    }
 
     // Parse --debug flag
     bool debugMode = app.arguments().contains("--debug");
@@ -115,21 +124,8 @@ int main(int argc, char *argv[])
     controller.startMonitoring();
 
     // System tray
-    QSystemTrayIcon trayIcon;
-    trayIcon.setIcon(QIcon::fromTheme("input-mouse"));
-    trayIcon.setToolTip("Logitune - MX Master 3S");
-
-    QMenu trayMenu;
-    QAction *showAction = trayMenu.addAction("Show Logitune");
-    trayMenu.addSeparator();
-    QAction *batteryAction = trayMenu.addAction("Battery: ---%");
-    batteryAction->setEnabled(false);
-    trayMenu.addSeparator();
-    QAction *quitAction = trayMenu.addAction("Quit");
-    trayIcon.setContextMenu(&trayMenu);
-    trayIcon.show();
-
-    auto showWindow = [&engine]() {
+    logitune::TrayManager tray(controller.deviceModel());
+    QObject::connect(&tray, &logitune::TrayManager::showWindowRequested, [&engine]() {
         for (auto *obj : engine.rootObjects()) {
             if (auto *window = qobject_cast<QQuickWindow*>(obj)) {
                 window->show();
@@ -137,19 +133,9 @@ int main(int argc, char *argv[])
                 window->requestActivate();
             }
         }
-    };
-
-    QObject::connect(showAction, &QAction::triggered, showWindow);
-    QObject::connect(quitAction, &QAction::triggered, &app, &QApplication::quit);
-    QObject::connect(&trayIcon, &QSystemTrayIcon::activated,
-        [showWindow](QSystemTrayIcon::ActivationReason reason) {
-            if (reason == QSystemTrayIcon::Trigger) showWindow();
-        });
-
-    QObject::connect(controller.deviceModel(), &logitune::DeviceModel::batteryLevelChanged,
-        [batteryAction, dm = controller.deviceModel()]() {
-            batteryAction->setText(dm->batteryStatusText());
-        });
+    });
+    QObject::connect(tray.quitAction(), &QAction::triggered, &app, &QApplication::quit);
+    tray.show();
 
     qCInfo(lcApp) << "Startup complete";
 
