@@ -3,6 +3,7 @@
 #include "hidpp/Transport.h"
 #include <QObject>
 #include <unordered_map>
+#include <functional>
 #include <vector>
 #include <span>
 
@@ -34,13 +35,27 @@ public:
                                FeatureId feature, uint8_t functionId,
                                std::span<const uint8_t> params = {});
 
-    // Fire-and-forget: write only, no response wait. For settings writes.
-    bool callAsync(Transport *transport, uint8_t deviceIndex,
-                   FeatureId feature, uint8_t functionId,
-                   std::span<const uint8_t> params = {});
+    using ResponseCallback = std::function<void(const Report &)>;
+
+    // Async call with optional completion callback. Returns the softwareId used
+    // for matching. The callback is invoked when the response arrives via
+    // handleResponse(). If no callback is provided, the response is discarded.
+    uint8_t callAsync(Transport *transport, uint8_t deviceIndex,
+                      FeatureId feature, uint8_t functionId,
+                      std::span<const uint8_t> params = {},
+                      ResponseCallback callback = nullptr);
+
+    // Called by DeviceManager when an incoming report has softwareId != 0.
+    // Returns true if the report matched a pending callback (consumed).
+    bool handleResponse(const Report &report);
 
 private:
+    uint8_t nextSoftwareId();
+
     std::unordered_map<FeatureId, uint8_t, FeatureIdHash> m_featureMap;
+    // Pending callbacks keyed by softwareId (1-15)
+    std::unordered_map<uint8_t, ResponseCallback> m_pendingCallbacks;
+    uint8_t m_nextSwId = 1;  // rotating 1-15
 };
 
 } // namespace logitune::hidpp

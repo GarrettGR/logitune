@@ -1,4 +1,5 @@
 #include "input/UinputInjector.h"
+#include "logging/LogManager.h"
 
 #include <QProcess>
 #include <QDBusConnection>
@@ -156,14 +157,30 @@ void UinputInjector::injectCtrlScroll(int direction)
 
     // Emit scroll wheel event
     struct input_event ev{};
+    gettimeofday(&ev.time, nullptr);
     ev.type = EV_REL;
     ev.code = REL_WHEEL;
     ev.value = direction; // +1 = scroll up (zoom in), -1 = scroll down (zoom out)
-    ::write(m_uinputFd, &ev, sizeof(ev));
+    ssize_t n = ::write(m_uinputFd, &ev, sizeof(ev));
+    qCDebug(lcInput) << "CtrlScroll write:" << n << "bytes, direction=" << direction
+                      << "fd=" << m_uinputFd;
     emitSync();
 
     // Release Ctrl
     emitKey(KEY_LEFTCTRL, false);
+    emitSync();
+}
+
+void UinputInjector::injectHorizontalScroll(int direction)
+{
+    if (m_uinputFd < 0 || direction == 0)
+        return;
+
+    struct input_event ev{};
+    ev.type = EV_REL;
+    ev.code = REL_HWHEEL;
+    ev.value = direction; // +1 = scroll right, -1 = scroll left
+    ::write(m_uinputFd, &ev, sizeof(ev));
     emitSync();
 }
 

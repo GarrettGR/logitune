@@ -19,16 +19,22 @@ public:
 
 public slots:
     // Called by KWin focus watcher script via D-Bus
-    void focusChanged(const QString &wmClass, const QString &title);
+    void focusChanged(const QString &resourceClass, const QString &title,
+                      const QString &desktopFileName = QString());
 
 private slots:
     void onActiveWindowChanged();
     void pollActiveWindow();
 
 private:
+    /// Resolve a resourceClass to a .desktop file completeBaseName by scanning
+    /// installed .desktop files for matching StartupWMClass or name component.
+    QString resolveDesktopFile(const QString &resourceClass) const;
+
     QDBusInterface *m_kwin = nullptr;
     QTimer *m_pollTimer = nullptr;
     QString m_lastWmClass;
+    mutable QHash<QString, QString> m_resolveCache;  // resourceClass -> .desktop baseName
     bool m_available = false;
 };
 

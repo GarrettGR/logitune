@@ -8,4 +8,6 @@ Makefile
 CMakeCache.txt
 .superpowers/
 .claude/
+.vscode/
+.qmlls.ini
 reference/

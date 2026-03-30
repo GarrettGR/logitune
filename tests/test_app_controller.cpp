@@ -354,8 +354,8 @@ TEST_F(AppControllerFixture, ThumbWheelVolumeBackwardIsDown) {
 TEST_F(AppControllerFixture, ThumbWheelZoomForward) {
     setThumbWheelMode("zoom");
 
-    // Negative delta in zoom mode -> ctrlscroll direction 1
-    thumbWheel(-20);
+    // Positive delta (clockwise) in zoom mode -> zoom in (ctrlscroll +1)
+    thumbWheel(20);
 
     EXPECT_TRUE(m_injector->hasCalled("injectCtrlScroll"));
     EXPECT_EQ(m_injector->lastArg("injectCtrlScroll"), "1");

@@ -84,9 +84,10 @@ Item {
                 Item { width: 20 }  // right margin
             }
 
-            // Per-app profile bar — Options+ style chips
+            // Per-app profile bar — visible on buttons/pointscroll only
             AppProfileBar {
                 id: profileBar
+                visible: sideNav.currentPage === "buttons" || sideNav.currentPage === "pointscroll"
                 anchors {
                     top: header.bottom
                     left: parent.left
@@ -95,7 +96,7 @@ Item {
                     leftMargin: 20
                     rightMargin: 20
                 }
-                height: 48
+                height: visible ? 48 : 0
             }
 
             // Content StackView — default to ButtonsPage

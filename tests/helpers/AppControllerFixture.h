@@ -57,6 +57,10 @@ protected:
         // Create a MockDevice with MX Master 3S controls and install it
         m_device.setupMxControls();
         m_ctrl->m_currentDevice = &m_device;
+
+        // Test environment: no real device, so defaultDirection=1 (neutral).
+        // On real hardware, enumerateAndSetup reads this from ThumbWheel GetInfo.
+        m_ctrl->m_deviceManager.m_thumbWheelDefaultDirection = 1;
     }
 
     void TearDown() override {
@@ -94,6 +98,36 @@ protected:
         m_ctrl->m_profileModel.restoreProfile(wmClass, profileName);
     }
 
+    void createAppProfile(const QString &wmClass,
+                          const QString &profileName,
+                          int dpi,
+                          const QString &thumbMode,
+                          bool thumbInvert,
+                          bool smartShiftEnabled = true,
+                          int smartShiftThreshold = 128,
+                          const QString &scrollDirection = "standard",
+                          bool hiResScroll = true)
+    {
+        Profile p = m_ctrl->m_profileEngine.cachedProfile(QStringLiteral("default"));
+        p.name                = profileName;
+        p.dpi                 = dpi;
+        p.thumbWheelMode      = thumbMode;
+        p.thumbWheelInvert    = thumbInvert;
+        p.smartShiftEnabled   = smartShiftEnabled;
+        p.smartShiftThreshold = smartShiftThreshold;
+        p.scrollDirection     = scrollDirection;
+        p.hiResScroll         = hiResScroll;
+
+        // Create the cache entry and app binding first (copies from default)
+        m_ctrl->m_profileEngine.createProfileForApp(wmClass, profileName);
+        // Now overwrite the cache with our custom values
+        Profile &cached = m_ctrl->m_profileEngine.cachedProfile(profileName);
+        cached = p;
+        // Save to disk with the correct values
+        ProfileEngine::saveProfile(m_profilesDir + "/" + profileName + ".conf", p);
+        m_ctrl->m_profileModel.restoreProfile(wmClass, profileName);
+    }
+
     /// Modifies a button action in a cached profile and saves to disk.
     void setProfileButton(const QString &profileName, int buttonIdx, const ButtonAction &action) {
         Profile &p = m_ctrl->m_profileEngine.cachedProfile(profileName);
@@ -112,9 +146,30 @@ protected:
         m_ctrl->m_profileEngine.saveProfileToDisk(profileName);
     }
 
-    /// Simulates a window focus change through MockDesktop.
+    /// Simulates a window focus change through MockDesktop and syncs the
+    /// display profile to match the resulting hardware profile, so that
+    /// DeviceModel display values reflect the active profile's settings.
     void focusApp(const QString &wmClass) {
         m_desktop->simulateFocus(wmClass, wmClass);
+        // Sync display to hardware via the ProfileModel tab mechanism so that
+        // both ProfileEngine and ProfileModel agree on the active display profile,
+        // and DeviceModel getters (currentDPI, smartShiftEnabled, etc.) return
+        // the focused profile's values.
+        const QString hwProfile = m_ctrl->m_profileEngine.hardwareProfile();
+        // Find the tab index in ProfileModel that corresponds to the hardware profile
+        int hwIndex = 0; // default
+        const int count = m_ctrl->m_profileModel.rowCount();
+        for (int i = 0; i < count; ++i) {
+            QModelIndex mi = m_ctrl->m_profileModel.index(i);
+            if (m_ctrl->m_profileModel.data(mi, ProfileModel::WmClassRole).toString()
+                    == hwProfile
+                || m_ctrl->m_profileModel.data(mi, ProfileModel::NameRole).toString()
+                    == hwProfile) {
+                hwIndex = i;
+                break;
+            }
+        }
+        m_ctrl->m_profileModel.selectTab(hwIndex);
     }
 
     /// Simulates a diverted button press.
@@ -160,6 +215,9 @@ protected:
 
     /// Directly set the DeviceManager's thumb wheel mode (bypasses hardware guards).
     void setThumbWheelMode(const QString &mode) { m_ctrl->m_deviceManager.m_thumbWheelMode = mode; }
+
+    /// Directly set the DeviceManager's thumb wheel invert flag (bypasses hardware guards).
+    void setThumbWheelInvert(bool invert) { m_ctrl->m_deviceManager.m_thumbWheelInvert = invert; }
 
     // -----------------------------------------------------------------------
     // Members

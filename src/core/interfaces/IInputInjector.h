@@ -13,6 +13,7 @@ public:
     virtual bool init() = 0;
     virtual void injectKeystroke(const QString &combo) = 0;
     virtual void injectCtrlScroll(int direction) = 0;
+    virtual void injectHorizontalScroll(int direction) = 0;
     virtual void sendDBusCall(const QString &spec) = 0;
     virtual void launchApp(const QString &command) = 0;
 };

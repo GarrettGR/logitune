@@ -124,6 +124,8 @@ void AppController::wireSignals()
             this, &AppController::onScrollConfigChangeRequested);
     connect(&m_deviceModel, &DeviceModel::thumbWheelModeChangeRequested,
             this, &AppController::onThumbWheelModeChangeRequested);
+    connect(&m_deviceModel, &DeviceModel::thumbWheelInvertChangeRequested,
+            this, &AppController::onThumbWheelInvertChangeRequested);
 }
 
 // Slot implementations -------------------------------------------------------
@@ -164,7 +166,8 @@ void AppController::onDisplayProfileChanged(const Profile &profile)
     // Push all profile values to DeviceModel so QML reads from profile, not hardware
     m_deviceModel.setDisplayValues(
         profile.dpi, profile.smartShiftEnabled, profile.smartShiftThreshold,
-        profile.hiResScroll, profile.scrollDirection == "natural", profile.thumbWheelMode);
+        profile.hiResScroll, profile.scrollDirection == "natural", profile.thumbWheelMode,
+        profile.thumbWheelInvert);
 
     restoreButtonModelFromProfile(profile);
 
@@ -172,6 +175,7 @@ void AppController::onDisplayProfileChanged(const Profile &profile)
 
 void AppController::onWindowFocusChanged(const QString &wmClass, const QString & /*title*/)
 {
+    qCDebug(lcFocus) << "focus:" << wmClass;
     // Ignore desktop shell components — they steal focus transiently
     // and shouldn't trigger profile switches
     static const QStringList kIgnored = {
@@ -284,7 +288,9 @@ void AppController::onDeviceSetupComplete()
     m_deviceManager.setSmartShift(p.smartShiftEnabled, p.smartShiftThreshold);
     m_deviceManager.setScrollConfig(p.hiResScroll,
                                     p.scrollDirection == QStringLiteral("natural"));
-    m_deviceManager.setThumbWheelMode(p.thumbWheelMode);
+    qCDebug(lcApp) << "onDeviceSetupComplete: applying profile" << hwName
+                    << "thumbWheelMode=" << p.thumbWheelMode;
+    m_deviceManager.setThumbWheelMode(p.thumbWheelMode, p.thumbWheelInvert);
     applyProfileToHardware(p);
 }
 
@@ -392,7 +398,7 @@ void AppController::applyProfileToHardware(const Profile &p)
     m_deviceManager.setSmartShift(p.smartShiftEnabled, p.smartShiftThreshold);
     m_deviceManager.setScrollConfig(p.hiResScroll,
                                     p.scrollDirection == QStringLiteral("natural"));
-    m_deviceManager.setThumbWheelMode(p.thumbWheelMode);
+    m_deviceManager.setThumbWheelMode(p.thumbWheelMode, p.thumbWheelInvert);
 }
 
 void AppController::saveCurrentProfile()
@@ -430,7 +436,8 @@ void AppController::pushDisplayValues(const Profile &p)
 {
     m_deviceModel.setDisplayValues(
         p.dpi, p.smartShiftEnabled, p.smartShiftThreshold,
-        p.hiResScroll, p.scrollDirection == "natural", p.thumbWheelMode);
+        p.hiResScroll, p.scrollDirection == "natural", p.thumbWheelMode,
+        p.thumbWheelInvert);
 }
 
 void AppController::onDpiChangeRequested(int value)
@@ -481,7 +488,19 @@ void AppController::onThumbWheelModeChangeRequested(const QString &mode)
     m_profileEngine.saveProfileToDisk(name);
     pushDisplayValues(p);
     if (name == m_profileEngine.hardwareProfile())
-        m_deviceManager.setThumbWheelMode(mode);
+        m_deviceManager.setThumbWheelMode(mode, p.thumbWheelInvert);
+}
+
+void AppController::onThumbWheelInvertChangeRequested(bool invert)
+{
+    QString name = m_profileEngine.displayProfile();
+    if (name.isEmpty()) return;
+    Profile &p = m_profileEngine.cachedProfile(name);
+    p.thumbWheelInvert = invert;
+    m_profileEngine.saveProfileToDisk(name);
+    pushDisplayValues(p);
+    if (name == m_profileEngine.hardwareProfile())
+        m_deviceManager.setThumbWheelMode(p.thumbWheelMode, invert);
 }
 
 void AppController::onGestureRawXY(int16_t dx, int16_t dy)
@@ -498,7 +517,8 @@ void AppController::onDivertedButtonPressed(uint16_t controlId, bool pressed)
     const Profile &hwProfile = m_profileEngine.cachedProfile(m_profileEngine.hardwareProfile());
 
     // Handle gesture release — only resolve on the gesture button's release
-    if (!pressed && m_gestureActive && controlId == m_gestureControlId) {
+    // Release: controlId=0 means all buttons released. If a gesture is active, resolve it.
+    if (!pressed && m_gestureActive) {
         m_gestureActive = false;
         int dx = m_gestureTotalDx;
         int dy = m_gestureTotalDy;
@@ -559,7 +579,13 @@ void AppController::onDivertedButtonPressed(uint16_t controlId, bool pressed)
 void AppController::onThumbWheelRotation(int delta)
 {
     const QString &mode = m_deviceManager.thumbWheelMode();
-    m_thumbAccum += delta;
+    // Normalize: multiply by defaultDirection so clockwise = positive.
+    // defaultDirection is -1 on MX Master 3S (positive when left), so this
+    // flips the sign to make clockwise = positive.
+    int normalized = delta * m_deviceManager.thumbWheelDefaultDirection();
+    qCDebug(lcInput) << "thumbWheel raw=" << delta << "normalized=" << normalized
+                      << "mode=" << mode << "invert=" << m_deviceManager.thumbWheelInvert();
+    m_thumbAccum += normalized;
 
     if (std::abs(m_thumbAccum) < kThumbThreshold)
         return; // not enough rotation yet
@@ -567,11 +593,20 @@ void AppController::onThumbWheelRotation(int delta)
     int steps = m_thumbAccum / kThumbThreshold;
     m_thumbAccum %= kThumbThreshold;
 
+    qCDebug(lcInput) << "thumbWheel steps=" << steps << "accum=" << m_thumbAccum;
     for (int i = 0; i < std::abs(steps); ++i) {
-        if (mode == "volume") {
-            m_actionExecutor.injectKeystroke(steps > 0 ? "VolumeUp" : "VolumeDown");
+        if (mode == "scroll") {
+            int dir = steps > 0 ? 1 : -1;
+            qCDebug(lcInput) << "thumbWheel action: HScroll" << dir;
+            m_actionExecutor.injectHorizontalScroll(dir);
+        } else if (mode == "volume") {
+            QString key = steps > 0 ? "VolumeUp" : "VolumeDown";
+            qCDebug(lcInput) << "thumbWheel action:" << key;
+            m_actionExecutor.injectKeystroke(key);
         } else if (mode == "zoom") {
-            m_actionExecutor.injectCtrlScroll(steps < 0 ? 1 : -1);
+            int dir = steps > 0 ? 1 : -1;
+            qCDebug(lcInput) << "thumbWheel action: CtrlScroll" << dir;
+            m_actionExecutor.injectCtrlScroll(dir);
         }
     }
 }

@@ -85,6 +85,11 @@ void ActionExecutor::injectCtrlScroll(int direction)
     m_injector->injectCtrlScroll(direction);
 }
 
+void ActionExecutor::injectHorizontalScroll(int direction)
+{
+    m_injector->injectHorizontalScroll(direction);
+}
+
 void ActionExecutor::executeDBusCall(const QString &spec)
 {
     m_injector->sendDBusCall(spec);

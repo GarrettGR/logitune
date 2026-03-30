@@ -123,7 +123,7 @@ Item {
                 title: "Thumb wheel"
                 settings: [
                     "Speed: 50%",
-                    "Direction: Normal"
+                    "Direction: " + (DeviceModel.thumbWheelInvert ? "Inverted" : "Normal")
                 ]
 
                 onCalloutClicked: function(type) {

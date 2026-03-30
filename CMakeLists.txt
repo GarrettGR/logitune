@@ -5,11 +5,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Quick Quick3D Svg DBus Widgets Concurrent Test)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Quick3D Svg DBus Widgets Concurrent Test QuickTest)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(UDEV REQUIRED libudev)
 
 option(BUILD_TESTING "Build tests" ON)
+option(BUILD_HW_TESTING "Build hardware integration tests (requires connected device)" OFF)
 
 add_subdirectory(src/core)
 add_subdirectory(src/app)

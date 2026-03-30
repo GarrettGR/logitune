@@ -13,6 +13,7 @@ public:
     bool init() override;
     void injectKeystroke(const QString &combo) override;
     void injectCtrlScroll(int direction) override;
+    void injectHorizontalScroll(int direction) override;
     void sendDBusCall(const QString &spec) override;
     void launchApp(const QString &command) override;
 

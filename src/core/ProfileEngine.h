@@ -23,6 +23,7 @@ struct Profile {
     std::array<ButtonAction, 8> buttons;   // indexed 0-7 (includes thumb wheel virtual entry)
     std::map<QString, ButtonAction> gestures;  // "up","down","left","right","click"
     QString thumbWheelMode = "scroll";  // "scroll", "zoom", "volume", "none"
+    bool thumbWheelInvert = false;
 };
 
 struct ProfileDelta {

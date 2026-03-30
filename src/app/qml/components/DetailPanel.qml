@@ -307,7 +307,8 @@ Rectangle {
 
                 LogituneToggle {
                     id: invertToggle
-                    checked: false
+                    checked: DeviceModel.thumbWheelInvert
+                    onToggled: DeviceModel.setThumbWheelInvert(checked)
                 }
             }
         }

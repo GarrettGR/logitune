@@ -251,7 +251,8 @@ bool DeviceModel::isSlotPaired(int slot) const
 }
 
 void DeviceModel::setDisplayValues(int dpi, bool smartShiftEnabled, int smartShiftThreshold,
-                                    bool scrollHiRes, bool scrollInvert, const QString &thumbWheelMode)
+                                    bool scrollHiRes, bool scrollInvert, const QString &thumbWheelMode,
+                                    bool thumbWheelInvert)
 {
     m_displayDpi = dpi;
     m_displaySmartShiftEnabled = smartShiftEnabled;
@@ -259,6 +260,7 @@ void DeviceModel::setDisplayValues(int dpi, bool smartShiftEnabled, int smartShi
     m_displayScrollHiRes = scrollHiRes;
     m_displayScrollInvert = scrollInvert;
     m_displayThumbWheelMode = thumbWheelMode;
+    m_displayThumbWheelInvert = thumbWheelInvert;
     m_hasDisplayValues = true;
     emit settingsReloaded();
 }
@@ -296,9 +298,20 @@ QString DeviceModel::thumbWheelMode() const
     return m_dm ? m_dm->thumbWheelMode() : "scroll";
 }
 
+bool DeviceModel::thumbWheelInvert() const
+{
+    if (m_hasDisplayValues) return m_displayThumbWheelInvert;
+    return m_dm ? m_dm->thumbWheelInvert() : false;
+}
+
 void DeviceModel::setThumbWheelMode(const QString &mode)
 {
     emit thumbWheelModeChangeRequested(mode);
+}
+
+void DeviceModel::setThumbWheelInvert(bool invert)
+{
+    emit thumbWheelInvertChangeRequested(invert);
 }
 
 void DeviceModel::setGestureAction(const QString &direction, const QString &actionName, const QString &keystroke)
@@ -371,9 +384,11 @@ QString DeviceModel::logFilePath() const
 
 void DeviceModel::openBugReport()
 {
+    qCInfo(lcApp) << "openBugReport called";
     CrashReportDialog dlg(CrashReportDialog::ManualReport);
     dlg.setDeviceInfo(deviceName(), deviceSerial());
-    dlg.exec();
+    int result = dlg.exec();
+    qCInfo(lcApp) << "CrashReportDialog closed with result:" << result;
 }
 
 } // namespace logitune

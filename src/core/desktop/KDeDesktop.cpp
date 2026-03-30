@@ -1,4 +1,5 @@
 #include "desktop/KDeDesktop.h"
+#include "logging/LogManager.h"
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusReply>
@@ -135,7 +136,8 @@ void KDeDesktop::pollActiveWindow()
                 "    if (c) {\n"
                 "        callDBus('com.logitune.app', '/FocusWatcher',\n"
                 "                 'local.logitune.logitune.KDeDesktop', 'focusChanged',\n"
-                "                 c.resourceClass, c.caption);\n"
+                "                 c.resourceClass, c.caption,\n"
+                "                 c.desktopFileName || '');\n"
                 "    }\n"
                 "}\n"
                 "workspace.windowActivated.connect(update);\n"
@@ -170,11 +172,77 @@ void KDeDesktop::pollActiveWindow()
     }
 }
 
-void KDeDesktop::focusChanged(const QString &wmClass, const QString &title)
+void KDeDesktop::focusChanged(const QString &resourceClass, const QString &title,
+                              const QString &desktopFileName)
 {
-    if (wmClass == m_lastWmClass) return;
-    m_lastWmClass = wmClass;
-    emit activeWindowChanged(wmClass, title);
+    // Resolve to canonical app ID: the .desktop file completeBaseName.
+    // 1. desktopFileName from KWin (most reliable, set by well-behaved apps)
+    // 2. Look up .desktop file by resourceClass match (handles apps like Zoom
+    //    where resourceClass="zoom" but .desktop is "us.zoom.Zoom.desktop")
+    // 3. resourceClass as final fallback
+    QString appId;
+    if (!desktopFileName.isEmpty()) {
+        appId = desktopFileName;
+    } else {
+        appId = resolveDesktopFile(resourceClass);
+    }
+
+    if (appId == m_lastWmClass) return;
+    m_lastWmClass = appId;
+    emit activeWindowChanged(appId, title);
+}
+
+static const QStringList &desktopDirs()
+{
+    static const QStringList dirs = {
+        QStringLiteral("/usr/share/applications"),
+        QDir::homePath() + QStringLiteral("/.local/share/applications"),
+        QStringLiteral("/var/lib/flatpak/exports/share/applications"),
+        QDir::homePath() + QStringLiteral("/.local/share/flatpak/exports/share/applications"),
+        QStringLiteral("/var/lib/snapd/desktop/applications")
+    };
+    return dirs;
+}
+
+QString KDeDesktop::resolveDesktopFile(const QString &resourceClass) const
+{
+    // Cache results — scanning .desktop dirs is slow on first call
+    auto cached = m_resolveCache.constFind(resourceClass);
+    if (cached != m_resolveCache.constEnd())
+        return cached.value();
+
+    // Search .desktop files for one whose StartupWMClass or file name component
+    // matches the resourceClass. Returns the .desktop completeBaseName (canonical ID).
+    // This handles cases like resourceClass="zoom" -> "us.zoom.Zoom.desktop"
+    for (const QString &dir : desktopDirs()) {
+        QDir d(dir);
+        if (!d.exists()) continue;
+
+        const QStringList files = d.entryList({QStringLiteral("*.desktop")}, QDir::Files);
+        for (const QString &file : files) {
+            QString baseName = QFileInfo(file).completeBaseName();
+
+            // Match: last component of filename (e.g. "Zoom" from "us.zoom.Zoom")
+            QString shortName = baseName.contains('.') ? baseName.section('.', -1) : baseName;
+            if (shortName.compare(resourceClass, Qt::CaseInsensitive) == 0) {
+                m_resolveCache.insert(resourceClass, baseName);
+                return baseName;
+            }
+
+            // Match: StartupWMClass field
+            QSettings desktop(d.filePath(file), QSettings::IniFormat);
+            desktop.beginGroup(QStringLiteral("Desktop Entry"));
+            QString wmClass = desktop.value(QStringLiteral("StartupWMClass")).toString();
+            if (!wmClass.isEmpty() && wmClass.compare(resourceClass, Qt::CaseInsensitive) == 0) {
+                m_resolveCache.insert(resourceClass, baseName);
+                return baseName;
+            }
+        }
+    }
+
+    // No .desktop match — use resourceClass as-is
+    m_resolveCache.insert(resourceClass, resourceClass);
+    return resourceClass;
 }
 
 QVariantList KDeDesktop::runningApplications() const
@@ -183,15 +251,7 @@ QVariantList KDeDesktop::runningApplications() const
     QVariantList result;
     QSet<QString> seen;
 
-    const QStringList dirs = {
-        QStringLiteral("/usr/share/applications"),
-        QDir::homePath() + QStringLiteral("/.local/share/applications"),
-        QStringLiteral("/var/lib/flatpak/exports/share/applications"),
-        QDir::homePath() + QStringLiteral("/.local/share/flatpak/exports/share/applications"),
-        QStringLiteral("/var/lib/snapd/desktop/applications")
-    };
-
-    for (const QString &dir : dirs) {
+    for (const QString &dir : desktopDirs()) {
         QDir d(dir);
         if (!d.exists()) continue;
 

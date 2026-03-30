@@ -28,11 +28,6 @@ TEST_F(AppControllerFixture, ReconnectPreservesHwProfile) {
 // A fresh ProfileEngine (before any setHardwareProfile call) has an empty hw profile.
 // This mirrors the state of AppController before device setup completes.
 TEST(DeviceReconnect, HwProfileEmptyOnFirstConnect) {
-    static int argc = 0;
-    static QCoreApplication *app = nullptr;
-    if (!app)
-        app = new QCoreApplication(argc, nullptr);
-
     ProfileEngine engine;
     EXPECT_TRUE(engine.hardwareProfile().isEmpty());
 }

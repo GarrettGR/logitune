@@ -55,6 +55,7 @@ private slots:
     void onSmartShiftChangeRequested(bool enabled, int threshold);
     void onScrollConfigChangeRequested(bool hiRes, bool invert);
     void onThumbWheelModeChangeRequested(const QString &mode);
+    void onThumbWheelInvertChangeRequested(bool invert);
 
 private:
     void wireSignals();

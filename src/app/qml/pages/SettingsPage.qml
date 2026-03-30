@@ -121,6 +121,25 @@ Item {
                 }
             }
 
+            // Test crash button (temporary)
+            Rectangle {
+                width: 180; height: 40
+                radius: 4; color: "transparent"
+                border.color: "#ff4444"; border.width: 1
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "Test Exception"
+                    font.pixelSize: 13; color: "#ff4444"
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: DeviceModel.testCrash()
+                }
+            }
+
             // Separator
             Rectangle { width: parent.width; height: 1; color: Theme.border }
 

@@ -2,6 +2,7 @@ find_package(GTest REQUIRED)
 include(GoogleTest)
 
 add_executable(logitune-tests
+    test_main.cpp
     test_smoke.cpp
     test_transport.cpp
     test_feature_dispatcher.cpp
@@ -27,7 +28,23 @@ add_executable(logitune-tests
     test_profile_switching.cpp
     test_profile_persistence.cpp
     test_device_reconnect.cpp
+    test_thumb_wheel_behavior.cpp
+    test_profile_switch_behavior.cpp
+    test_notification_filtering.cpp
+    test_settings_change_behavior.cpp
 )
 target_include_directories(logitune-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(logitune-tests PRIVATE logitune-core logitune-app-lib Qt6::Test GTest::gtest_main)
-gtest_discover_tests(logitune-tests)
+target_link_libraries(logitune-tests PRIVATE logitune-core logitune-app-lib Qt6::Test Qt6::Widgets GTest::gtest)
+gtest_discover_tests(logitune-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# Tray tests need a clean QApplication — separate binary to avoid fixture conflicts
+add_executable(logitune-tray-tests test_main.cpp test_tray_manager.cpp)
+target_include_directories(logitune-tray-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(logitune-tray-tests PRIVATE logitune-app-lib Qt6::Test Qt6::Widgets GTest::gtest)
+gtest_discover_tests(logitune-tray-tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+add_subdirectory(qml)
+
+if(BUILD_HW_TESTING)
+    add_subdirectory(hw)
+endif()

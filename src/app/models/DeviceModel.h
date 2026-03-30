@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QTimer>
 #include <QSettings>
 #include <qqmlintegration.h>
 
@@ -59,6 +60,10 @@ public:
     void setLoggingEnabled(bool enabled);
     QString logFilePath() const;
     Q_INVOKABLE void openBugReport();
+    Q_INVOKABLE void testCrash() {
+        // Defer throw to outside QML event handling — Qt's event loop isn't exception-safe
+        QTimer::singleShot(0, [] { throw std::runtime_error("Test crash from UI"); });
+    }
 
     bool deviceConnected() const;
     QString deviceName() const;
@@ -96,9 +101,12 @@ public:
     Q_INVOKABLE QString gestureActionName(const QString &direction) const;
     Q_INVOKABLE QString gestureKeystroke(const QString &direction) const;
     Q_PROPERTY(QString thumbWheelMode READ thumbWheelMode NOTIFY settingsReloaded)
+    Q_PROPERTY(bool thumbWheelInvert READ thumbWheelInvert NOTIFY settingsReloaded)
     bool scrollHiRes() const;
     bool scrollInvert() const;
     QString thumbWheelMode() const;
+    bool thumbWheelInvert() const;
+    Q_INVOKABLE void setThumbWheelInvert(bool invert);
 
     void loadGesturesFromProfile(const QMap<QString, QPair<QString, QString>> &gestures);
 
@@ -106,7 +114,8 @@ public:
     void setActiveProfileName(const QString &name);
     void setActiveWmClass(const QString &wmClass);
     void setDisplayValues(int dpi, bool smartShiftEnabled, int smartShiftThreshold,
-                          bool scrollHiRes, bool scrollInvert, const QString &thumbWheelMode);
+                          bool scrollHiRes, bool scrollInvert, const QString &thumbWheelMode,
+                          bool thumbWheelInvert = false);
 
 signals:
     void loggingEnabledChanged();
@@ -129,6 +138,7 @@ signals:
     void smartShiftChangeRequested(bool enabled, int threshold);
     void scrollConfigChangeRequested(bool hiRes, bool invert);
     void thumbWheelModeChangeRequested(const QString &mode);
+    void thumbWheelInvertChangeRequested(bool invert);
 
 private:
     DeviceManager *m_dm = nullptr;
@@ -144,6 +154,7 @@ private:
     bool m_displayScrollHiRes = false;
     bool m_displayScrollInvert = false;
     QString m_displayThumbWheelMode;
+    bool m_displayThumbWheelInvert = false;
     bool m_hasDisplayValues = false;     // false = read from DeviceManager
 };
 

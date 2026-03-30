@@ -27,6 +27,10 @@ public:
         m_calls.append({QStringLiteral("injectCtrlScroll"), QString::number(direction)});
     }
 
+    void injectHorizontalScroll(int direction) override {
+        m_calls.append({QStringLiteral("injectHorizontalScroll"), QString::number(direction)});
+    }
+
     void sendDBusCall(const QString &spec) override {
         m_calls.append({QStringLiteral("sendDBusCall"), spec});
     }

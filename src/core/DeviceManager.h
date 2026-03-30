@@ -3,8 +3,10 @@
 #include "hidpp/HidrawDevice.h"
 #include "hidpp/Transport.h"
 #include "hidpp/FeatureDispatcher.h"
+#include "hidpp/CommandQueue.h"
 #include <QObject>
 #include <QSocketNotifier>
+#include <QTimer>
 #include <memory>
 
 struct udev;
@@ -68,12 +70,14 @@ public:
     Q_INVOKABLE void setSmartShift(bool enabled, int threshold);
     Q_INVOKABLE void setScrollConfig(bool hiRes, bool invert);
     Q_INVOKABLE void divertButton(uint16_t controlId, bool divert, bool rawXY = false);
-    Q_INVOKABLE void setThumbWheelMode(const QString &mode); // "scroll", "zoom", "volume"
+    Q_INVOKABLE void setThumbWheelMode(const QString &mode, bool invert = false);
     void touchResponseTime();  // prevent false sleep/wake detection during intentional writes
     bool scrollHiRes() const;
     bool scrollInvert() const;
     bool scrollRatchet() const;
     QString thumbWheelMode() const;
+    bool thumbWheelInvert() const;
+    int thumbWheelDefaultDirection() const;  // -1 or +1
 
     // Device identity (available after connect)
     QString deviceSerial() const;
@@ -116,13 +120,21 @@ private:
     void onUdevEvent(const QString &action, const QString &devNode);
     void probeDevice(const QString &devNode);
     void disconnectDevice();
-    void handleNotification(const hidpp::Report &report);
     void enumerateAndSetup();
+
+public:
+    // Public for testing — called from QSocketNotifier lambda
+    void handleNotification(const hidpp::Report &report);
+
+private:
 
     // Sleep/wake
     void checkSleepWake();
     qint64 m_lastResponseTime = 0;
     bool m_enumerating = false;
+
+    // Reconnect debounce
+    QTimer *m_reconnectTimer = nullptr;
 
     // Transport failover
     QStringList m_availableTransports;
@@ -134,6 +146,7 @@ private:
     std::unique_ptr<hidpp::HidrawDevice> m_receiverDevice;  // kept open for transport switching
     std::unique_ptr<hidpp::Transport> m_transport;
     std::unique_ptr<hidpp::FeatureDispatcher> m_features;
+    std::unique_ptr<hidpp::CommandQueue> m_commandQueue;
     QSocketNotifier *m_hidrawNotifier = nullptr;
     QSocketNotifier *m_receiverNotifier = nullptr;  // listens for DJ device-arrival when no device on slots
 
@@ -162,6 +175,8 @@ private:
     bool m_scrollRatchet = true;
     uint8_t m_scrollModeByte = 0;
     QString m_thumbWheelMode = "scroll"; // "scroll", "zoom", "volume"
+    bool m_thumbWheelInvert = false;
+    int m_thumbWheelDefaultDirection = -1;  // -1 = positive when left (MX Master 3S default)
     int m_currentHost = -1;   // Easy-Switch: 0-based, -1 if unknown
     int m_hostCount = 0;
     QVector<bool> m_hostPaired;

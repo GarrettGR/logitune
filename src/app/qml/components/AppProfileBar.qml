@@ -222,7 +222,7 @@ Item {
     // ── Dropdown panel ──────────────────────────────────────────────────────
     Popup {
         id: dropdown
-        x: addBtn.x
+        x: addBtn.x + addBtn.width - width
         y: addBtn.y + addBtn.height + 6
         width: 280
         padding: 8

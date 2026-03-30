@@ -99,20 +99,30 @@ std::optional<Report> FeatureDispatcher::call(Transport *transport, uint8_t devi
     return transport->sendRequest(req);
 }
 
-bool FeatureDispatcher::callAsync(Transport *transport, uint8_t deviceIndex,
-                                  FeatureId feature, uint8_t functionId,
-                                  std::span<const uint8_t> params)
+uint8_t FeatureDispatcher::nextSoftwareId()
+{
+    uint8_t id = m_nextSwId;
+    m_nextSwId = (m_nextSwId % 15) + 1;  // rotate 1-15
+    return id;
+}
+
+uint8_t FeatureDispatcher::callAsync(Transport *transport, uint8_t deviceIndex,
+                                     FeatureId feature, uint8_t functionId,
+                                     std::span<const uint8_t> params,
+                                     ResponseCallback callback)
 {
     auto idx = featureIndex(feature);
     if (!idx)
-        return false;
+        return 0;
+
+    uint8_t swId = nextSoftwareId();
 
     Report req;
     req.reportId     = kLongReportId;
     req.deviceIndex  = deviceIndex;
     req.featureIndex = *idx;
     req.functionId   = functionId;
-    req.softwareId   = 0x01;
+    req.softwareId   = swId;
 
     int len = static_cast<int>(params.size());
     if (len > 16) len = 16;
@@ -120,7 +130,23 @@ bool FeatureDispatcher::callAsync(Transport *transport, uint8_t deviceIndex,
     for (int i = 0; i < len; ++i)
         req.params[i] = params[i];
 
-    return transport->sendRequestAsync(req);
+    if (callback)
+        m_pendingCallbacks[swId] = std::move(callback);
+
+    transport->sendRequestAsync(req);
+    return swId;
+}
+
+bool FeatureDispatcher::handleResponse(const Report &report)
+{
+    auto it = m_pendingCallbacks.find(report.softwareId);
+    if (it == m_pendingCallbacks.end())
+        return false;
+
+    auto cb = std::move(it->second);
+    m_pendingCallbacks.erase(it);
+    cb(report);
+    return true;
 }
 
 } // namespace logitune::hidpp

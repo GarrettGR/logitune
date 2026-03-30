@@ -40,9 +40,10 @@ TEST_F(WmClassTest, CaseInsensitive) {
     EXPECT_EQ(m_engine.profileForApp("Google-Chrome"), "Google Chrome");
 }
 
-// ShortClassFallback — "org.kde.dolphin" -> last component "dolphin" matches binding
-TEST_F(WmClassTest, ShortClassFallback) {
-    EXPECT_EQ(m_engine.profileForApp("org.kde.dolphin"), "Dolphin");
+// No fallback — "org.kde.dolphin" does NOT match binding "dolphin".
+// Identity resolution (short-class matching) is handled by KDeDesktop, not ProfileEngine.
+TEST_F(WmClassTest, NoShortClassFallbackInProfileEngine) {
+    EXPECT_EQ(m_engine.profileForApp("org.kde.dolphin"), "default");
 }
 
 // NoMatchReturnsDefault — unknown wmClass returns "default"
@@ -66,9 +67,9 @@ TEST_F(WmClassTest, MultipleBindingsCorrectOne) {
     EXPECT_EQ(m_engine.profileForApp("dolphin"), "Dolphin");
 }
 
-// ShortClassCaseInsensitive — short-class fallback is also case-insensitive
-TEST_F(WmClassTest, ShortClassCaseInsensitive) {
-    EXPECT_EQ(m_engine.profileForApp("org.KDE.Dolphin"), "Dolphin");
+// No short-class fallback — identity resolution moved to KDeDesktop
+TEST_F(WmClassTest, NoShortClassCaseInsensitiveFallback) {
+    EXPECT_EQ(m_engine.profileForApp("org.KDE.Dolphin"), "default");
 }
 
 // CreateProfileForAppGuard — modifying a cached profile's DPI and re-calling

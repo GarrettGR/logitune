@@ -7,6 +7,7 @@
 #include "hidpp/features/SmartShift.h"
 #include "hidpp/features/HiResWheel.h"
 #include "hidpp/features/ReprogControls.h"
+#include "hidpp/features/ThumbWheel.h"
 #include "logging/LogManager.h"
 
 #include <QDateTime>
@@ -438,7 +439,9 @@ void DeviceManager::probeDevice(const QString &devNode)
     connect(m_transport.get(), &hidpp::Transport::deviceDisconnected,
             this, &DeviceManager::disconnectDevice);
 
-    // Enumerate features and read initial state
+    // Enumerate features and read initial state.
+    // This emits deviceSetupComplete at the end, which triggers profile application.
+    // The command queue is created inside enumerateAndSetup after features are populated.
     enumerateAndSetup();
 
     // Kernel-driven notification: QSocketNotifier fires when hidraw has data
@@ -449,6 +452,12 @@ void DeviceManager::probeDevice(const QString &devNode)
             auto bytes = m_device->readReport(0);
             if (bytes.empty())
                 return;
+            // Log raw bytes for protocol debugging
+            QString hex;
+            for (size_t i = 0; i < bytes.size() && i < 20; ++i)
+                hex += QString("%1 ").arg(bytes[i], 2, 16, QChar('0'));
+            qCDebug(lcHidpp) << "raw hidraw:" << hex.trimmed();
+
             auto report = hidpp::Report::parse(bytes);
             if (!report)
                 return;
@@ -627,6 +636,16 @@ void DeviceManager::enumerateAndSetup()
                          hidpp::FeatureId::ThumbWheel, 0x02,
                          std::span<const uint8_t>(twParams));
         m_thumbWheelMode = "scroll";
+
+        // Read defaultDirection from ThumbWheel GetInfo (function 0x00, byte 4).
+        // 0 = positive when left/back, 1 = positive when right/forward.
+        // We use this to normalize rotation so clockwise = positive in software.
+        auto twInfo = m_features->call(m_transport.get(), m_deviceIndex,
+                                       hidpp::FeatureId::ThumbWheel, 0x00, {});
+        if (twInfo.has_value()) {
+            m_thumbWheelDefaultDirection = (twInfo->params[4] & 0x01) ? 1 : -1;
+            qCDebug(lcDevice) << "thumb wheel defaultDirection:" << m_thumbWheelDefaultDirection;
+        }
         qCDebug(lcDevice) << "thumb wheel set to native scroll";
     }
 
@@ -684,6 +703,15 @@ void DeviceManager::enumerateAndSetup()
     m_lastResponseTime = QDateTime::currentMSecsSinceEpoch();
 
     m_enumerating = false;
+
+    // Create command queue now — features are populated, transport is ready.
+    // Must be before deviceSetupComplete which triggers profile application.
+    if (!m_commandQueue && m_features && m_transport) {
+        m_commandQueue = std::make_unique<hidpp::CommandQueue>(
+            m_features.get(), m_transport.get(), m_deviceIndex);
+        m_commandQueue->start();
+    }
+
     emit deviceSetupComplete();
 }
 
@@ -696,6 +724,11 @@ void DeviceManager::disconnectDevice()
     // Don't touch m_receiverNotifier/m_receiverDevice — they live independently
     // for transport switching detection
 
+    if (m_commandQueue) {
+        m_commandQueue->clear();
+        m_commandQueue->stop();
+        m_commandQueue.reset();
+    }
     m_activeDevice = nullptr;
     m_features.reset();
     m_transport.reset();
@@ -728,12 +761,61 @@ void DeviceManager::disconnectDevice()
 
 void DeviceManager::handleNotification(const hidpp::Report &report)
 {
+    // Responses echo softwareId != 0. Route to pending async callbacks.
+    // Notifications from the device have softwareId=0.
+    if (report.softwareId != 0) {
+        if (m_features)
+            m_features->handleResponse(report);
+        return;
+    }
+
     qCDebug(lcDevice) << "notification: featureIndex=" << Qt::hex << report.featureIndex
                       << "functionId=" << report.functionId;
 
-    // Sleep/wake re-enumeration disabled — udev handles real disconnects.
-    // The 2-minute threshold caused false re-enumerations during normal use,
-    // resetting button diversions and thumb wheel mode mid-session.
+    // HID++ 1.0 DeviceConnection notification (register 0x41) from Bolt/Unifying receiver.
+    // Byte 4 (params[0]) bit 6: 0 = link established, 1 = link not established.
+    if (report.featureIndex == 0x41) {
+        bool linkEstablished = (report.params[0] & 0x40) == 0;
+        qCDebug(lcDevice) << "DeviceConnection:" << (linkEstablished ? "connected" : "disconnected");
+        if (!linkEstablished && m_connected) {
+            // Soft disconnect — keep hidraw fd open for reconnect detection.
+            // Only reset logical state, not the transport.
+            if (m_commandQueue) {
+                m_commandQueue->clear();
+                m_commandQueue->stop();
+                m_commandQueue.reset();
+            }
+            m_activeDevice = nullptr;
+            m_features.reset();
+            m_connected = false;
+            m_batteryLevel = 0;
+            m_batteryCharging = false;
+            emit deviceConnectedChanged();
+            emit batteryLevelChanged();
+            emit deviceDisconnected();
+        } else if (linkEstablished && !m_connected) {
+            // Device reconnected on the same receiver — re-enumerate after delay.
+            // Use 1500ms: the device sends multiple DJ notifications during boot
+            // and HID++ calls fail with HwError if sent too early.
+            qCDebug(lcDevice) << "device reconnected, re-enumerating (1500ms delay)";
+            // Cancel any pending reconnect timer to avoid double enumeration
+            if (m_reconnectTimer) {
+                m_reconnectTimer->stop();
+                delete m_reconnectTimer;
+            }
+            m_reconnectTimer = new QTimer(this);
+            m_reconnectTimer->setSingleShot(true);
+            connect(m_reconnectTimer, &QTimer::timeout, this, [this]() {
+                m_reconnectTimer = nullptr;
+                if (!m_connected && m_device && m_transport) {
+                    // enumerateAndSetup creates features + command queue internally
+                    enumerateAndSetup();
+                }
+            });
+            m_reconnectTimer->start(1500);
+        }
+        return;
+    }
 
     // Battery notification (feature index matches BatteryUnified)
     if (m_features && m_features->hasFeature(hidpp::FeatureId::BatteryUnified)) {
@@ -798,6 +880,8 @@ void DeviceManager::handleNotification(const hidpp::Report &report)
                 uint16_t controlId = (static_cast<uint16_t>(report.params[0]) << 8)
                                      | report.params[1];
                 bool pressed = (controlId != 0);
+                qCDebug(lcDevice) << "button event: CID" << Qt::hex << controlId
+                                  << (pressed ? "pressed" : "released");
                 emit divertedButtonPressed(controlId, pressed);
             } else if (report.functionId == 1) {
                 // DivertedRawXYEvent: params[0-1]=dx, params[2-3]=dy (int16 BE)
@@ -885,7 +969,7 @@ const IDevice* DeviceManager::activeDevice() const { return m_activeDevice; }
 
 void DeviceManager::setDPI(int value)
 {
-    if (!m_connected || !m_features || !m_transport)
+    if (!m_connected || !m_features || !m_commandQueue)
         return;
     if (!m_features->hasFeature(hidpp::FeatureId::AdjustableDPI))
         return;
@@ -897,10 +981,9 @@ void DeviceManager::setDPI(int value)
     emit currentDPIChanged();
 
     auto params = hidpp::features::AdjustableDPI::buildSetDPI(value);
-    m_features->callAsync(m_transport.get(), m_deviceIndex,
-                          hidpp::FeatureId::AdjustableDPI,
-                          hidpp::features::AdjustableDPI::kFnSetSensorDpi,
-                          params);
+    m_commandQueue->enqueue(hidpp::FeatureId::AdjustableDPI,
+                            hidpp::features::AdjustableDPI::kFnSetSensorDpi,
+                            params);
 }
 
 // ---------------------------------------------------------------------------
@@ -909,7 +992,7 @@ void DeviceManager::setDPI(int value)
 
 void DeviceManager::setSmartShift(bool enabled, int threshold)
 {
-    if (!m_connected || !m_features || !m_transport)
+    if (!m_connected || !m_features || !m_commandQueue)
         return;
     if (!m_features->hasFeature(hidpp::FeatureId::SmartShift))
         return;
@@ -924,16 +1007,15 @@ void DeviceManager::setSmartShift(bool enabled, int threshold)
     uint8_t ad = static_cast<uint8_t>(threshold);
 
     auto params = hidpp::features::SmartShift::buildSetConfig(mode, ad);
-    m_features->callAsync(m_transport.get(), m_deviceIndex,
-                          hidpp::FeatureId::SmartShift,
-                          hidpp::features::SmartShift::kFnSetStatus,
-                          std::span<const uint8_t>(params));
+    m_commandQueue->enqueue(hidpp::FeatureId::SmartShift,
+                            hidpp::features::SmartShift::kFnSetStatus,
+                            std::span<const uint8_t>(params));
     qCDebug(lcDevice) << "SmartShift set: mode=" << mode << "autoDisengage=" << ad;
 }
 
 void DeviceManager::setScrollConfig(bool hiRes, bool invert)
 {
-    if (!m_connected || !m_features || !m_transport)
+    if (!m_connected || !m_features || !m_commandQueue)
         return;
     if (!m_features->hasFeature(hidpp::FeatureId::HiResWheel))
         return;
@@ -943,29 +1025,29 @@ void DeviceManager::setScrollConfig(bool hiRes, bool invert)
     emit scrollConfigChanged();
 
     auto params = hidpp::features::HiResWheel::buildSetWheelMode(m_scrollModeByte, hiRes, invert);
-    m_features->callAsync(m_transport.get(), m_deviceIndex,
-                          hidpp::FeatureId::HiResWheel,
-                          hidpp::features::HiResWheel::kFnSetWheelMode,
-                          std::span<const uint8_t>(params));
+    m_commandQueue->enqueue(hidpp::FeatureId::HiResWheel,
+                            hidpp::features::HiResWheel::kFnSetWheelMode,
+                            std::span<const uint8_t>(params));
 }
 
 void DeviceManager::divertButton(uint16_t controlId, bool divert, bool rawXY)
 {
-    if (!m_connected || !m_features || !m_transport)
+    if (!m_connected || !m_features || !m_commandQueue)
         return;
     if (!m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4))
         return;
 
     auto params = hidpp::features::ReprogControls::buildSetDivert(controlId, divert, rawXY);
-    m_features->callAsync(m_transport.get(), m_deviceIndex,
-                          hidpp::FeatureId::ReprogControlsV4,
-                          hidpp::features::ReprogControls::kFnSetControlReporting,
-                          std::span<const uint8_t>(params));
+    m_commandQueue->enqueue(hidpp::FeatureId::ReprogControlsV4,
+                            hidpp::features::ReprogControls::kFnSetControlReporting,
+                            std::span<const uint8_t>(params));
     qCDebug(lcDevice) << "button" << Qt::hex << controlId
                       << (divert ? "diverted" : "undiverted") << (rawXY ? "+rawXY" : "");
 }
 
 QString DeviceManager::thumbWheelMode() const { return m_thumbWheelMode; }
+bool DeviceManager::thumbWheelInvert() const { return m_thumbWheelInvert; }
+int DeviceManager::thumbWheelDefaultDirection() const { return m_thumbWheelDefaultDirection; }
 int DeviceManager::currentHost() const { return m_currentHost; }
 int DeviceManager::hostCount() const { return m_hostCount; }
 bool DeviceManager::isHostPaired(int host) const {
@@ -978,23 +1060,30 @@ void DeviceManager::touchResponseTime()
     m_lastResponseTime = QDateTime::currentMSecsSinceEpoch();
 }
 
-void DeviceManager::setThumbWheelMode(const QString &mode)
+void DeviceManager::setThumbWheelMode(const QString &mode, bool invert)
 {
-    if (!m_connected || !m_features || !m_transport)
+    qCDebug(lcDevice) << "setThumbWheelMode:" << mode << "invert=" << invert;
+    m_thumbWheelMode = mode;
+    m_thumbWheelInvert = invert;
+    emit thumbWheelModeChanged();
+
+    if (!m_connected || !m_features || !m_commandQueue)
         return;
     if (!m_features->hasFeature(hidpp::FeatureId::ThumbWheel))
         return;
 
-    bool divert = (mode != "scroll"); // "scroll" = native, anything else = diverted
-    m_thumbWheelMode = mode;
-    emit thumbWheelModeChanged();
+    bool divert = (mode != "scroll");
 
     std::array<uint8_t, 2> twParams = {
-        static_cast<uint8_t>(divert ? 0x01 : 0x00), 0x00
+        static_cast<uint8_t>(divert ? 0x01 : 0x00),
+        static_cast<uint8_t>(invert ? 0x01 : 0x00)
     };
-    m_features->callAsync(m_transport.get(), m_deviceIndex,
-                          hidpp::FeatureId::ThumbWheel, 0x02,
-                          std::span<const uint8_t>(twParams));
+    m_commandQueue->enqueue(hidpp::FeatureId::ThumbWheel, 0x02,
+                            std::span<const uint8_t>(twParams),
+                            [divert, invert](const hidpp::Report &) {
+                                qCDebug(lcDevice) << "thumb wheel setReporting confirmed:"
+                                                   << "divert=" << divert << "invert=" << invert;
+                            });
 }
 
 } // namespace logitune

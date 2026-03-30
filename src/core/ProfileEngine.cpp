@@ -78,6 +78,7 @@ Profile ProfileEngine::loadProfile(const QString &path)
     p.hiResScroll         = s.value("Scroll/hires", true).toBool();
 
     p.thumbWheelMode      = s.value("ThumbWheel/mode", "scroll").toString();
+    p.thumbWheelInvert    = s.value("ThumbWheel/invert", false).toBool();
 
     s.beginGroup("Buttons");
     const QStringList buttonKeys = s.childKeys();
@@ -117,6 +118,7 @@ void ProfileEngine::saveProfile(const QString &path, const Profile &profile)
     s.setValue("Scroll/hires",     profile.hiResScroll);
 
     s.setValue("ThumbWheel/mode",  profile.thumbWheelMode);
+    s.setValue("ThumbWheel/invert", profile.thumbWheelInvert);
 
     s.beginGroup("Buttons");
     for (std::size_t i = 0; i < profile.buttons.size(); ++i)
@@ -170,7 +172,8 @@ ProfileDelta ProfileEngine::diff(const Profile &a, const Profile &b)
     delta.scrollChanged = (a.smoothScrolling  != b.smoothScrolling  ||
                            a.scrollDirection  != b.scrollDirection  ||
                            a.hiResScroll      != b.hiResScroll      ||
-                           a.thumbWheelMode   != b.thumbWheelMode);
+                           a.thumbWheelMode   != b.thumbWheelMode ||
+                           a.thumbWheelInvert != b.thumbWheelInvert);
 
     delta.buttonsChanged  = (a.buttons  != b.buttons);
     delta.gesturesChanged = (a.gestures != b.gestures);
@@ -310,22 +313,14 @@ void ProfileEngine::saveProfileToDisk(const QString &name)
     saveProfile(profilePath(name), m_cache[name]);
 }
 
-QString ProfileEngine::profileForApp(const QString &wmClass) const
+QString ProfileEngine::profileForApp(const QString &appId) const
 {
-    // Case-insensitive lookup — KWin reports lowercase, .desktop files may differ
+    // Simple case-insensitive lookup. The caller (KDeDesktop) is responsible
+    // for resolving window identity to a canonical app ID that matches
+    // .desktop file names used as binding keys.
     for (auto it = m_appBindings.cbegin(); it != m_appBindings.cend(); ++it) {
-        if (it.key().compare(wmClass, Qt::CaseInsensitive) == 0)
+        if (it.key().compare(appId, Qt::CaseInsensitive) == 0)
             return it.value();
-    }
-
-    // KWin may report "org.kde.dolphin" while .desktop has StartupWMClass="dolphin"
-    // Try matching the last component after the last dot
-    QString shortClass = wmClass.contains('.') ? wmClass.section('.', -1) : QString();
-    if (!shortClass.isEmpty()) {
-        for (auto it = m_appBindings.cbegin(); it != m_appBindings.cend(); ++it) {
-            if (it.key().compare(shortClass, Qt::CaseInsensitive) == 0)
-                return it.value();
-        }
     }
 
     return QStringLiteral("default");
