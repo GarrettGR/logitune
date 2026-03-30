@@ -5,6 +5,8 @@ add_library(logitune-app-lib STATIC
     models/ButtonModel.cpp
     models/ActionModel.cpp
     models/ProfileModel.cpp
+    dialogs/GitHubIssueBuilder.cpp
+    dialogs/CrashReportDialog.cpp
 )
 
 target_include_directories(logitune-app-lib PUBLIC
@@ -12,7 +14,7 @@ target_include_directories(logitune-app-lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/models
 )
 
-target_link_libraries(logitune-app-lib PUBLIC logitune-core Qt6::Quick)
+target_link_libraries(logitune-app-lib PUBLIC logitune-core Qt6::Quick Qt6::Widgets)
 
 # ── Executable: main entry point + QML module ────────────────────────────
 qt_add_executable(logitune
@@ -52,5 +54,6 @@ qt_add_qml_module(logitune
 )
 
 target_link_libraries(logitune PRIVATE logitune-app-lib Qt6::Svg Qt6::DBus Qt6::Widgets)
+target_link_options(logitune PRIVATE -rdynamic)
 
 install(TARGETS logitune DESTINATION bin)

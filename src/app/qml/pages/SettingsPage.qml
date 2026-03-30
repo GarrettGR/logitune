@@ -64,6 +64,66 @@ Item {
             // Separator
             Rectangle { width: parent.width; height: 1; color: Theme.border }
 
+            // Debug logging toggle
+            Row {
+                width: parent.width
+                Text {
+                    text: "Debug logging"
+                    font.pixelSize: 13
+                    color: Theme.text
+                    width: parent.width - loggingToggle.width
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                LogituneToggle {
+                    id: loggingToggle
+                    checked: DeviceModel.loggingEnabled
+                    onToggled: DeviceModel.loggingEnabled = checked
+                }
+            }
+
+            // Log file path (visible when logging enabled)
+            Text {
+                visible: DeviceModel.loggingEnabled
+                text: DeviceModel.logFilePath || ""
+                font.pixelSize: 11
+                color: Theme.textSecondary
+                wrapMode: Text.WrapAnywhere
+                width: parent.width
+            }
+
+            // Report Bug button (disabled when logging off)
+            Rectangle {
+                width: 180; height: 40
+                radius: 4
+                color: DeviceModel.loggingEnabled
+                    ? (reportHover.hovered ? Theme.accent : "transparent")
+                    : "transparent"
+                border.color: DeviceModel.loggingEnabled ? Theme.accent : Theme.border
+                border.width: 1
+                opacity: DeviceModel.loggingEnabled ? 1.0 : 0.4
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "Report Bug"
+                    font.pixelSize: 13
+                    color: DeviceModel.loggingEnabled
+                        ? (reportHover.hovered ? "#000000" : Theme.accent)
+                        : Theme.textSecondary
+                }
+
+                HoverHandler { id: reportHover; enabled: DeviceModel.loggingEnabled }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: DeviceModel.loggingEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    enabled: DeviceModel.loggingEnabled
+                    onClicked: DeviceModel.openBugReport()
+                }
+            }
+
+            // Separator
+            Rectangle { width: parent.width; height: 1; color: Theme.border }
+
             // Reset button
             Rectangle {
                 width: 180; height: 40

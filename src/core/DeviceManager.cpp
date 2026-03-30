@@ -7,9 +7,9 @@
 #include "hidpp/features/SmartShift.h"
 #include "hidpp/features/HiResWheel.h"
 #include "hidpp/features/ReprogControls.h"
+#include "logging/LogManager.h"
 
 #include <QDateTime>
-#include <QDebug>
 #include <QFile>
 #include <QHash>
 #include <QSocketNotifier>
@@ -101,13 +101,13 @@ void DeviceManager::start()
     // Initialize libudev
     m_udev = udev_new();
     if (!m_udev) {
-        qWarning() << "DeviceManager: failed to create udev context";
+        qCWarning(lcDevice) << "failed to create udev context";
         return;
     }
 
     m_udevMon = udev_monitor_new_from_netlink(m_udev, "udev");
     if (!m_udevMon) {
-        qWarning() << "DeviceManager: failed to create udev monitor";
+        qCWarning(lcDevice) << "failed to create udev monitor";
         return;
     }
 
@@ -127,7 +127,7 @@ void DeviceManager::start()
 
 void DeviceManager::scanExistingDevices()
 {
-    qDebug() << "[DeviceManager] scanning existing hidraw devices...";
+    qCDebug(lcDevice) << "scanning existing hidraw devices...";
 
     struct udev_enumerate *enumerate = udev_enumerate_new(m_udev);
     if (!enumerate)
@@ -168,9 +168,9 @@ void DeviceManager::scanExistingDevices()
         }
 
         if (isLogitech) {
-            qDebug() << "[DeviceManager] found Logitech device:" << devNode
-                     << "PID:" << Qt::hex << productId
-                     << (isReceiver(productId) ? "(receiver)" : "(direct)");
+            qCDebug(lcDevice) << "found Logitech device:" << devNode
+                              << "PID:" << Qt::hex << productId
+                              << (isReceiver(productId) ? "(receiver)" : "(direct)");
             if (devNode && !m_connected) {
                 probeDevice(QString::fromUtf8(devNode));
             }
@@ -179,7 +179,7 @@ void DeviceManager::scanExistingDevices()
         udev_device_unref(dev);
     }
 
-    qDebug() << "[DeviceManager] scan complete:" << count << "hidraw devices," << (m_connected ? "connected" : "no device connected");
+    qCDebug(lcDevice) << "scan complete:" << count << "hidraw devices," << (m_connected ? "connected" : "no device connected");
     udev_enumerate_unref(enumerate);
 }
 
@@ -229,7 +229,7 @@ void DeviceManager::onUdevEvent(const QString &action, const QString &devNode)
                 ping.softwareId = 0x0A;
                 auto resp = m_transport->sendRequest(ping, 500);
                 if (!resp.has_value()) {
-                    qDebug() << "[DeviceManager] current device unresponsive, switching to" << devNode;
+                    qCDebug(lcDevice) << "current device unresponsive, switching to" << devNode;
                     disconnectDevice();
                     probeDevice(devNode);
                 }
@@ -267,7 +267,7 @@ void DeviceManager::onUdevEvent(const QString &action, const QString &devNode)
 
 void DeviceManager::probeDevice(const QString &devNode)
 {
-    qDebug() << "[DeviceManager] probing" << devNode;
+    qCDebug(lcDevice) << "probing" << devNode;
 
     // Check report descriptor via sysfs BEFORE opening the device.
     // Opening the wrong hidraw interface poisons writes to sibling interfaces.
@@ -286,21 +286,21 @@ void DeviceManager::probeDevice(const QString &devNode)
                 }
             }
             if (!hasHidpp) {
-                qDebug() << "[DeviceManager]" << devNode << "no HID++ report ID in descriptor, skipping";
+                qCDebug(lcDevice) << devNode << "no HID++ report ID in descriptor, skipping";
                 return;
             }
-            qDebug() << "[DeviceManager]" << devNode << "has HID++ report ID";
+            qCDebug(lcDevice) << devNode << "has HID++ report ID";
         }
     }
 
     auto device = std::make_unique<hidpp::HidrawDevice>(devNode);
     if (!device->open()) {
-        qDebug() << "[DeviceManager] cannot open" << devNode;
+        qCDebug(lcDevice) << "cannot open" << devNode;
         return;
     }
 
     auto info = device->info();
-    qDebug() << "[DeviceManager] opened" << devNode << "vendor:" << Qt::hex << info.vendorId << "product:" << info.productId;
+    qCDebug(lcDevice) << "opened" << devNode << "vendor:" << Qt::hex << info.vendorId << "product:" << info.productId;
     if (info.vendorId != hidpp::kVendorLogitech) {
         return;
     }
@@ -327,7 +327,7 @@ void DeviceManager::probeDevice(const QString &devNode)
             ping[2] = 0x00;  // Root feature index
             ping[3] = 0x0A;  // functionId=0, softwareId=0x0A
 
-            qDebug() << "[DeviceManager] pinging slot" << slot << "on" << devNode;
+            qCDebug(lcDevice) << "pinging slot" << slot << "on" << devNode;
             int written = device->writeReport(std::span<const uint8_t>(ping, 20));
             if (written < 0)
                 continue;
@@ -356,9 +356,9 @@ void DeviceManager::probeDevice(const QString &devNode)
                 if (!isError) {
                     deviceIndex = static_cast<uint8_t>(slot);
                     found = true;
-                    qDebug() << "[DeviceManager] found device at slot" << slot
-                             << "(response:" << QByteArray(reinterpret_cast<const char*>(resp.data()),
-                                                           static_cast<int>(resp.size())).toHex() << ")";
+                    qCDebug(lcDevice) << "found device at slot" << slot
+                                      << "(response:" << QByteArray(reinterpret_cast<const char*>(resp.data()),
+                                                                     static_cast<int>(resp.size())).toHex() << ")";
                     break;
                 }
             }
@@ -368,7 +368,7 @@ void DeviceManager::probeDevice(const QString &devNode)
         }
 
         if (!found) {
-            qDebug() << "[DeviceManager] no device on any slot of" << devNode << "— keeping receiver open for DJ notifications";
+            qCDebug(lcDevice) << "no device on any slot of" << devNode << "— keeping receiver open for DJ notifications";
             // Keep receiver open separately so it survives if another transport connects
             m_receiverDevice = std::move(device);
             if (m_receiverNotifier) {
@@ -392,8 +392,8 @@ void DeviceManager::probeDevice(const QString &devNode)
                 // Any HID++ traffic from a device index 1-6 means a device is present
                 if (bytes.size() >= 3 && bytes[1] >= 1 && bytes[1] <= 6) {
                     uint8_t slot = bytes[1];
-                    qDebug() << "[DeviceManager] receiver got data from slot" << slot
-                             << "— device arrived on receiver, switching transport";
+                    qCDebug(lcDevice) << "receiver got data from slot" << slot
+                                      << "— device arrived on receiver, switching transport";
                     // Disable receiver notifier
                     if (m_receiverNotifier) {
                         m_receiverNotifier->setEnabled(false);
@@ -466,16 +466,16 @@ void DeviceManager::enumerateAndSetup()
 {
     if (m_enumerating) return;
     m_enumerating = true;
-    qDebug() << "[DeviceManager] enumerateAndSetup: deviceIndex=" << Qt::hex << m_deviceIndex;
+    qCDebug(lcDevice) << "enumerateAndSetup: deviceIndex=" << Qt::hex << m_deviceIndex;
     m_features = std::make_unique<hidpp::FeatureDispatcher>();
 
     bool ok = m_features->enumerate(m_transport.get(), m_deviceIndex);
     if (!ok) {
-        qWarning() << "[DeviceManager] feature enumeration failed";
+        qCWarning(lcDevice) << "feature enumeration failed";
         m_enumerating = false;
         return;
     } else {
-        qDebug() << "[DeviceManager] feature enumeration succeeded";
+        qCDebug(lcDevice) << "feature enumeration succeeded";
     }
 
     // Read device name
@@ -503,14 +503,14 @@ void DeviceManager::enumerateAndSetup()
         }
     }
 
-    qDebug() << "[DeviceManager] device name:" << name;
+    qCDebug(lcDevice) << "device name:" << name;
 
     if (name.isEmpty())
         name = QStringLiteral("Logitech Device");
 
     // Stable device identifier from name hash (same across Bolt/BT/USB)
     QString serial = QString::number(qHash(name), 16);
-    qDebug() << "[DeviceManager] device id:" << serial;
+    qCDebug(lcDevice) << "device id:" << serial;
 
     // Read battery
     int battLevel = 0;
@@ -538,8 +538,8 @@ void DeviceManager::enumerateAndSetup()
             m_minDPI = info.minDPI;
             m_maxDPI = info.maxDPI;
             m_dpiStep = info.stepDPI > 0 ? info.stepDPI : 50;
-            qDebug() << "[DeviceManager] DPI range:" << m_minDPI << "-" << m_maxDPI
-                     << "step:" << m_dpiStep;
+            qCDebug(lcDevice) << "DPI range:" << m_minDPI << "-" << m_maxDPI
+                              << "step:" << m_dpiStep;
         }
         // Get current DPI
         auto dpiResp = m_features->call(m_transport.get(), m_deviceIndex,
@@ -548,7 +548,7 @@ void DeviceManager::enumerateAndSetup()
                                         std::array<uint8_t, 1>{0x00});
         if (dpiResp.has_value()) {
             m_currentDPI = hidpp::features::AdjustableDPI::parseCurrentDPI(*dpiResp);
-            qDebug() << "[DeviceManager] current DPI:" << m_currentDPI;
+            qCDebug(lcDevice) << "current DPI:" << m_currentDPI;
         }
     }
 
@@ -561,9 +561,9 @@ void DeviceManager::enumerateAndSetup()
             auto cfg = hidpp::features::SmartShift::parseConfig(*resp);
             m_smartShiftEnabled = cfg.isRatchet(); // mode=2 means SmartShift active
             m_smartShiftThreshold = cfg.autoDisengage;
-            qDebug() << "[DeviceManager] SmartShift: mode=" << cfg.mode
-                     << (m_smartShiftEnabled ? "(ratchet)" : "(freespin)")
-                     << "autoDisengage=" << m_smartShiftThreshold;
+            qCDebug(lcDevice) << "SmartShift: mode=" << cfg.mode
+                              << (m_smartShiftEnabled ? "(ratchet)" : "(freespin)")
+                              << "autoDisengage=" << m_smartShiftThreshold;
         }
     }
 
@@ -577,14 +577,14 @@ void DeviceManager::enumerateAndSetup()
             auto cfg = hidpp::features::HiResWheel::parseWheelMode(*modeResp);
             m_scrollHiRes = cfg.hiRes;
             m_scrollInvert = cfg.invert;
-            qDebug() << "[DeviceManager] Scroll: hiRes=" << m_scrollHiRes << "invert=" << m_scrollInvert;
+            qCDebug(lcDevice) << "Scroll: hiRes=" << m_scrollHiRes << "invert=" << m_scrollInvert;
         }
         auto ratchetResp = m_features->call(m_transport.get(), m_deviceIndex,
                                             hidpp::FeatureId::HiResWheel,
                                             hidpp::features::HiResWheel::kFnGetRatchetSwitch);
         if (ratchetResp.has_value()) {
             m_scrollRatchet = hidpp::features::HiResWheel::parseRatchetSwitch(*ratchetResp);
-            qDebug() << "[DeviceManager] Scroll: ratchet=" << m_scrollRatchet;
+            qCDebug(lcDevice) << "Scroll: ratchet=" << m_scrollRatchet;
         }
     }
 
@@ -598,10 +598,10 @@ void DeviceManager::enumerateAndSetup()
             m_activeDevice = m_registry->findByName(name);
     }
     if (m_activeDevice)
-        qDebug() << "[DeviceManager] matched device descriptor:" << m_activeDevice->deviceName();
+        qCDebug(lcDevice) << "matched device descriptor:" << m_activeDevice->deviceName();
     else
-        qDebug() << "[DeviceManager] no device descriptor found for PID"
-                 << Qt::hex << m_device->info().productId << "name:" << name;
+        qCDebug(lcDevice) << "no device descriptor found for PID"
+                          << Qt::hex << m_device->info().productId << "name:" << name;
 
     // Undivert ALL buttons to ensure clean native state on startup.
     // Previous sessions may have left diversions active on the device.
@@ -617,7 +617,7 @@ void DeviceManager::enumerateAndSetup()
                 }
             }
         }
-        qDebug() << "[DeviceManager] all buttons undiverted (clean native state)";
+        qCDebug(lcDevice) << "all buttons undiverted (clean native state)";
     }
 
     // Undivert thumb wheel (restore native horizontal scroll)
@@ -627,7 +627,7 @@ void DeviceManager::enumerateAndSetup()
                          hidpp::FeatureId::ThumbWheel, 0x02,
                          std::span<const uint8_t>(twParams));
         m_thumbWheelMode = "scroll";
-        qDebug() << "[DeviceManager] thumb wheel set to native scroll";
+        qCDebug(lcDevice) << "thumb wheel set to native scroll";
     }
 
     // Update state and emit signals
@@ -636,7 +636,7 @@ void DeviceManager::enumerateAndSetup()
     bool chargeChanged  = (m_batteryCharging != battCharging);
     bool typeChanged    = false; // connectionType already set before this call
 
-    qDebug() << "[DeviceManager] battery:" << battLevel << "% charging:" << battCharging;
+    qCDebug(lcDevice) << "battery:" << battLevel << "% charging:" << battCharging;
 
     // Read current Easy-Switch host (ChangeHost 0x1814)
     int currentHost = -1;
@@ -647,7 +647,7 @@ void DeviceManager::enumerateAndSetup()
         if (resp.has_value()) {
             hostCount = resp->params[0];
             currentHost = resp->params[1];
-            qDebug() << "[DeviceManager] Easy-Switch: host" << currentHost << "of" << hostCount;
+            qCDebug(lcDevice) << "Easy-Switch: host" << currentHost << "of" << hostCount;
 
             // Query cookies to determine which slots are paired
             auto cookieResp = m_features->call(m_transport.get(), m_deviceIndex,
@@ -658,7 +658,7 @@ void DeviceManager::enumerateAndSetup()
                 for (int i = 0; i < hostCount && i < 16; ++i) {
                     m_hostPaired[i] = (cookieResp->params[i] != 0);
                 }
-                qDebug() << "[DeviceManager] Easy-Switch paired slots:" << m_hostPaired;
+                qCDebug(lcDevice) << "Easy-Switch paired slots:" << m_hostPaired;
             }
         }
     }
@@ -728,8 +728,8 @@ void DeviceManager::disconnectDevice()
 
 void DeviceManager::handleNotification(const hidpp::Report &report)
 {
-    qDebug() << "[DeviceManager] notification: featureIndex=" << Qt::hex << report.featureIndex
-             << "functionId=" << report.functionId;
+    qCDebug(lcDevice) << "notification: featureIndex=" << Qt::hex << report.featureIndex
+                      << "functionId=" << report.functionId;
 
     // Sleep/wake re-enumeration disabled — udev handles real disconnects.
     // The 2-minute threshold caused false re-enumerations during normal use,
@@ -739,10 +739,10 @@ void DeviceManager::handleNotification(const hidpp::Report &report)
     if (m_features && m_features->hasFeature(hidpp::FeatureId::BatteryUnified)) {
         auto idx = m_features->featureIndex(hidpp::FeatureId::BatteryUnified);
         if (idx.has_value() && report.featureIndex == *idx) {
-            qDebug() << "[DeviceManager] battery raw params:"
-                     << Qt::hex << report.params[0] << report.params[1] << report.params[2] << report.params[3];
+            qCDebug(lcDevice) << "battery raw params:"
+                              << Qt::hex << report.params[0] << report.params[1] << report.params[2] << report.params[3];
             auto status = hidpp::features::Battery::parseStatus(report);
-            qDebug() << "[DeviceManager] battery notification:" << status.level << "% charging:" << status.charging;
+            qCDebug(lcDevice) << "battery notification:" << status.level << "% charging:" << status.charging;
             bool levelChanged   = (m_batteryLevel != status.level);
             bool chargeChanged  = (m_batteryCharging != status.charging);
             m_batteryLevel   = status.level;
@@ -763,7 +763,7 @@ void DeviceManager::handleNotification(const hidpp::Report &report)
                 m_scrollRatchet = ratchet;
                 // Ratchet ON = SmartShift active, Ratchet OFF = freespin
                 m_smartShiftEnabled = ratchet;
-                qDebug() << "[DeviceManager] SmartShift button:" << (ratchet ? "ratchet" : "freespin");
+                qCDebug(lcDevice) << "SmartShift button:" << (ratchet ? "ratchet" : "freespin");
                 emit smartShiftChanged();
                 emit scrollConfigChanged();
             }
@@ -781,8 +781,8 @@ void DeviceManager::handleNotification(const hidpp::Report &report)
             if (m_smartShiftEnabled != newEnabled) {
                 m_smartShiftEnabled = newEnabled;
                 m_smartShiftThreshold = cfg.autoDisengage;
-                qDebug() << "[DeviceManager] SmartShift button toggled:"
-                         << (newEnabled ? "ratchet" : "freespin");
+                qCDebug(lcDevice) << "SmartShift button toggled:"
+                                  << (newEnabled ? "ratchet" : "freespin");
                 emit smartShiftChanged();
             }
             return;
@@ -837,10 +837,10 @@ void DeviceManager::checkSleepWake()
     if ((now - m_lastResponseTime) > kSleepThresholdMs) {
         if (m_enumerating) return; // prevent re-entrant enumeration on wake
         m_enumerating = true; // block further wake attempts until timer fires
-        qDebug() << "[DeviceManager] device woke from sleep, deferring re-enumeration (500ms)";
+        qCDebug(lcDevice) << "device woke from sleep, deferring re-enumeration (500ms)";
         QTimer::singleShot(500, this, [this]() {
             m_enumerating = false;
-            qDebug() << "[DeviceManager] wake timer fired, re-enumerating features";
+            qCDebug(lcDevice) << "wake timer fired, re-enumerating features";
             if (m_transport && m_device && m_device->isOpen()) {
                 enumerateAndSetup();
             }
@@ -928,7 +928,7 @@ void DeviceManager::setSmartShift(bool enabled, int threshold)
                           hidpp::FeatureId::SmartShift,
                           hidpp::features::SmartShift::kFnSetStatus,
                           std::span<const uint8_t>(params));
-    qDebug() << "[DeviceManager] SmartShift set: mode=" << mode << "autoDisengage=" << ad;
+    qCDebug(lcDevice) << "SmartShift set: mode=" << mode << "autoDisengage=" << ad;
 }
 
 void DeviceManager::setScrollConfig(bool hiRes, bool invert)
@@ -961,8 +961,8 @@ void DeviceManager::divertButton(uint16_t controlId, bool divert, bool rawXY)
                           hidpp::FeatureId::ReprogControlsV4,
                           hidpp::features::ReprogControls::kFnSetControlReporting,
                           std::span<const uint8_t>(params));
-    qDebug() << "[DeviceManager] button" << Qt::hex << controlId
-             << (divert ? "diverted" : "undiverted") << (rawXY ? "+rawXY" : "");
+    qCDebug(lcDevice) << "button" << Qt::hex << controlId
+                      << (divert ? "diverted" : "undiverted") << (rawXY ? "+rawXY" : "");
 }
 
 QString DeviceManager::thumbWheelMode() const { return m_thumbWheelMode; }

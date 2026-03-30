@@ -1,4 +1,5 @@
 #include "ProfileEngine.h"
+#include "logging/LogManager.h"
 #include <QDir>
 #include <QFileInfo>
 
@@ -263,7 +264,7 @@ void ProfileEngine::removeAppProfile(const QString &wmClass)
     if (m_hardwareProfile == profileName)
         setHardwareProfile(QStringLiteral("default"));
 
-    qDebug() << "[ProfileEngine] removed profile" << profileName << "for app" << wmClass;
+    qCDebug(lcProfile) << "removed profile" << profileName << "for app" << wmClass;
 }
 
 // ---------------------------------------------------------------------------

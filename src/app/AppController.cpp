@@ -1,11 +1,11 @@
 #include "AppController.h"
 #include "desktop/KDeDesktop.h"
 #include "input/UinputInjector.h"
+#include "logging/LogManager.h"
 #include <QDir>
 #include <QFile>
 #include <QStandardPaths>
 #include <QTimer>
-#include <QDebug>
 
 namespace logitune {
 
@@ -44,10 +44,10 @@ void AppController::init()
     m_deviceModel.setDeviceManager(&m_deviceManager);
     m_deviceModel.setDesktopIntegration(m_desktop);
     // Init uinput
-    fprintf(stderr, "[logitune] creating UinputInjector...\n");
-    fprintf(stderr, "[logitune] init uinput...\n");
+    qCInfo(lcApp) << "creating UinputInjector...";
+    qCInfo(lcApp) << "init uinput...";
     if (!m_injector->init()) {
-        qWarning() << "[AppController] UinputInjector: uinput init failed (no /dev/uinput access?). Keystrokes will not be injected.";
+        qCWarning(lcApp) << "UinputInjector: uinput init failed (no /dev/uinput access?). Keystrokes will not be injected.";
     }
 
     // Gesture defaults (matches logid.cfg) — use programmatic path, not user path
@@ -211,7 +211,7 @@ void AppController::onDeviceSetupComplete()
 
     QDir().mkpath(profilesDir);
     m_profileEngine.setDeviceConfigDir(profilesDir);
-    qDebug() << "[AppController] profile dir:" << profilesDir;
+    qCDebug(lcApp) << "profile dir:" << profilesDir;
 
     const QString defaultConf = profilesDir + QStringLiteral("/default.conf");
     if (!QFile::exists(defaultConf)) {
@@ -244,7 +244,7 @@ void AppController::onDeviceSetupComplete()
         ProfileEngine::saveProfile(defaultConf, seed);
         // Reload cache so the seed is available
         m_profileEngine.setDeviceConfigDir(profilesDir);
-        qDebug() << "[AppController] created default profile at" << defaultConf;
+        qCDebug(lcApp) << "created default profile at" << defaultConf;
     }
 
     // Populate ProfileModel from saved app bindings
@@ -383,7 +383,7 @@ void AppController::applyProfileToHardware(const Profile &p)
         bool needsDivert = (ba.type != ButtonAction::Default);
         bool needsRawXY = (ba.type == ButtonAction::GestureTrigger);
         if (needsDivert)
-            qDebug() << "[AppController] diverting button" << i << "CID" << Qt::hex << ctrl.controlId;
+            qCDebug(lcApp) << "diverting button" << i << "CID" << Qt::hex << ctrl.controlId;
         m_deviceManager.divertButton(ctrl.controlId, needsDivert, needsRawXY);
     }
 
@@ -474,7 +474,7 @@ void AppController::onScrollConfigChangeRequested(bool hiRes, bool invert)
 void AppController::onThumbWheelModeChangeRequested(const QString &mode)
 {
     QString name = m_profileEngine.displayProfile();
-    qDebug() << "[AC] thumbWheelMode requested:" << mode << "for profile:" << name;
+    qCDebug(lcApp) << "thumbWheelMode requested:" << mode << "for profile:" << name;
     if (name.isEmpty()) return;
     Profile &p = m_profileEngine.cachedProfile(name);
     p.thumbWheelMode = mode;

@@ -1,5 +1,6 @@
 #include "HidrawDevice.h"
 #include "HidppTypes.h"
+#include "logging/LogManager.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -74,8 +75,7 @@ int HidrawDevice::writeReport(std::span<const uint8_t> data)
         return -1;
     int ret = static_cast<int>(::write(m_fd, data.data(), data.size()));
     if (ret < 0) {
-        fprintf(stderr, "[HidrawDevice] write(fd=%d) failed: %s (errno=%d)\n",
-                m_fd, strerror(errno), errno);
+        qCWarning(lcHidpp) << "write(fd=" << m_fd << ") failed:" << strerror(errno) << "(errno=" << errno << ")";
     }
     return ret;
 }

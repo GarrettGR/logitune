@@ -1,5 +1,5 @@
 #include "FeatureDispatcher.h"
-#include <QDebug>
+#include "logging/LogManager.h"
 
 namespace logitune::hidpp {
 
@@ -44,8 +44,8 @@ bool FeatureDispatcher::enumerate(Transport *transport, uint8_t deviceIndex)
             continue;
 
         uint8_t index = response->params[0];
-        qDebug() << "[FeatureDispatcher] feature" << Qt::hex << static_cast<uint16_t>(feature)
-                 << "-> index" << index;
+        qCDebug(lcHidpp) << "feature" << Qt::hex << static_cast<uint16_t>(feature)
+                         << "-> index" << index;
         if (index == 0 && feature != FeatureId::Root)
             continue; // Feature not supported on this device
 

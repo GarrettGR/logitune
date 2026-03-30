@@ -1,7 +1,9 @@
 #include "DeviceModel.h"
 #include "interfaces/IDevice.h"
-#include <QDebug>
+#include "logging/LogManager.h"
+#include "dialogs/CrashReportDialog.h"
 #include <QTimer>
+#include <QSettings>
 #include <QVariantMap>
 
 namespace logitune {
@@ -26,10 +28,10 @@ QVariantList DeviceModel::runningApplications() const
 {
     if (m_desktop) {
         auto result = m_desktop->runningApplications();
-        qDebug() << "[DeviceModel] runningApplications:" << result.size() << "apps";
+        qCDebug(lcUi) << "runningApplications:" << result.size() << "apps";
         return result;
     }
-    qDebug() << "[DeviceModel] runningApplications: no desktop integration";
+    qCDebug(lcUi) << "runningApplications: no desktop integration";
     return {};
 }
 
@@ -326,7 +328,7 @@ QString DeviceModel::gestureKeystroke(const QString &direction) const
 
 void DeviceModel::resetAllProfiles()
 {
-    qDebug() << "[DeviceModel] resetAllProfiles requested";
+    qCDebug(lcUi) << "resetAllProfiles requested";
 }
 
 void DeviceModel::setActiveProfileName(const QString &name)
@@ -346,6 +348,32 @@ void DeviceModel::setActiveWmClass(const QString &wmClass)
     if (m_activeWmClass == wmClass) return;
     m_activeWmClass = wmClass;
     emit activeWmClassChanged();
+}
+
+bool DeviceModel::loggingEnabled() const
+{
+    return LogManager::instance().isLoggingEnabled();
+}
+
+void DeviceModel::setLoggingEnabled(bool enabled)
+{
+    if (enabled == loggingEnabled()) return;
+    LogManager::instance().setLoggingEnabled(enabled);
+    QSettings s;
+    s.setValue("logging/enabled", enabled);
+    emit loggingEnabledChanged();
+}
+
+QString DeviceModel::logFilePath() const
+{
+    return LogManager::instance().currentLogPath();
+}
+
+void DeviceModel::openBugReport()
+{
+    CrashReportDialog dlg(CrashReportDialog::ManualReport);
+    dlg.setDeviceInfo(deviceName(), deviceSerial());
+    dlg.exec();
 }
 
 } // namespace logitune

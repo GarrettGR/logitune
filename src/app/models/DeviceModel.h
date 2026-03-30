@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QSettings>
 #include <qqmlintegration.h>
 
 namespace logitune {
@@ -30,6 +31,10 @@ class DeviceModel : public QObject {
     Q_PROPERTY(QString activeProfileName READ activeProfileName NOTIFY activeProfileNameChanged)
     Q_PROPERTY(QString activeWmClass READ activeWmClass NOTIFY activeWmClassChanged)
 
+    // Logging properties
+    Q_PROPERTY(bool loggingEnabled READ loggingEnabled WRITE setLoggingEnabled NOTIFY loggingEnabledChanged)
+    Q_PROPERTY(QString logFilePath READ logFilePath NOTIFY loggingEnabledChanged)
+
     // Device descriptor properties (driven by active device)
     Q_PROPERTY(QString frontImage READ frontImage NOTIFY deviceConnectedChanged)
     Q_PROPERTY(QString sideImage READ sideImage NOTIFY deviceConnectedChanged)
@@ -48,6 +53,12 @@ public:
     void setDesktopIntegration(IDesktopIntegration *desktop);
     Q_INVOKABLE void blockGlobalShortcuts(bool block);
     Q_INVOKABLE QVariantList runningApplications() const;
+
+    // Logging
+    bool loggingEnabled() const;
+    void setLoggingEnabled(bool enabled);
+    QString logFilePath() const;
+    Q_INVOKABLE void openBugReport();
 
     bool deviceConnected() const;
     QString deviceName() const;
@@ -98,6 +109,7 @@ public:
                           bool scrollHiRes, bool scrollInvert, const QString &thumbWheelMode);
 
 signals:
+    void loggingEnabledChanged();
     void deviceConnectedChanged();
     void deviceNameChanged();
     void batteryLevelChanged();

@@ -2,7 +2,6 @@
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusReply>
-#include <QDebug>
 #include <QProcessEnvironment>
 #include <QVariantMap>
 #include <QSet>

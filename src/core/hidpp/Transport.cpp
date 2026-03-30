@@ -1,7 +1,7 @@
 #include "Transport.h"
+#include "logging/LogManager.h"
 
 #include <QThread>
-#include <QDebug>
 
 namespace logitune::hidpp {
 
@@ -27,7 +27,7 @@ std::optional<Report> Transport::trySend(const Report &request, int timeoutMs, i
     auto bytes = request.serialize();
     int written = m_device->writeReport(bytes);
     if (written < 0) {
-        qDebug() << "[Transport] write failed";
+        qCWarning(lcHidpp) << "write failed";
         return std::nullopt;
     }
 
@@ -38,7 +38,7 @@ std::optional<Report> Transport::trySend(const Report &request, int timeoutMs, i
         if (responseBytes.empty()) {
             if (retriesLeft > 0)
                 return trySend(request, timeoutMs, retriesLeft - 1);
-            qDebug() << "[Transport] timeout waiting for response";
+            qCDebug(lcHidpp) << "timeout waiting for response";
             return std::nullopt;
         }
 
@@ -62,7 +62,7 @@ std::optional<Report> Transport::trySend(const Report &request, int timeoutMs, i
             response->featureIndex == request.featureIndex) {
             if (response->isError()) {
                 ErrorCode ec = response->errorCode();
-                qDebug() << "[Transport] error response: code=" << static_cast<int>(ec);
+                qCDebug(lcHidpp) << "error response: code=" << static_cast<int>(ec);
                 emit deviceError(ec, response->params[0]);
                 switch (ec) {
                 case ErrorCode::Busy:
@@ -88,7 +88,7 @@ std::optional<Report> Transport::trySend(const Report &request, int timeoutMs, i
         }
     }
 
-    qDebug() << "[Transport] exhausted read attempts";
+    qCDebug(lcHidpp) << "exhausted read attempts";
     return std::nullopt;
 }
 
