@@ -13,6 +13,7 @@ finish-args:
   # D-Bus access for KWin focus tracking and KDE global shortcuts
   - --talk-name=org.kde.KWin
   - --talk-name=org.kde.kglobalaccel
+  - --own-name=com.logitune.app
 
   # HID++ device access (hidraw)
   - --device=all
@@ -23,9 +24,19 @@ finish-args:
   # udev for device discovery
   - --system-talk-name=org.freedesktop.UDisks2
 
-  # User config for profiles
-  - --filesystem=xdg-config/Logitune:create
-  - --filesystem=xdg-data/Logitune:create
+  # Host .desktop files and icons for per-app profile picker
+  - --filesystem=host-os:ro
+  - --filesystem=/var/lib/flatpak:ro
+  - --filesystem=xdg-data/applications:ro
+  - --filesystem=xdg-data/flatpak/exports/share/applications:ro
+  - --filesystem=/var/lib/snapd/desktop/applications:ro
+
+  # User config for profiles — persist-path maps the host config into the sandbox
+  # so native and Flatpak builds share the same profiles
+  - --persist=.config/Logitune
+  - --persist=.local/share/Logitune
+  - --filesystem=~/.config/Logitune:create
+  - --filesystem=~/.local/share/Logitune:create
 
   # Temp files for KWin script and logs
   - --filesystem=/tmp:create

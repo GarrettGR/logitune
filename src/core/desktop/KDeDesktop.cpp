@@ -196,6 +196,7 @@ static const QStringList &desktopDirs()
 {
     static const QStringList dirs = {
         QStringLiteral("/usr/share/applications"),
+        QStringLiteral("/run/host/usr/share/applications"),  // host apps inside Flatpak
         QDir::homePath() + QStringLiteral("/.local/share/applications"),
         QStringLiteral("/var/lib/flatpak/exports/share/applications"),
         QDir::homePath() + QStringLiteral("/.local/share/flatpak/exports/share/applications"),

@@ -26,6 +26,7 @@ qt_add_qml_module(logitune-app-lib
     URI Logitune
     VERSION 1.0
     RESOURCE_PREFIX /
+    OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Logitune
     QML_FILES
         qml/Theme.qml
         qml/Main.qml

@@ -4,7 +4,8 @@ build/
 *.a
 CMakeFiles/
 cmake_install.cmake
-Makefile
+**/Makefile
+!/Makefile
 CMakeCache.txt
 .superpowers/
 .claude/

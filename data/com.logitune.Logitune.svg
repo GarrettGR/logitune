@@ -1,8 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="24" fill="#1a1a1a"/>
-  <circle cx="64" cy="50" r="28" fill="none" stroke="#00EAD0" stroke-width="4"/>
-  <path d="M50 50 Q64 30 78 50 Q64 70 50 50Z" fill="#00EAD0" opacity="0.3"/>
-  <circle cx="64" cy="50" r="6" fill="#00EAD0"/>
-  <rect x="42" y="86" width="44" height="6" rx="3" fill="#00EAD0" opacity="0.6"/>
-  <rect x="50" y="98" width="28" height="4" rx="2" fill="#00EAD0" opacity="0.3"/>
+  <!-- Dark rounded background -->
+  <rect width="128" height="128" rx="28" fill="#1a1a1a"/>
+
+  <!-- Mouse body (left half) — rounded pill shape -->
+  <path d="M28 38 C28 28 36 22 46 22 L56 22 L56 78 C56 88 48 94 38 94 L28 94 Z"
+        fill="none" stroke="#00EAD0" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Mouse scroll wheel -->
+  <rect x="44" y="32" width="6" height="14" rx="3" fill="#00EAD0" opacity="0.6"/>
+
+  <!-- Mouse divider line -->
+  <line x1="42" y1="22" x2="42" y2="50" stroke="#00EAD0" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Keyboard keys (right half) — 3x3 grid -->
+  <rect x="66" y="36" width="14" height="14" rx="3" fill="none" stroke="#00EAD0" stroke-width="2.5" opacity="0.9"/>
+  <rect x="84" y="36" width="14" height="14" rx="3" fill="none" stroke="#00EAD0" stroke-width="2.5" opacity="0.7"/>
+  <rect x="66" y="54" width="14" height="14" rx="3" fill="none" stroke="#00EAD0" stroke-width="2.5" opacity="0.7"/>
+  <rect x="84" y="54" width="14" height="14" rx="3" fill="none" stroke="#00EAD0" stroke-width="2.5" opacity="0.5"/>
+
+  <!-- Spacebar key -->
+  <rect x="66" y="72" width="32" height="12" rx="3" fill="none" stroke="#00EAD0" stroke-width="2.5" opacity="0.4"/>
+
+  <!-- Connection arc between mouse and keyboard -->
+  <path d="M56 58 Q61 58 66 54" fill="none" stroke="#00EAD0" stroke-width="1.5" opacity="0.3" stroke-dasharray="3 3"/>
+
+  <!-- Accent dot on mouse button (configured) -->
+  <circle cx="36" cy="38" r="3" fill="#00EAD0"/>
+
+  <!-- Small tune indicator — two horizontal lines with dots -->
+  <line x1="28" y1="104" x2="52" y2="104" stroke="#00EAD0" stroke-width="2" opacity="0.3"/>
+  <circle cx="40" cy="104" r="3" fill="#00EAD0" opacity="0.5"/>
+  <line x1="62" y1="104" x2="100" y2="104" stroke="#00EAD0" stroke-width="2" opacity="0.3"/>
+  <circle cx="82" cy="104" r="3" fill="#00EAD0" opacity="0.5"/>
 </svg>
