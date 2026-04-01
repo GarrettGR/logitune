@@ -96,7 +96,24 @@ make run
 
 | Device | Status |
 |--------|--------|
-| MX Master 3S | ✅ Full support |
+| MX Master 3S (Bolt) | ✅ Full support |
+| MX Master 3S (Bluetooth) | ✅ Full support |
+| Other Logitech HID++ 2.0 | 🔧 Add via [device descriptor](https://github.com/mmaher88/logitune/wiki/Adding-a-Device) |
+
+## 🖥️ Desktop Environment Support
+
+| Feature | KDE Plasma 6 | GNOME | XFCE / Cinnamon | Hyprland / Sway | Other |
+|---------|:---:|:---:|:---:|:---:|:---:|
+| Button remapping | ✅ | ✅ | ✅ | ✅ | ✅ |
+| DPI / SmartShift / Scroll | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Thumb wheel modes | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Gesture actions | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Per-app profiles | ✅ | 🔜 Planned | ❌ | ❌ | ❌ |
+| Auto profile switching | ✅ | 🔜 Planned | ❌ | ❌ | ❌ |
+| Block shortcuts during capture | ✅ | 🔜 Planned | ❌ | ❌ | ❌ |
+| System tray | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+> **Note:** All device configuration (buttons, DPI, scroll, gestures, thumb wheel) works on every DE — it's pure HID++ over hidraw. Per-app profile switching requires desktop-specific integration for window focus tracking. See [Adding a Desktop Environment](https://github.com/mmaher88/logitune/wiki/Adding-a-Desktop-Environment) to contribute support.
 
 ## 🛠️ Tech Stack
 
