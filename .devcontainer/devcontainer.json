@@ -52,7 +52,7 @@
         }
     },
 
-    "runArgs": ["--privileged", "--hostname", "logitune-dev"],
+    "runArgs": ["--hostname", "logitune-dev"],
     "remoteUser": "${localEnv:USER:ubuntu}",
     "updateRemoteUserUID": true,
 

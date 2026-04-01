@@ -1,4 +1,4 @@
-.PHONY: build test test-qml test-tray test-all run flatpak flatpak-setup release clean help setup-hooks
+.PHONY: build test test-qml test-tray test-all run install uninstall release clean help setup-hooks package-deb package-rpm package-arch
 
 IS_CONTAINER := $(shell test -f /.dockerenv && echo 1)
 
@@ -21,15 +21,6 @@ test-tray: ## Run tray manager tests
 test-all: test test-tray test-qml ## Run all tests
 
 ifdef IS_CONTAINER
-flatpak-setup: ## Install Flatpak SDK (first time only, ~2GB)
-	@flatpak --user remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-	@flatpak --user install -y flathub org.kde.Platform//6.10 org.kde.Sdk//6.10
-
-flatpak: ## Build Flatpak (build only — install on host)
-	@sudo sysctl -w kernel.unprivileged_userns_clone=1 > /dev/null 2>&1 || true
-	@flatpak-builder --force-clean --disable-rofiles-fuse build-flatpak com.logitune.Logitune.yml
-	@echo "✅ Flatpak built. To install, run on host: flatpak install --user flatpak-repo com.logitune.Logitune"
-
 setup-hooks: ## Install git hooks
 	@sudo cp scripts/pre-push .git/hooks/pre-push
 	@sudo chmod +x .git/hooks/pre-push
@@ -38,14 +29,33 @@ else
 run: build ## Build and run the app (host only)
 	@./build/src/app/logitune --debug
 
-flatpak-setup: ## Install Flatpak SDK (first time only, host only)
-	@flatpak --user remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-	@flatpak --user install -y flathub org.kde.Platform//6.10 org.kde.Sdk//6.10
+install: ## Install to system (host only)
+	@cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -Wno-dev
+	@cmake --build build -j$$(nproc)
+	@sudo cmake --install build
+	@sudo udevadm control --reload-rules
+	@sudo udevadm trigger
+	@echo "✅ Installed. Run: logitune"
 
-flatpak: ## Build and install Flatpak (host only)
-	@flatpak-builder --user --install --force-clean build-flatpak com.logitune.Logitune.yml
+uninstall: ## Uninstall from system (host only)
+	@sudo rm -f /usr/bin/logitune
+	@sudo rm -f /usr/lib/udev/rules.d/71-logitune.rules
+	@sudo rm -f /usr/share/applications/logitune.desktop
+	@sudo rm -f /usr/share/icons/hicolor/scalable/apps/com.logitune.Logitune.svg
+	@sudo rm -f /usr/share/metainfo/com.logitune.Logitune.metainfo.xml
+	@sudo udevadm control --reload-rules
+	@echo "✅ Uninstalled"
 
-release: ## Release — version bump, tag, Flatpak, GitHub release (host only)
+package-deb: ## Build .deb package (Debian/Ubuntu)
+	@scripts/package-deb.sh
+
+package-rpm: ## Build .rpm package (Fedora/openSUSE)
+	@scripts/package-rpm.sh
+
+package-arch: ## Build Arch/AUR PKGBUILD
+	@scripts/package-arch.sh
+
+release: ## Release — version bump, tag, push (host only)
 	@./scripts/release.sh $(or $(BUMP),patch)
 
 setup-hooks: ## Install git hooks
@@ -55,4 +65,4 @@ setup-hooks: ## Install git hooks
 endif
 
 clean: ## Remove build artifacts
-	@rm -rf build build-flatpak flatpak-repo
+	@rm -rf build

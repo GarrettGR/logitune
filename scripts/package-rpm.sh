@@ -1,0 +1,48 @@
+#!/bin/bash
+set -e
+
+VERSION=$(grep -oP 'project\(logitune VERSION \K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)
+
+echo "📦 Building .rpm package v$VERSION"
+
+# Build release
+cmake -B build-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -Wno-dev > /dev/null 2>&1
+cmake --build build-release -j$(nproc)
+
+# Install to staging dir
+DESTDIR="/tmp/logitune-rpm" cmake --install build-release
+
+# Create spec file
+mkdir -p ~/rpmbuild/{SPECS,BUILDROOT}
+cat > ~/rpmbuild/SPECS/logitune.spec << EOF
+Name:           logitune
+Version:        $VERSION
+Release:        1%{?dist}
+Summary:        Logitech device configurator for Linux
+License:        GPL-3.0-or-later
+URL:            https://github.com/mmaher88/logitune
+
+%description
+Configure Logitech HID++ peripherals (MX Master 3S and more).
+Per-app profiles, button remapping, gestures, DPI, SmartShift,
+scroll configuration, and thumb wheel modes.
+
+%install
+cp -a /tmp/logitune-rpm/* %{buildroot}/
+
+%files
+/usr/bin/logitune
+/usr/lib/udev/rules.d/71-logitune.rules
+/usr/share/applications/logitune.desktop
+/usr/share/icons/hicolor/scalable/apps/com.logitune.Logitune.svg
+/etc/xdg/autostart/logitune.desktop
+
+%post
+udevadm control --reload-rules 2>/dev/null || true
+udevadm trigger 2>/dev/null || true
+EOF
+
+rpmbuild -bb ~/rpmbuild/SPECS/logitune.spec
+rm -rf /tmp/logitune-rpm build-release
+
+echo "✅ RPM built in ~/rpmbuild/RPMS/"

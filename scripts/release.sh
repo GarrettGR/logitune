@@ -42,21 +42,17 @@ echo "✅ All tests passed"
 # Bump version in CMakeLists.txt
 sed -i "s/project(logitune VERSION $CURRENT/project(logitune VERSION $NEW_VERSION/" CMakeLists.txt
 
-# Update metainfo release
-TODAY=$(date +%Y-%m-%d)
-sed -i "s/<release version=\"[^\"]*\" date=\"[^\"]*\">/<release version=\"$NEW_VERSION\" date=\"$TODAY\">/" data/com.logitune.Logitune.metainfo.xml
-
 # Commit and tag
-git add CMakeLists.txt data/com.logitune.Logitune.metainfo.xml
+git add CMakeLists.txt
 git commit -m "release: v$NEW_VERSION"
 git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
 echo "🏷️  Tagged v$NEW_VERSION"
 
-# Push commit + tag — CI builds Flatpak and creates GitHub release
+# Push — CI builds packages and creates GitHub release
 git push origin master
 git push origin "v$NEW_VERSION"
 echo "🚀 Pushed to origin"
-echo "📦 CI will build Flatpak and create GitHub release automatically"
+echo "📦 CI will build packages and create GitHub release"
 
 echo ""
 echo "🎉 Released v$NEW_VERSION"

@@ -46,9 +46,6 @@ RUN apt-get update && apt-get install -y \
     fd-find \
     ripgrep \
     fzf \
-    # Flatpak build
-    flatpak \
-    flatpak-builder \
     # Fonts (emoji + icons)
     fonts-noto-color-emoji \
     unzip \

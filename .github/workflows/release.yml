@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  flatpak:
+  package-deb:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -16,20 +16,23 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
-          flatpak --user remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          flatpak --user install -y flathub org.kde.Platform//6.10 org.kde.Sdk//6.10
+          sudo apt-get install -y \
+            build-essential cmake ninja-build pkg-config \
+            qt6-base-dev qt6-declarative-dev qt6-svg-dev \
+            qt6-tools-dev qt6-tools-dev-tools \
+            qml6-module-qtquick qml6-module-qtquick-controls \
+            qml6-module-qtquick-layouts qml6-module-qtquick-window \
+            qml6-module-qtquick-templates qml6-module-qtqml-workerscript \
+            qml6-module-qtquick-dialogs qml6-module-qt5compat-graphicaleffects \
+            qt6-qpa-plugins libqt6opengl6-dev libqt6svg6-dev \
+            libqt6dbus6 libqt6widgets6 libxkbcommon-dev \
+            qml6-module-qttest libudev-dev
 
-      - name: Build Flatpak
-        run: |
-          flatpak-builder --user --install --force-clean build-flatpak com.logitune.Logitune.yml
-
-      - name: Create bundle
-        run: |
-          flatpak build-bundle ~/.local/share/flatpak/repo logitune.flatpak com.logitune.Logitune
+      - name: Build .deb
+        run: ./scripts/package-deb.sh
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: logitune.flatpak
+          files: logitune-*.deb
           generate_release_notes: true
