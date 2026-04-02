@@ -87,7 +87,9 @@ int main(int argc, char *argv[])
     controller.init();
 
     // QML engine
+    qCInfo(lcApp) << "Creating QML engine...";
     QQmlApplicationEngine engine;
+    qCInfo(lcApp) << "QML engine created";
 
     class IconProvider : public QQuickImageProvider {
     public:
@@ -116,7 +118,9 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("ProfileModel", controller.profileModel());
 #endif
 
+    qCInfo(lcApp) << "Loading QML...";
     engine.load(QUrl(QStringLiteral("qrc:/Logitune/qml/Main.qml")));
+    qCInfo(lcApp) << "QML loaded, root objects:" << engine.rootObjects().size();
 
     if (engine.rootObjects().isEmpty()) {
         qCCritical(lcApp) << "QML failed to load — no root objects";
