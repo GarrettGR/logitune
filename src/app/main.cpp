@@ -42,6 +42,9 @@ int main(int argc, char *argv[])
     auto &logMgr = logitune::LogManager::instance();
     logMgr.init(true);
 
+    // Use INI format explicitly — avoids dconf/GSettings hangs on GNOME
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+
     // Respect user's setting if they explicitly disabled logging
     QSettings settings;
     if (settings.contains("logging/enabled") && !settings.value("logging/enabled").toBool())
