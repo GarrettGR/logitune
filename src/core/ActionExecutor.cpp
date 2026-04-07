@@ -66,10 +66,12 @@ void ActionExecutor::executeAction(const ButtonAction &action)
     case ButtonAction::AppLaunch:
         launchApp(action.payload);
         break;
+    case ButtonAction::Media:
+        injectKeystroke(action.payload);
+        break;
     case ButtonAction::Default:
     case ButtonAction::GestureTrigger:
     case ButtonAction::SmartShiftToggle:
-    case ButtonAction::Media:
     default:
         break;
     }

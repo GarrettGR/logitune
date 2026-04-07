@@ -156,6 +156,11 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("ButtonModel",  controller.buttonModel());
     engine.rootContext()->setContextProperty("ActionModel",  controller.actionModel());
     engine.rootContext()->setContextProperty("ProfileModel", controller.profileModel());
+
+    // Qt 6.4: QML singletons from qmldir with "prefer :" don't resolve correctly.
+    // Explicitly register Theme from its resource path.
+    qmlRegisterSingletonType(QUrl(QStringLiteral("qrc:/Logitune/qml/Theme.qml")),
+                             "Logitune", 1, 0, "Theme");
 #endif
 
     qCInfo(lcApp) << "Loading QML...";

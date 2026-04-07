@@ -129,3 +129,20 @@ TEST(ButtonAction, RoundTripAppLaunchKcalc) {
     ButtonAction result = ButtonAction::parse(orig.serialize());
     EXPECT_EQ(result, orig);
 }
+
+TEST(ButtonAction, RoundTripMediaPlay) {
+    ButtonAction orig{ButtonAction::Media, "Play"};
+    ButtonAction result = ButtonAction::parse(orig.serialize());
+    EXPECT_EQ(result, orig);
+}
+
+TEST(ButtonAction, RoundTripMediaNext) {
+    ButtonAction orig{ButtonAction::Media, "Next"};
+    ButtonAction result = ButtonAction::parse(orig.serialize());
+    EXPECT_EQ(result, orig);
+}
+
+TEST(ButtonAction, SerializeMediaVolumeUp) {
+    ButtonAction a{ButtonAction::Media, "VolumeUp"};
+    EXPECT_EQ(a.serialize(), "media:VolumeUp");
+}

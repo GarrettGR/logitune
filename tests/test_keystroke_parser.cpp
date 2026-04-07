@@ -184,6 +184,18 @@ TEST(KeystrokeParser, MediaVolumeDown) {
     EXPECT_EQ(UinputInjector::parseKeystroke("VolumeDown"), (std::vector<int>{KEY_VOLUMEDOWN}));
 }
 
+TEST(KeystrokeParser, MediaNext) {
+    EXPECT_EQ(UinputInjector::parseKeystroke("Next"), (std::vector<int>{KEY_NEXTSONG}));
+}
+
+TEST(KeystrokeParser, MediaPrevious) {
+    EXPECT_EQ(UinputInjector::parseKeystroke("Previous"), (std::vector<int>{KEY_PREVIOUSSONG}));
+}
+
+TEST(KeystrokeParser, MediaStop) {
+    EXPECT_EQ(UinputInjector::parseKeystroke("Stop"), (std::vector<int>{KEY_STOPCD}));
+}
+
 TEST(KeystrokeParser, MediaBrightnessUp) {
     EXPECT_EQ(UinputInjector::parseKeystroke("BrightnessUp"), (std::vector<int>{KEY_BRIGHTNESSUP}));
 }

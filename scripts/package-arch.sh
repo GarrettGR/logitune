@@ -2,14 +2,15 @@
 set -e
 
 VERSION=$(grep -oP 'project\(logitune VERSION \K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)
+SRCDIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "📦 Building Arch package v$VERSION"
 
-# Create PKGBUILD
-cat > /tmp/PKGBUILD << EOF
+# Create PKGBUILD in source dir (makepkg sets $startdir to this directory)
+cat > "$SRCDIR/PKGBUILD" << 'PKGBUILD_EOF'
 # Maintainer: Mina Maher <mina.maher88@hotmail.com>
 pkgname=logitune
-pkgver=$VERSION
+pkgver=VERSION_PLACEHOLDER
 pkgrel=1
 pkgdesc="Logitech device configurator for Linux"
 arch=('x86_64')
@@ -21,19 +22,23 @@ source=()
 
 build() {
     cd "$startdir"
-    cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -Wno-dev
-    cmake --build build -j\$(nproc)
+    cmake -B build-pkg -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=OFF -Wno-dev
+    cmake --build build-pkg -j$(nproc)
 }
 
 package() {
     cd "$startdir"
-    DESTDIR="\$pkgdir" cmake --install build
+    DESTDIR="$pkgdir" cmake --install build-pkg
+    rm -rf build-pkg
 }
-EOF
+PKGBUILD_EOF
 
-# Build with makepkg
-cd /tmp
+# Inject version (heredoc was single-quoted to preserve $startdir/$pkgdir)
+sed -i "s/VERSION_PLACEHOLDER/$VERSION/" "$SRCDIR/PKGBUILD"
+
+# Build
+cd "$SRCDIR"
 makepkg -p PKGBUILD -f --noconfirm 2>&1 | tail -5
-mv logitune-*.pkg.tar.* "$(pwd)/" 2>/dev/null || true
+rm -f PKGBUILD
 
-echo "✅ Package built"
+echo "✅ logitune-${VERSION}-1-x86_64.pkg.tar.zst"

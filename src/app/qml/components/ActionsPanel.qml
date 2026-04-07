@@ -384,6 +384,7 @@ Rectangle {
                 // Select matching action, or highlight "Keyboard shortcut" for custom keystrokes
                 readonly property bool isSelected: name === root.currentAction
                     || (name === "Keyboard shortcut" && root.isCustomKeystroke)
+                    || (name === "Media controls" && root.currentActionType === "media-controls")
 
                 Rectangle {
                     id: rowRect
@@ -488,6 +489,8 @@ Rectangle {
             sourceComponent: {
                 if (root.currentActionType === "gesture-trigger")
                     return gestureComponent
+                if (root.currentActionType === "media-controls")
+                    return mediaComponent
                 if (root.currentAction === "Keyboard shortcut" || root.isCustomKeystroke)
                     return keystrokeComponent
                 return descriptionComponent
@@ -749,6 +752,91 @@ Rectangle {
                                         modelData.keystroke)
                                     gestureDirectionPicker.visible = false
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Component {
+        id: mediaComponent
+
+        Item {
+            implicitHeight: mediaCol.implicitHeight + 24
+            width: parent ? parent.width : 340
+
+            readonly property var mediaActions: [
+                { name: "Play/Pause",     keystroke: "Play" },
+                { name: "Next track",     keystroke: "Next" },
+                { name: "Previous track", keystroke: "Previous" },
+                { name: "Stop",           keystroke: "Stop" },
+                { name: "Mute",           keystroke: "Mute" },
+                { name: "Volume up",      keystroke: "VolumeUp" },
+                { name: "Volume down",    keystroke: "VolumeDown" },
+            ]
+
+            Column {
+                id: mediaCol
+                anchors {
+                    left: parent.left; right: parent.right; top: parent.top
+                    leftMargin: 20; rightMargin: 20; topMargin: 12
+                }
+                spacing: 4
+
+                Text {
+                    text: "Media action"
+                    font.pixelSize: 12
+                    font.bold: true
+                    color: "#444444"
+                    bottomPadding: 4
+                }
+
+                Repeater {
+                    model: parent.parent.mediaActions
+
+                    Rectangle {
+                        width: mediaCol.width
+                        height: 32
+                        radius: 4
+
+                        readonly property bool isCurrent: root.currentActionType === "media-controls"
+                            && root.currentAction === modelData.name
+
+                        color: isCurrent ? Theme.accent
+                             : (mediaHover.hovered ? Theme.hoverBg : "transparent")
+
+                        Rectangle {
+                            anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
+                            width: 16; height: 16; radius: 8
+                            color: parent.isCurrent ? Theme.activeTabText
+                                 : (mediaHover.hovered ? "#EAE6F5" : Theme.inputBg)
+                            border.color: parent.isCurrent ? Theme.accent : "transparent"
+                            border.width: parent.isCurrent ? 5 : 0
+                        }
+
+                        Text {
+                            anchors {
+                                left: parent.left; leftMargin: 36
+                                verticalCenter: parent.verticalCenter
+                            }
+                            text: modelData.name
+                            font.pixelSize: 13
+                            font.bold: parent.isCurrent
+                            color: parent.isCurrent ? Theme.activeTabText
+                                 : (mediaHover.hovered ? Theme.accent : Theme.text)
+                        }
+
+                        HoverHandler { id: mediaHover }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.currentAction = modelData.name
+                                root.currentActionType = "media-controls"
+                                root.actionSelected(modelData.name, "media-controls")
                             }
                         }
                     }

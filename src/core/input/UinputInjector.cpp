@@ -38,14 +38,12 @@ bool UinputInjector::init()
     if (m_uinputFd < 0)
         return false;
 
-    // Enable key and relative events (for scroll wheel emulation)
     ::ioctl(m_uinputFd, UI_SET_EVBIT, EV_KEY);
     ::ioctl(m_uinputFd, UI_SET_EVBIT, EV_SYN);
     ::ioctl(m_uinputFd, UI_SET_EVBIT, EV_REL);
     ::ioctl(m_uinputFd, UI_SET_RELBIT, REL_WHEEL);
     ::ioctl(m_uinputFd, UI_SET_RELBIT, REL_HWHEEL);
 
-    // Register all keycodes we might emit
     const int keys[] = {
         KEY_LEFTCTRL, KEY_LEFTSHIFT, KEY_LEFTALT, KEY_LEFTMETA,
         KEY_TAB, KEY_BACK, KEY_FORWARD,
@@ -61,7 +59,7 @@ bool UinputInjector::init()
         KEY_Y, KEY_Z,
         KEY_0, KEY_1, KEY_2, KEY_3, KEY_4,
         KEY_5, KEY_6, KEY_7, KEY_8, KEY_9,
-        KEY_MUTE, KEY_PLAYPAUSE, KEY_SYSRQ,
+        KEY_MUTE, KEY_PLAYPAUSE, KEY_NEXTSONG, KEY_PREVIOUSSONG, KEY_STOPCD, KEY_SYSRQ,
         KEY_HOME, KEY_END, KEY_PAGEUP, KEY_PAGEDOWN,
         KEY_BRIGHTNESSUP, KEY_BRIGHTNESSDOWN,
         KEY_MINUS, KEY_EQUAL, KEY_LEFTBRACE, KEY_RIGHTBRACE,
@@ -157,7 +155,6 @@ void UinputInjector::injectCtrlScroll(int direction)
 
     // Emit scroll wheel event
     struct input_event ev{};
-    gettimeofday(&ev.time, nullptr);
     ev.type = EV_REL;
     ev.code = REL_WHEEL;
     ev.value = direction; // +1 = scroll up (zoom in), -1 = scroll down (zoom out)
@@ -240,6 +237,9 @@ std::vector<int> UinputInjector::parseKeystroke(const QString &combo)
         if (tok == QLatin1String("Right"))       { keys.push_back(KEY_RIGHT);        continue; }
         if (tok == QLatin1String("Mute"))        { keys.push_back(KEY_MUTE);         continue; }
         if (tok == QLatin1String("Play"))        { keys.push_back(KEY_PLAYPAUSE);    continue; }
+        if (tok == QLatin1String("Next"))        { keys.push_back(KEY_NEXTSONG);     continue; }
+        if (tok == QLatin1String("Previous"))    { keys.push_back(KEY_PREVIOUSSONG); continue; }
+        if (tok == QLatin1String("Stop"))        { keys.push_back(KEY_STOPCD);       continue; }
         if (tok == QLatin1String("Print"))       { keys.push_back(KEY_SYSRQ);        continue; }
         if (tok == QLatin1String("Home"))        { keys.push_back(KEY_HOME);         continue; }
         if (tok == QLatin1String("End"))         { keys.push_back(KEY_END);          continue; }

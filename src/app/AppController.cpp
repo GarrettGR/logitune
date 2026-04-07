@@ -284,13 +284,8 @@ void AppController::onDeviceSetupComplete()
     }
 
     Profile &p = m_profileEngine.cachedProfile(hwName);
-    m_deviceManager.setDPI(p.dpi);
-    m_deviceManager.setSmartShift(p.smartShiftEnabled, p.smartShiftThreshold);
-    m_deviceManager.setScrollConfig(p.hiResScroll,
-                                    p.scrollDirection == QStringLiteral("natural"));
     qCDebug(lcApp) << "onDeviceSetupComplete: applying profile" << hwName
                     << "thumbWheelMode=" << p.thumbWheelMode;
-    m_deviceManager.setThumbWheelMode(p.thumbWheelMode, p.thumbWheelInvert);
     applyProfileToHardware(p);
 }
 
@@ -372,6 +367,9 @@ void AppController::restoreButtonModelFromProfile(const Profile &p)
 void AppController::applyProfileToHardware(const Profile &p)
 {
     if (!m_currentDevice) return;
+    // Reset thumb wheel accumulator to prevent stale rotation from the
+    // previous profile's mode from bleeding into the new mode's actions.
+    m_thumbAccum = 0;
     // Refresh response timestamp so HID++ responses from these writes
     // don't trigger a false sleep/wake re-enumeration.
     m_deviceManager.touchResponseTime();
@@ -480,6 +478,7 @@ void AppController::onScrollConfigChangeRequested(bool hiRes, bool invert)
 
 void AppController::onThumbWheelModeChangeRequested(const QString &mode)
 {
+    m_thumbAccum = 0;  // reset accumulator on mode change
     QString name = m_profileEngine.displayProfile();
     qCDebug(lcApp) << "thumbWheelMode requested:" << mode << "for profile:" << name;
     if (name.isEmpty()) return;
@@ -560,12 +559,15 @@ void AppController::onDivertedButtonPressed(uint16_t controlId, bool pressed)
         ? hwProfile.buttons[static_cast<std::size_t>(idx)]
         : ButtonAction{ButtonAction::Default, {}};
 
+    qCDebug(lcApp) << "button" << idx << "action type=" << ba.type << "payload=" << ba.payload;
+
     if (ba.type == ButtonAction::Default) return;
 
     if (ba.type == ButtonAction::SmartShiftToggle) {
         bool current = m_deviceManager.smartShiftEnabled();
         m_deviceManager.setSmartShift(!current, m_deviceManager.smartShiftThreshold());
-    } else if (ba.type == ButtonAction::Keystroke && !ba.payload.isEmpty()) {
+    } else if ((ba.type == ButtonAction::Keystroke || ba.type == ButtonAction::Media)
+               && !ba.payload.isEmpty()) {
         m_actionExecutor.injectKeystroke(ba.payload);
     } else if (ba.type == ButtonAction::GestureTrigger) {
         m_gestureTotalDx = 0;
@@ -643,6 +645,19 @@ ButtonAction AppController::buttonEntryToAction(const QString &actionType, const
         return {ButtonAction::GestureTrigger, {}};
     if (actionType == QStringLiteral("smartshift-toggle"))
         return {ButtonAction::SmartShiftToggle, {}};
+    if (actionType == QStringLiteral("media-controls")) {
+        // actionName is the friendly name; map to media key code
+        static const QHash<QString, QString> mediaKeys = {
+            {"Play/Pause",     "Play"},
+            {"Next track",     "Next"},
+            {"Previous track", "Previous"},
+            {"Stop",           "Stop"},
+            {"Mute",           "Mute"},
+            {"Volume up",      "VolumeUp"},
+            {"Volume down",    "VolumeDown"},
+        };
+        return {ButtonAction::Media, mediaKeys.value(actionName, "Play")};
+    }
     if (actionType == QStringLiteral("keystroke")) {
         QString payload = m_actionModel.payloadForName(actionName);
         if (payload.isEmpty() && actionName != QStringLiteral("Keyboard shortcut"))

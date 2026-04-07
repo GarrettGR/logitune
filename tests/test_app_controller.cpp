@@ -379,3 +379,59 @@ TEST_F(AppControllerFixture, ThumbWheelBelowThresholdNoDispatch) {
 
     EXPECT_FALSE(m_injector->hasCalled("injectKeystroke"));
 }
+
+// =============================================================================
+// Media controls tests
+// =============================================================================
+
+TEST_F(AppControllerFixture, MediaPlayPauseInjectsPlay) {
+    setProfileButton("default", 3, {ButtonAction::Media, "Play"});
+
+    pressButton(0x53);
+
+    EXPECT_TRUE(m_injector->hasCalled("injectKeystroke"));
+    EXPECT_EQ(m_injector->lastArg("injectKeystroke"), "Play");
+}
+
+TEST_F(AppControllerFixture, MediaNextTrackInjectsNext) {
+    setProfileButton("default", 3, {ButtonAction::Media, "Next"});
+
+    pressButton(0x53);
+
+    EXPECT_TRUE(m_injector->hasCalled("injectKeystroke"));
+    EXPECT_EQ(m_injector->lastArg("injectKeystroke"), "Next");
+}
+
+TEST_F(AppControllerFixture, MediaMuteInjectsMute) {
+    setProfileButton("default", 3, {ButtonAction::Media, "Mute"});
+
+    pressButton(0x53);
+
+    EXPECT_TRUE(m_injector->hasCalled("injectKeystroke"));
+    EXPECT_EQ(m_injector->lastArg("injectKeystroke"), "Mute");
+}
+
+TEST_F(AppControllerFixture, MediaVolumeDownInjectsVolumeDown) {
+    setProfileButton("default", 3, {ButtonAction::Media, "VolumeDown"});
+
+    pressButton(0x53);
+
+    EXPECT_TRUE(m_injector->hasCalled("injectKeystroke"));
+    EXPECT_EQ(m_injector->lastArg("injectKeystroke"), "VolumeDown");
+}
+
+TEST_F(AppControllerFixture, MediaActionPerProfileSwitching) {
+    // Default profile: button 3 = Play/Pause
+    setProfileButton("default", 3, {ButtonAction::Media, "Play"});
+
+    // Chrome profile: button 3 = Next track
+    createAppProfile("google-chrome", "Chrome", 1600);
+    setProfileButton("Chrome", 3, {ButtonAction::Media, "Next"});
+
+    // Focus Chrome
+    focusApp("google-chrome");
+    pressButton(0x53);
+
+    EXPECT_TRUE(m_injector->hasCalled("injectKeystroke"));
+    EXPECT_EQ(m_injector->lastArg("injectKeystroke"), "Next");
+}

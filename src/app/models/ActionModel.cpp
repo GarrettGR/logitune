@@ -18,7 +18,7 @@ ActionModel::ActionModel(QObject *parent)
         { "Forward",              "Navigate forward in browser/file manager",   "keystroke",       "Alt+Right"   },
         { "Gestures",             "Trigger gesture recognition",                "gesture-trigger", ""            },
         { "Keyboard shortcut",    "Send a custom key combination",              "keystroke",       ""            },
-        { "Media controls",       "Control media playback",                     "keystroke",       "Play"        },
+        { "Media controls",       "Control media playback",                     "media-controls",  ""            },
         { "Middle click",         "Emulate middle mouse button click",          "default",         ""            },
         { "Mute",                 "Toggle audio mute",                          "keystroke",       "Mute"        },
         { "Paste",                "Paste clipboard content",                    "keystroke",       "Ctrl+V"      },
