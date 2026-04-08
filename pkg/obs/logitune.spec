@@ -54,8 +54,9 @@ DPI, SmartShift, scroll, gesture, and thumb wheel settings.
 %files
 %{_bindir}/logitune
 %{_prefix}/lib/udev/rules.d/71-logitune.rules
-%{_datadir}/applications/logitune.desktop
+%{_datadir}/applications/com.logitune.Logitune.desktop
 %{_datadir}/icons/hicolor/scalable/apps/com.logitune.Logitune.svg
+%{_datadir}/metainfo/com.logitune.Logitune.metainfo.xml
 %dir %{_datadir}/gnome-shell
 %dir %{_datadir}/gnome-shell/extensions
 %dir %{_datadir}/gnome-shell/extensions/logitune-focus@logitune.com

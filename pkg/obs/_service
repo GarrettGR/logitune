@@ -2,7 +2,7 @@
   <service name="tar_scm">
     <param name="url">https://github.com/mmaher88/logitune.git</param>
     <param name="scm">git</param>
-    <param name="revision">v0.1.2</param>
+    <param name="revision">master</param>
     <param name="versionformat">@PARENT_TAG@</param>
     <param name="versionrewrite-pattern">v(.*)</param>
     <param name="versionrewrite-replacement">\1</param>
