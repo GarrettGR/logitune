@@ -1,9 +1,12 @@
 #include "AppController.h"
 #include "desktop/KDeDesktop.h"
+#include "desktop/GnomeDesktop.h"
+#include "desktop/GenericDesktop.h"
 #include "input/UinputInjector.h"
 #include "logging/LogManager.h"
 #include <QDir>
 #include <QFile>
+#include <QProcessEnvironment>
 #include <QStandardPaths>
 #include <QTimer>
 
@@ -24,7 +27,14 @@ AppController::AppController(IDesktopIntegration *desktop, IInputInjector *injec
     if (desktop) {
         m_desktop = desktop;
     } else {
-        m_ownedDesktop = std::make_unique<KDeDesktop>();
+        const QString xdgDesktop = QProcessEnvironment::systemEnvironment()
+                                       .value(QStringLiteral("XDG_CURRENT_DESKTOP"));
+        if (xdgDesktop.contains(QStringLiteral("KDE"), Qt::CaseInsensitive))
+            m_ownedDesktop = std::make_unique<KDeDesktop>();
+        else if (xdgDesktop.contains(QStringLiteral("GNOME"), Qt::CaseInsensitive))
+            m_ownedDesktop = std::make_unique<GnomeDesktop>();
+        else
+            m_ownedDesktop = std::make_unique<GenericDesktop>();
         m_desktop = m_ownedDesktop.get();
     }
 
@@ -179,11 +189,16 @@ void AppController::onWindowFocusChanged(const QString &wmClass, const QString &
     // Ignore desktop shell components — they steal focus transiently
     // and shouldn't trigger profile switches
     static const QStringList kIgnored = {
+        // KDE
         QStringLiteral("org.kde.plasmashell"),
         QStringLiteral("kwin_wayland"),
         QStringLiteral("kwin_x11"),
         QStringLiteral("plasmashell"),
         QStringLiteral("org.kde.krunner"),
+        // GNOME
+        QStringLiteral("gnome-shell"),
+        QStringLiteral("org.gnome.Shell"),
+        QStringLiteral("org.gnome.Shell.Extensions"),
     };
     for (const auto &ig : kIgnored) {
         if (wmClass.compare(ig, Qt::CaseInsensitive) == 0)
