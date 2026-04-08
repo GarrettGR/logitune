@@ -2,115 +2,31 @@
   <!-- Dark rounded background -->
   <rect width="128" height="128" rx="28" fill="#1a1a1a"/>
 
-  <!-- Keyboard body (full width) -->
-  <rect x="10" y="38" width="108" height="52" rx="5" fill="#2a2a2a" stroke="#3a3a3a" stroke-width="1"/>
+  <!-- Mouse shadow -->
+  <ellipse cx="64" cy="108" rx="28" ry="8" fill="#000" opacity="0.2"/>
 
-  <!-- Keyboard key rows -->
-  <!-- Row 1 (function keys) -->
-  <rect x="15" y="42" width="6" height="4" rx="0.8" fill="#3a3a3a"/>
-  <rect x="23" y="42" width="6" height="4" rx="0.8" fill="#3a3a3a"/>
-  <rect x="31" y="42" width="6" height="4" rx="0.8" fill="#3a3a3a"/>
-  <rect x="39" y="42" width="6" height="4" rx="0.8" fill="#3a3a3a"/>
-  <rect x="47" y="42" width="6" height="4" rx="0.8" fill="#3a3a3a"/>
-  <rect x="55" y="42" width="6" height="4" rx="0.8" fill="#3a3a3a"/>
-  <rect x="63" y="42" width="6" height="4" rx="0.8" fill="#3a3a3a"/>
-  <rect x="71" y="42" width="6" height="4" rx="0.8" fill="#3a3a3a"/>
-  <rect x="79" y="42" width="6" height="4" rx="0.8" fill="#3a3a3a"/>
-  <rect x="87" y="42" width="6" height="4" rx="0.8" fill="#3a3a3a"/>
-  <rect x="95" y="42" width="6" height="4" rx="0.8" fill="#3a3a3a"/>
-  <rect x="103" y="42" width="6" height="4" rx="0.8" fill="#3a3a3a"/>
+  <!-- Mouse body -->
+  <path d="M38 34 C38 18 48 8 64 8 C80 8 90 18 90 34 L90 88 C90 104 80 114 64 114 C48 114 38 104 38 88 Z"
+        fill="#333333" stroke="#444444" stroke-width="1.5"/>
 
-  <!-- Row 2 -->
-  <rect x="15" y="48" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="23" y="48" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="31" y="48" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="39" y="48" width="6" height="5" rx="0.8" fill="#00EAD0" opacity="0.5"/>
-  <rect x="47" y="48" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="55" y="48" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="63" y="48" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="71" y="48" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="79" y="48" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="87" y="48" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="95" y="48" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="103" y="48" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
+  <!-- Mouse left/right button divide -->
+  <line x1="64" y1="8" x2="64" y2="48" stroke="#2a2a2a" stroke-width="1.2"/>
 
-  <!-- Row 3 -->
-  <rect x="15" y="55" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="23" y="55" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="31" y="55" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="39" y="55" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="47" y="55" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="55" y="55" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="63" y="55" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="71" y="55" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="79" y="55" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="87" y="55" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="95" y="55" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="103" y="55" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
+  <!-- Scroll wheel -->
+  <rect x="60" y="18" width="8" height="20" rx="4" fill="#00EAD0" opacity="0.8"/>
+  <!-- Scroll wheel notches -->
+  <line x1="61.5" y1="24" x2="66.5" y2="24" stroke="#1a1a1a" stroke-width="0.7"/>
+  <line x1="61.5" y1="28" x2="66.5" y2="28" stroke="#1a1a1a" stroke-width="0.7"/>
+  <line x1="61.5" y1="32" x2="66.5" y2="32" stroke="#1a1a1a" stroke-width="0.7"/>
 
-  <!-- Row 4 -->
-  <rect x="15" y="62" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="23" y="62" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="31" y="62" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="39" y="62" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="47" y="62" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="55" y="62" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="63" y="62" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="71" y="62" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="79" y="62" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="87" y="62" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="95" y="62" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="103" y="62" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
+  <!-- Mouse side buttons (thumb) -->
+  <rect x="35.5" y="52" width="4" height="10" rx="1.5" fill="#444444"/>
+  <rect x="35.5" y="66" width="4" height="10" rx="1.5" fill="#444444"/>
 
-  <!-- Spacebar row -->
-  <rect x="15" y="69" width="12" height="5" rx="1" fill="#3a3a3a"/>
-  <rect x="29" y="69" width="40" height="5" rx="1.5" fill="#3a3a3a"/>
-  <rect x="71" y="69" width="12" height="5" rx="1" fill="#3a3a3a"/>
-  <rect x="85" y="69" width="8" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="95" y="69" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="103" y="69" width="6" height="5" rx="0.8" fill="#3a3a3a"/>
+  <!-- Mouse body highlight (top-left reflection) -->
+  <path d="M41 36 C41 20 48 12 64 12 C69 12 74 14 78 16 L78 40 C73 38 68 36 63 36 C55 36 48 36 41 36 Z"
+        fill="#3d3d3d" opacity="0.35"/>
 
-  <!-- Row 6 (bottom modifiers) -->
-  <rect x="15" y="76" width="10" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="27" y="76" width="10" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="39" y="76" width="10" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="51" y="76" width="10" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="63" y="76" width="10" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="75" y="76" width="10" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="87" y="76" width="10" height="5" rx="0.8" fill="#3a3a3a"/>
-  <rect x="99" y="76" width="10" height="5" rx="0.8" fill="#3a3a3a"/>
-
-  <!-- Mouse shadow (matches mouse shape, offset down-right for depth) -->
-  <path d="M87 42 C87 36 91 32 98 32 C105 32 110 36 110 42 L110 72 C110 80 105 84 98 84 C91 84 87 80 87 72 Z"
-        fill="#000000" opacity="0.25"/>
-
-  <!-- Mouse body (overlapping keyboard right side, bottom aligned) -->
-  <path d="M84 38 C84 32 89 28 96 28 C103 28 108 32 108 38 L108 68 C108 76 103 80 96 80 C89 80 84 76 84 68 Z"
-        fill="#333333" stroke="#444444" stroke-width="1.2"/>
-
-  <!-- Mouse left/right divide -->
-  <line x1="96" y1="28" x2="96" y2="48" stroke="#2a2a2a" stroke-width="0.8"/>
-
-  <!-- Mouse scroll wheel -->
-  <rect x="94" y="33" width="4" height="10" rx="2" fill="#00EAD0" opacity="0.7"/>
-  <line x1="94.8" y1="35.5" x2="97.2" y2="35.5" stroke="#1a1a1a" stroke-width="0.4"/>
-  <line x1="94.8" y1="37.5" x2="97.2" y2="37.5" stroke="#1a1a1a" stroke-width="0.4"/>
-  <line x1="94.8" y1="39.5" x2="97.2" y2="39.5" stroke="#1a1a1a" stroke-width="0.4"/>
-  <line x1="94.8" y1="41.5" x2="97.2" y2="41.5" stroke="#1a1a1a" stroke-width="0.4"/>
-
-  <!-- Mouse side buttons -->
-  <rect x="83" y="46" width="2" height="5" rx="0.6" fill="#444444"/>
-  <rect x="83" y="53" width="2" height="5" rx="0.6" fill="#444444"/>
-
-  <!-- Mouse body highlight -->
-  <path d="M86 40 C86 34 89 30 96 30 C98 30 100 31 101 32 L101 44 C99 43 97 42 95 42 C92 42 89 41 86 40 Z"
-        fill="#3d3d3d" opacity="0.4"/>
-
-  <!-- Accent dot on mouse -->
-  <circle cx="90" cy="48" r="1.5" fill="#00EAD0"/>
-
-  <!-- Three connection dots at bottom -->
-  <circle cx="50" cy="98" r="1.5" fill="#00EAD0" opacity="0.3"/>
-  <circle cx="58" cy="98" r="1.8" fill="#00EAD0" opacity="0.6"/>
-  <circle cx="66" cy="98" r="1.5" fill="#00EAD0" opacity="0.3"/>
+  <!-- Teal accent dot on mouse body -->
+  <circle cx="50" cy="60" r="3" fill="#00EAD0" opacity="0.9"/>
 </svg>
