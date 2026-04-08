@@ -1,0 +1,201 @@
+#include "desktop/GnomeDesktop.h"
+#include "logging/LogManager.h"
+#include <QDBusConnection>
+#include <QDBusMessage>
+#include <QDBusReply>
+#include <QDBusVariant>
+#include <QDir>
+#include <QFile>
+#include <QProcessEnvironment>
+#include <QProcess>
+#include <QStandardPaths>
+
+namespace logitune {
+
+static constexpr auto kExtUuid = "logitune-focus@logitune.com";
+
+GnomeDesktop::GnomeDesktop(QObject *parent)
+    : LinuxDesktopBase(parent)
+{
+}
+
+void GnomeDesktop::start()
+{
+    // Only support Wayland sessions
+    const QString sessionType = QProcessEnvironment::systemEnvironment()
+                                    .value(QStringLiteral("XDG_SESSION_TYPE"));
+    if (sessionType != QStringLiteral("wayland")) {
+        qCInfo(lcFocus) << "GNOME: not a Wayland session, focus tracking disabled";
+        m_available = false;
+        return;
+    }
+
+    // Check GNOME Shell is running
+    QDBusMessage ping = QDBusMessage::createMethodCall(
+        QStringLiteral("org.gnome.Shell"),
+        QStringLiteral("/org/gnome/Shell"),
+        QStringLiteral("org.freedesktop.DBus.Properties"),
+        QStringLiteral("Get"));
+    ping << QStringLiteral("org.gnome.Shell") << QStringLiteral("ShellVersion");
+    QDBusMessage reply = QDBusConnection::sessionBus().call(ping, QDBus::Block, 1000);
+    if (reply.type() != QDBusMessage::ReplyMessage) {
+        qCWarning(lcFocus) << "GNOME Shell not reachable on D-Bus";
+        m_available = false;
+        return;
+    }
+
+    // Install and enable the extension
+    if (!ensureExtensionInstalled()) {
+        qCWarning(lcFocus) << "GNOME: failed to install/enable extension";
+        m_available = false;
+        return;
+    }
+
+    // Register our D-Bus service so the extension can call us
+    QDBusConnection::sessionBus().registerService(QStringLiteral("com.logitune.app"));
+    QDBusConnection::sessionBus().registerObject(
+        QStringLiteral("/FocusWatcher"), this,
+        QDBusConnection::ExportAllSlots);
+
+    m_available = true;
+    qCInfo(lcFocus) << "GNOME desktop integration started";
+}
+
+bool GnomeDesktop::ensureExtensionInstalled()
+{
+    int major = detectShellMajorVersion();
+    if (major < 42) {
+        qCWarning(lcFocus) << "GNOME Shell version" << major << "not supported (need 42+)";
+        return false;
+    }
+
+    QString variant = (major >= 45) ? QStringLiteral("v45") : QStringLiteral("v42");
+
+    // Check system-wide install first
+    QString systemDir = QStringLiteral("/usr/share/gnome-shell/extensions/")
+                        + QLatin1String(kExtUuid);
+    QString userDir = QDir::homePath()
+                      + QStringLiteral("/.local/share/gnome-shell/extensions/")
+                      + QLatin1String(kExtUuid);
+
+    bool installed = QFile::exists(systemDir + QStringLiteral("/metadata.json"))
+                  || QFile::exists(userDir + QStringLiteral("/metadata.json"));
+
+    if (!installed) {
+        // System package should have installed to systemDir with v42/ and v45/ subdirs.
+        // Copy the correct variant to user dir for activation.
+        QString sourceBase = systemDir;
+        if (!QFile::exists(sourceBase + "/" + variant + "/extension.js")) {
+            qCWarning(lcFocus) << "Extension source not found at" << sourceBase;
+            return false;
+        }
+
+        QDir().mkpath(userDir);
+        QFile::copy(sourceBase + QStringLiteral("/metadata.json"),
+                    userDir + QStringLiteral("/metadata.json"));
+        QFile::copy(sourceBase + "/" + variant + QStringLiteral("/extension.js"),
+                    userDir + QStringLiteral("/extension.js"));
+        qCInfo(lcFocus) << "Installed GNOME extension variant" << variant << "to" << userDir;
+    } else if (QFile::exists(systemDir + QStringLiteral("/metadata.json"))
+               && !QFile::exists(systemDir + QStringLiteral("/extension.js"))) {
+        // System install has v42/ and v45/ subdirs but no root extension.js —
+        // copy the correct variant to user dir
+        QDir().mkpath(userDir);
+        QFile::copy(systemDir + QStringLiteral("/metadata.json"),
+                    userDir + QStringLiteral("/metadata.json"));
+        QFile::copy(systemDir + "/" + variant + QStringLiteral("/extension.js"),
+                    userDir + QStringLiteral("/extension.js"));
+        qCInfo(lcFocus) << "Copied" << variant << "extension.js to" << userDir;
+    }
+
+    // Enable via D-Bus (GNOME 3.36+)
+    QDBusMessage enableMsg = QDBusMessage::createMethodCall(
+        QStringLiteral("org.gnome.Shell.Extensions"),
+        QStringLiteral("/org/gnome/Shell/Extensions"),
+        QStringLiteral("org.gnome.Shell.Extensions"),
+        QStringLiteral("EnableExtension"));
+    enableMsg << QString::fromLatin1(kExtUuid);
+    QDBusReply<bool> enableReply = QDBusConnection::sessionBus().call(enableMsg, QDBus::Block, 2000);
+    if (enableReply.isValid() && enableReply.value()) {
+        qCInfo(lcFocus) << "GNOME extension enabled";
+    } else {
+        // Try CLI fallback
+        QProcess proc;
+        proc.start(QStringLiteral("gnome-extensions"),
+                   {QStringLiteral("enable"), QString::fromLatin1(kExtUuid)});
+        proc.waitForFinished(3000);
+        if (proc.exitCode() != 0) {
+            qCWarning(lcFocus) << "Failed to enable extension:" << proc.readAllStandardError();
+            return false;
+        }
+        qCInfo(lcFocus) << "GNOME extension enabled via CLI";
+    }
+
+    return true;
+}
+
+int GnomeDesktop::detectShellMajorVersion()
+{
+    QDBusMessage msg = QDBusMessage::createMethodCall(
+        QStringLiteral("org.gnome.Shell"),
+        QStringLiteral("/org/gnome/Shell"),
+        QStringLiteral("org.freedesktop.DBus.Properties"),
+        QStringLiteral("Get"));
+    msg << QStringLiteral("org.gnome.Shell") << QStringLiteral("ShellVersion");
+    QDBusMessage reply = QDBusConnection::sessionBus().call(msg, QDBus::Block, 1000);
+    if (reply.type() == QDBusMessage::ReplyMessage && !reply.arguments().isEmpty()) {
+        QString version = reply.arguments().first().value<QDBusVariant>().variant().toString();
+        qCInfo(lcFocus) << "GNOME Shell version:" << version;
+        return version.section('.', 0, 0).toInt();
+    }
+    return 0;
+}
+
+bool GnomeDesktop::available() const
+{
+    return m_available;
+}
+
+QString GnomeDesktop::desktopName() const
+{
+    return QStringLiteral("GNOME");
+}
+
+QStringList GnomeDesktop::detectedCompositors() const
+{
+    QStringList compositors;
+    const QString desktop = QProcessEnvironment::systemEnvironment()
+                                .value(QStringLiteral("XDG_CURRENT_DESKTOP"));
+    if (desktop.contains(QStringLiteral("GNOME"), Qt::CaseInsensitive))
+        compositors << QStringLiteral("Mutter");
+    return compositors;
+}
+
+void GnomeDesktop::focusChanged(const QString &appId, const QString &title)
+{
+    QString resolved = appId;
+    if (!appId.contains('.'))
+        resolved = resolveDesktopFile(appId);
+
+    if (resolved == m_lastAppId) return;
+    m_lastAppId = resolved;
+    emit activeWindowChanged(resolved, title);
+}
+
+void GnomeDesktop::blockGlobalShortcuts(bool block)
+{
+    QString js = block
+        ? QStringLiteral("global.stage.set_key_focus(null); "
+                          "Main.layoutManager._startingUp = true;")
+        : QStringLiteral("Main.layoutManager._startingUp = false;");
+
+    QDBusMessage msg = QDBusMessage::createMethodCall(
+        QStringLiteral("org.gnome.Shell"),
+        QStringLiteral("/org/gnome/Shell"),
+        QStringLiteral("org.gnome.Shell"),
+        QStringLiteral("Eval"));
+    msg << js;
+    QDBusConnection::sessionBus().call(msg, QDBus::NoBlock);
+}
+
+} // namespace logitune
