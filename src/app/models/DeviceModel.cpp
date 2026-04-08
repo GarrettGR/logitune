@@ -1,7 +1,6 @@
 #include "DeviceModel.h"
 #include "interfaces/IDevice.h"
 #include "logging/LogManager.h"
-#include "dialogs/CrashReportDialog.h"
 #include <QTimer>
 #include <QSettings>
 #include <QVariantMap>
@@ -363,32 +362,5 @@ void DeviceModel::setActiveWmClass(const QString &wmClass)
     emit activeWmClassChanged();
 }
 
-bool DeviceModel::loggingEnabled() const
-{
-    return LogManager::instance().isLoggingEnabled();
-}
-
-void DeviceModel::setLoggingEnabled(bool enabled)
-{
-    if (enabled == loggingEnabled()) return;
-    LogManager::instance().setLoggingEnabled(enabled);
-    QSettings s;
-    s.setValue("logging/enabled", enabled);
-    emit loggingEnabledChanged();
-}
-
-QString DeviceModel::logFilePath() const
-{
-    return LogManager::instance().currentLogPath();
-}
-
-void DeviceModel::openBugReport()
-{
-    qCInfo(lcApp) << "openBugReport called";
-    CrashReportDialog dlg(CrashReportDialog::ManualReport);
-    dlg.setDeviceInfo(deviceName(), deviceSerial());
-    int result = dlg.exec();
-    qCInfo(lcApp) << "CrashReportDialog closed with result:" << result;
-}
 
 } // namespace logitune

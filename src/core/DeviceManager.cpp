@@ -216,7 +216,12 @@ void DeviceManager::onUdevEvent(const QString &action, const QString &devNode)
             m_availableTransports.append(devNode);
 
         if (!m_connected) {
-            probeDevice(devNode);
+            // Delay probe slightly — the device may still be initializing,
+            // especially after a transport switch (Bolt -> Bluetooth).
+            QTimer::singleShot(1000, this, [this, devNode]() {
+                if (!m_connected)
+                    probeDevice(devNode);
+            });
         } else {
             // Already connected — but the new device might be the same mouse on a different transport.
             // Ping the current device to check if it's still alive.
@@ -444,10 +449,15 @@ void DeviceManager::probeDevice(const QString &devNode)
     // The command queue is created inside enumerateAndSetup after features are populated.
     enumerateAndSetup();
 
-    // Kernel-driven notification: QSocketNotifier fires when hidraw has data
-    if (!m_hidrawNotifier) {
-        m_hidrawNotifier = new QSocketNotifier(m_device->fd(), QSocketNotifier::Read, this);
-        connect(m_hidrawNotifier, &QSocketNotifier::activated, this, [this]() {
+    // Kernel-driven notification: QSocketNotifier fires when hidraw has data.
+    // Always recreate — the fd changes on transport switch (Bolt -> BT).
+    if (m_hidrawNotifier) {
+        m_hidrawNotifier->setEnabled(false);
+        delete m_hidrawNotifier;
+        m_hidrawNotifier = nullptr;
+    }
+    m_hidrawNotifier = new QSocketNotifier(m_device->fd(), QSocketNotifier::Read, this);
+    connect(m_hidrawNotifier, &QSocketNotifier::activated, this, [this]() {
             if (!m_device) return;
             auto bytes = m_device->readReport(0);
             if (bytes.empty())
@@ -463,7 +473,6 @@ void DeviceManager::probeDevice(const QString &devNode)
                 return;
             handleNotification(*report);
         });
-    }
     m_hidrawNotifier->setEnabled(true);
 }
 
@@ -653,7 +662,7 @@ void DeviceManager::enumerateAndSetup()
     bool nameChanged    = (m_deviceName != name);
     bool levelChanged   = (m_batteryLevel != battLevel);
     bool chargeChanged  = (m_batteryCharging != battCharging);
-    bool typeChanged    = false; // connectionType already set before this call
+    bool typeChanged    = true; // always notify — connectionType was set in probeDevice before signals were connected
 
     qCDebug(lcDevice) << "battery:" << battLevel << "% charging:" << battCharging;
 
@@ -713,6 +722,30 @@ void DeviceManager::enumerateAndSetup()
     }
 
     emit deviceSetupComplete();
+
+    // Start periodic battery polling (60s) — the device doesn't always send
+    // notifications when charging stops, so we need to poll.
+    if (!m_batteryPollTimer) {
+        m_batteryPollTimer = new QTimer(this);
+        m_batteryPollTimer->setInterval(60000);
+        connect(m_batteryPollTimer, &QTimer::timeout, this, [this]() {
+            if (!m_connected || !m_features || !m_transport) return;
+            if (!m_features->hasFeature(hidpp::FeatureId::BatteryUnified)) return;
+            auto resp = m_features->call(m_transport.get(), m_deviceIndex,
+                                          hidpp::FeatureId::BatteryUnified, 0x01);
+            if (resp.has_value()) {
+                auto status = hidpp::features::Battery::parseStatus(*resp);
+                qCDebug(lcDevice) << "battery poll:" << status.level << "% charging:" << status.charging;
+                bool levelChanged   = (m_batteryLevel != status.level);
+                bool chargeChanged  = (m_batteryCharging != status.charging);
+                m_batteryLevel   = status.level;
+                m_batteryCharging = status.charging;
+                if (levelChanged)  emit batteryLevelChanged();
+                if (chargeChanged) emit batteryChargingChanged();
+            }
+        });
+    }
+    m_batteryPollTimer->start();
 }
 
 // ---------------------------------------------------------------------------
@@ -723,6 +756,18 @@ void DeviceManager::disconnectDevice()
 {
     // Don't touch m_receiverNotifier/m_receiverDevice — they live independently
     // for transport switching detection
+
+    // Stop battery polling
+    if (m_batteryPollTimer)
+        m_batteryPollTimer->stop();
+
+    // Clean up hidraw notifier BEFORE destroying the device/transport
+    // to prevent QSocketNotifier firing on an invalid fd.
+    if (m_hidrawNotifier) {
+        m_hidrawNotifier->setEnabled(false);
+        delete m_hidrawNotifier;
+        m_hidrawNotifier = nullptr;
+    }
 
     if (m_commandQueue) {
         m_commandQueue->clear();

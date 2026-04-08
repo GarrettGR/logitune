@@ -29,7 +29,7 @@ Item {
 
         function test_loggingToggleReflectsModelState() {
             waitForRendering(settings)
-            var enabled = DeviceModel.loggingEnabled
+            var enabled = SettingsModel.loggingEnabled
             compare(typeof enabled, "boolean", "loggingEnabled must be boolean")
         }
 

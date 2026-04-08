@@ -117,7 +117,6 @@ Item {
                 color: Theme.text
             }
 
-            // Battery chip — only show when device is connected
             BatteryChip {
                 anchors.horizontalCenter: parent.horizontalCenter
                 visible: DeviceModel.deviceConnected

@@ -57,7 +57,10 @@ Item {
                 LogituneToggle {
                     id: darkToggle
                     checked: Theme.dark
-                    onToggled: Theme.dark = checked
+                    onToggled: function(val) {
+                        Theme.dark = val
+                        SettingsModel.saveThemeDark(val)
+                    }
                 }
             }
 
@@ -76,15 +79,15 @@ Item {
                 }
                 LogituneToggle {
                     id: loggingToggle
-                    checked: DeviceModel.loggingEnabled
-                    onToggled: DeviceModel.loggingEnabled = checked
+                    checked: SettingsModel.loggingEnabled
+                    onToggled: function(val) { SettingsModel.loggingEnabled = val }
                 }
             }
 
             // Log file path (visible when logging enabled)
             Text {
-                visible: DeviceModel.loggingEnabled
-                text: DeviceModel.logFilePath || ""
+                visible: SettingsModel.loggingEnabled
+                text: SettingsModel.logFilePath || ""
                 font.pixelSize: 11
                 color: Theme.textSecondary
                 wrapMode: Text.WrapAnywhere
@@ -95,35 +98,35 @@ Item {
             Rectangle {
                 width: 180; height: 40
                 radius: 4
-                color: DeviceModel.loggingEnabled
+                color: SettingsModel.loggingEnabled
                     ? (reportHover.hovered ? Theme.accent : "transparent")
                     : "transparent"
-                border.color: DeviceModel.loggingEnabled ? Theme.accent : Theme.border
+                border.color: SettingsModel.loggingEnabled ? Theme.accent : Theme.border
                 border.width: 1
-                opacity: DeviceModel.loggingEnabled ? 1.0 : 0.4
+                opacity: SettingsModel.loggingEnabled ? 1.0 : 0.4
 
                 Text {
                     anchors.centerIn: parent
                     text: "Report Bug"
                     font.pixelSize: 13
-                    color: DeviceModel.loggingEnabled
+                    color: SettingsModel.loggingEnabled
                         ? (reportHover.hovered ? "#000000" : Theme.accent)
                         : Theme.textSecondary
                 }
 
-                HoverHandler { id: reportHover; enabled: DeviceModel.loggingEnabled }
+                HoverHandler { id: reportHover; enabled: SettingsModel.loggingEnabled }
 
                 MouseArea {
                     anchors.fill: parent
-                    cursorShape: DeviceModel.loggingEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    enabled: DeviceModel.loggingEnabled
-                    onClicked: DeviceModel.openBugReport()
+                    cursorShape: SettingsModel.loggingEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    enabled: SettingsModel.loggingEnabled
+                    onClicked: SettingsModel.openBugReport()
                 }
             }
 
             // Test crash button (debug builds only)
             Rectangle {
-                visible: DeviceModel.loggingEnabled
+                visible: SettingsModel.loggingEnabled
                 width: 180; height: 40
                 radius: 4; color: "transparent"
                 border.color: "#ff4444"; border.width: 1
@@ -137,7 +140,7 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: DeviceModel.testCrash()
+                    onClicked: SettingsModel.testCrash()
                 }
             }
 

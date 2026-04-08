@@ -12,7 +12,7 @@ Rectangle {
 
     // Nav items model
     readonly property var navItems: [
-        { name: "buttons",     label: "BUTTONS",         icon: "\uD83C\uDFAE", enabled: true  },
+        { name: "buttons",     label: "BUTTONS",         icon: "\uD83D\uDDB1", enabled: true  },
         { name: "pointscroll", label: "POINT & SCROLL",  icon: "\u25CE",       enabled: true  },
         { name: "easyswitch",  label: "EASY-SWITCH",     icon: "\u21C4",       enabled: true  },
         { name: "flow",        label: "FLOW",             icon: "\u2194",       enabled: false },
@@ -132,5 +132,12 @@ Rectangle {
 
         // Bottom fill
         Item { Layout.fillHeight: true }
+
+        // Battery chip at bottom of sidebar (Options+ style)
+        BatteryChip {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.bottomMargin: 16
+            visible: DeviceModel.deviceConnected && DeviceModel.batteryLevel > 0
+        }
     }
 }

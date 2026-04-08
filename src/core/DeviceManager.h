@@ -136,6 +136,7 @@ private:
 
     // Reconnect debounce
     QTimer *m_reconnectTimer = nullptr;
+    QTimer *m_batteryPollTimer = nullptr;
 
     // Transport failover
     QStringList m_availableTransports;

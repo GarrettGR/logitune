@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQmlExpression>
 #include <QQuickWindow>
 #include <QQuickImageProvider>
 #include <QIcon>
@@ -102,10 +103,14 @@ int main(int argc, char *argv[])
         logMgr.shutdown();
     });
 
-    // Detect dark mode — XDG portal first (works with GSETTINGS_BACKEND=memory),
-    // palette luminance as fallback
+    // Detect dark mode — user preference first, XDG portal second, palette fallback
     bool isDark = false;
-    {
+    qCInfo(lcApp) << "settings file:" << settings.fileName()
+                  << "contains theme/dark:" << settings.contains("theme/dark")
+                  << "value:" << settings.value("theme/dark");
+    if (settings.contains("theme/dark")) {
+        isDark = settings.value("theme/dark").toBool();
+    } else {
         QDBusMessage msg = QDBusMessage::createMethodCall(
             "org.freedesktop.portal.Desktop",
             "/org/freedesktop/portal/desktop",
@@ -115,7 +120,6 @@ int main(int argc, char *argv[])
             << QStringLiteral("color-scheme");
         QDBusMessage reply = QDBusConnection::sessionBus().call(msg, QDBus::Block, 250);
         if (reply.type() == QDBusMessage::ReplyMessage && !reply.arguments().isEmpty()) {
-            // Portal returns variant<uint32>: 0=default, 1=dark, 2=light
             QVariant value = reply.arguments().first().value<QDBusVariant>().variant();
             if (value.canConvert<QDBusVariant>())
                 value = value.value<QDBusVariant>().variant();
@@ -153,15 +157,17 @@ int main(int argc, char *argv[])
     // Qt 6.5+: register into the module. Qt 6.4: module is protected by plugin,
     // use context properties instead (globally available in QML, same effect).
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    qmlRegisterSingletonInstance("Logitune", 1, 0, "DeviceModel",  controller.deviceModel());
-    qmlRegisterSingletonInstance("Logitune", 1, 0, "ButtonModel",  controller.buttonModel());
-    qmlRegisterSingletonInstance("Logitune", 1, 0, "ActionModel",  controller.actionModel());
-    qmlRegisterSingletonInstance("Logitune", 1, 0, "ProfileModel", controller.profileModel());
+    qmlRegisterSingletonInstance("Logitune", 1, 0, "DeviceModel",    controller.deviceModel());
+    qmlRegisterSingletonInstance("Logitune", 1, 0, "ButtonModel",    controller.buttonModel());
+    qmlRegisterSingletonInstance("Logitune", 1, 0, "ActionModel",    controller.actionModel());
+    qmlRegisterSingletonInstance("Logitune", 1, 0, "ProfileModel",   controller.profileModel());
+    qmlRegisterSingletonInstance("Logitune", 1, 0, "SettingsModel",  controller.settingsModel());
 #else
-    engine.rootContext()->setContextProperty("DeviceModel",  controller.deviceModel());
-    engine.rootContext()->setContextProperty("ButtonModel",  controller.buttonModel());
-    engine.rootContext()->setContextProperty("ActionModel",  controller.actionModel());
-    engine.rootContext()->setContextProperty("ProfileModel", controller.profileModel());
+    engine.rootContext()->setContextProperty("DeviceModel",    controller.deviceModel());
+    engine.rootContext()->setContextProperty("ButtonModel",    controller.buttonModel());
+    engine.rootContext()->setContextProperty("ActionModel",    controller.actionModel());
+    engine.rootContext()->setContextProperty("ProfileModel",   controller.profileModel());
+    engine.rootContext()->setContextProperty("SettingsModel",  controller.settingsModel());
 
     // Qt 6.4: QML singletons from qmldir with "prefer :" don't resolve correctly.
     // Explicitly register Theme from its resource path.
@@ -178,17 +184,19 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    // Set theme
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    if (auto *theme = engine.singletonInstance<QObject*>("Logitune", "Theme"))
-        theme->setProperty("dark", isDark);
-#else
-    {
-        int typeId = qmlTypeId("Logitune", 1, 0, "Theme");
-        if (auto *theme = engine.singletonInstance<QObject*>(typeId))
-            theme->setProperty("dark", isDark);
+    // Set theme via the root QML object which has access to the Theme singleton
+    qCInfo(lcApp) << "Setting theme dark:" << isDark;
+    if (!engine.rootObjects().isEmpty()) {
+        QObject *root = engine.rootObjects().first();
+        QQmlExpression expr(QQmlEngine::contextForObject(root), root,
+            isDark ? QStringLiteral("Theme.dark = true")
+                   : QStringLiteral("Theme.dark = false"));
+        QVariant result = expr.evaluate();
+        if (expr.hasError())
+            qCWarning(lcApp) << "Theme expression error:" << expr.error().toString();
+        else
+            qCInfo(lcApp) << "Theme.dark applied:" << isDark;
     }
-#endif
 
     controller.startMonitoring();
 

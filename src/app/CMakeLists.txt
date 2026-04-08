@@ -2,6 +2,7 @@
 add_library(logitune-app-lib STATIC
     AppController.cpp
     models/DeviceModel.cpp
+    models/SettingsModel.cpp
     models/ButtonModel.cpp
     models/ActionModel.cpp
     models/ProfileModel.cpp

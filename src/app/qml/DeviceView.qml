@@ -104,7 +104,7 @@ Item {
                 id: contentStack
                 anchors {
                     top: profileBar.bottom
-                    bottom: batteryChipArea.top
+                    bottom: parent.bottom
                     left: parent.left
                     right: parent.right
                     topMargin: 12
@@ -113,23 +113,7 @@ Item {
                 initialItem: buttonsPageComponent
             }
 
-            // Battery chip at bottom-left of content area
-            Item {
-                id: batteryChipArea
-                anchors {
-                    bottom: parent.bottom
-                    left: parent.left
-                    right: parent.right
-                    bottomMargin: 20
-                    leftMargin: 20
-                }
-                height: 36
-                visible: DeviceModel.deviceConnected
-
-                BatteryChip {
-                    anchors.left: parent.left
-                }
-            }
+            // Battery chip moved to SideNav bottom
         }
     }
 

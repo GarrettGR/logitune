@@ -6,8 +6,6 @@
 #include <QObject>
 #include <QVariantList>
 #include <QVariantMap>
-#include <QTimer>
-#include <QSettings>
 #include <qqmlintegration.h>
 
 namespace logitune {
@@ -32,9 +30,7 @@ class DeviceModel : public QObject {
     Q_PROPERTY(QString activeProfileName READ activeProfileName NOTIFY activeProfileNameChanged)
     Q_PROPERTY(QString activeWmClass READ activeWmClass NOTIFY activeWmClassChanged)
 
-    // Logging properties
-    Q_PROPERTY(bool loggingEnabled READ loggingEnabled WRITE setLoggingEnabled NOTIFY loggingEnabledChanged)
-    Q_PROPERTY(QString logFilePath READ logFilePath NOTIFY loggingEnabledChanged)
+    // Logging moved to SettingsModel
 
     // Device descriptor properties (driven by active device)
     Q_PROPERTY(QString frontImage READ frontImage NOTIFY deviceConnectedChanged)
@@ -55,15 +51,6 @@ public:
     Q_INVOKABLE void blockGlobalShortcuts(bool block);
     Q_INVOKABLE QVariantList runningApplications() const;
 
-    // Logging
-    bool loggingEnabled() const;
-    void setLoggingEnabled(bool enabled);
-    QString logFilePath() const;
-    Q_INVOKABLE void openBugReport();
-    Q_INVOKABLE void testCrash() {
-        // Defer throw to outside QML event handling — Qt's event loop isn't exception-safe
-        QTimer::singleShot(0, [] { throw std::runtime_error("Test crash from UI"); });
-    }
 
     bool deviceConnected() const;
     QString deviceName() const;
@@ -107,7 +94,6 @@ public:
     QString thumbWheelMode() const;
     bool thumbWheelInvert() const;
     Q_INVOKABLE void setThumbWheelInvert(bool invert);
-
     void loadGesturesFromProfile(const QMap<QString, QPair<QString, QString>> &gestures);
 
     // Called from AppController to sync displayed profile state into the model
@@ -118,7 +104,6 @@ public:
                           bool thumbWheelInvert = false);
 
 signals:
-    void loggingEnabledChanged();
     void deviceConnectedChanged();
     void deviceNameChanged();
     void batteryLevelChanged();

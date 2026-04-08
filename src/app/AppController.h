@@ -10,6 +10,7 @@
 #include "models/ButtonModel.h"
 #include "models/ActionModel.h"
 #include "models/ProfileModel.h"
+#include "models/SettingsModel.h"
 #include <QObject>
 #include <QTimer>
 #include <cstdint>
@@ -37,10 +38,11 @@ public:
     friend class test::AppControllerFixture;
 
     // Accessors for QML singleton registration
-    DeviceModel  *deviceModel()  { return &m_deviceModel; }
-    ButtonModel  *buttonModel()  { return &m_buttonModel; }
-    ActionModel  *actionModel()  { return &m_actionModel; }
-    ProfileModel *profileModel() { return &m_profileModel; }
+    DeviceModel    *deviceModel()    { return &m_deviceModel; }
+    ButtonModel    *buttonModel()    { return &m_buttonModel; }
+    ActionModel    *actionModel()    { return &m_actionModel; }
+    ProfileModel   *profileModel()   { return &m_profileModel; }
+    SettingsModel  *settingsModel()  { return &m_settingsModel; }
 
 private slots:
     void onUserButtonChanged(int buttonId, const QString &actionName, const QString &actionType);
@@ -70,6 +72,7 @@ private:
     DeviceRegistry m_registry;
     DeviceManager  m_deviceManager;
     DeviceModel    m_deviceModel;
+    SettingsModel  m_settingsModel;
     ButtonModel    m_buttonModel;
     ActionModel    m_actionModel;
     ProfileModel   m_profileModel;
