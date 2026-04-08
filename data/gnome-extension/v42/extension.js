@@ -20,7 +20,7 @@ function _reportFocus() {
         Gio.DBus.session.call(
             'com.logitune.app',
             '/FocusWatcher',
-            'local.logitune.logitune.GnomeDesktop',
+            'local.Logitune.logitune.GnomeDesktop',
             'focusChanged',
             new GLib.Variant('(ss)', [appId, title]),
             null,
