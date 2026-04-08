@@ -3,10 +3,10 @@ set -e
 
 VERSION=$(grep -oP 'project\(logitune VERSION \K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)
 
-echo "📦 Building .rpm package v$VERSION"
+echo "Building .rpm package v$VERSION"
 
 # Build release
-cmake -B build-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -Wno-dev > /dev/null 2>&1
+cmake -B build-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=OFF -Wno-dev > /dev/null 2>&1
 cmake --build build-release -j$(nproc)
 
 # Install to staging dir
@@ -26,6 +26,7 @@ URL:            https://github.com/mmaher88/logitune
 Configure Logitech HID++ peripherals (MX Master 3S and more).
 Per-app profiles, button remapping, gestures, DPI, SmartShift,
 scroll configuration, and thumb wheel modes.
+Supports KDE Plasma 6 and GNOME 42+ Wayland.
 
 %install
 cp -a /tmp/logitune-rpm/* %{buildroot}/
@@ -34,8 +35,16 @@ cp -a /tmp/logitune-rpm/* %{buildroot}/
 /usr/bin/logitune
 /usr/lib/udev/rules.d/71-logitune.rules
 /usr/share/applications/logitune.desktop
+/usr/etc/xdg/autostart/logitune.desktop
 /usr/share/icons/hicolor/scalable/apps/com.logitune.Logitune.svg
-/etc/xdg/autostart/logitune.desktop
+%dir /usr/share/gnome-shell
+%dir /usr/share/gnome-shell/extensions
+%dir /usr/share/gnome-shell/extensions/logitune-focus@logitune.com
+/usr/share/gnome-shell/extensions/logitune-focus@logitune.com/metadata.json
+%dir /usr/share/gnome-shell/extensions/logitune-focus@logitune.com/v42
+/usr/share/gnome-shell/extensions/logitune-focus@logitune.com/v42/extension.js
+%dir /usr/share/gnome-shell/extensions/logitune-focus@logitune.com/v45
+/usr/share/gnome-shell/extensions/logitune-focus@logitune.com/v45/extension.js
 
 %post
 udevadm control --reload-rules 2>/dev/null || true
@@ -45,4 +54,4 @@ EOF
 rpmbuild -bb ~/rpmbuild/SPECS/logitune.spec
 rm -rf /tmp/logitune-rpm build-release
 
-echo "✅ RPM built in ~/rpmbuild/RPMS/"
+echo "RPM built in ~/rpmbuild/RPMS/"

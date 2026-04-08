@@ -41,8 +41,10 @@ uninstall: ## Uninstall from system (host only)
 	@sudo rm -f /usr/bin/logitune
 	@sudo rm -f /usr/lib/udev/rules.d/71-logitune.rules
 	@sudo rm -f /usr/share/applications/logitune.desktop
+	@sudo rm -f /usr/etc/xdg/autostart/logitune.desktop
 	@sudo rm -f /usr/share/icons/hicolor/scalable/apps/com.logitune.Logitune.svg
 	@sudo rm -f /usr/share/metainfo/com.logitune.Logitune.metainfo.xml
+	@sudo rm -rf /usr/share/gnome-shell/extensions/logitune-focus@logitune.com
 	@sudo udevadm control --reload-rules
 	@echo "✅ Uninstalled"
 

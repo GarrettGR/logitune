@@ -4,7 +4,7 @@ set -e
 VERSION=$(grep -oP 'project\(logitune VERSION \K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)
 SRCDIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-echo "📦 Building Arch package v$VERSION"
+echo "Building Arch package v$VERSION"
 
 # Create PKGBUILD in source dir (makepkg sets $startdir to this directory)
 cat > "$SRCDIR/PKGBUILD" << 'PKGBUILD_EOF'
@@ -12,12 +12,13 @@ cat > "$SRCDIR/PKGBUILD" << 'PKGBUILD_EOF'
 pkgname=logitune
 pkgver=VERSION_PLACEHOLDER
 pkgrel=1
-pkgdesc="Logitech device configurator for Linux"
+pkgdesc="Logitech device configurator for Linux — per-app profiles, button remapping, DPI, gestures"
 arch=('x86_64')
 url="https://github.com/mmaher88/logitune"
 license=('GPL-3.0-or-later')
-depends=('qt6-base' 'qt6-declarative' 'qt6-svg' 'systemd-libs')
+depends=('qt6-base' 'qt6-declarative' 'qt6-svg' 'qt6-5compat' 'systemd-libs')
 makedepends=('cmake' 'ninja' 'qt6-tools')
+optdepends=('gnome-shell: per-app profile switching on GNOME')
 source=()
 
 build() {
@@ -41,4 +42,4 @@ cd "$SRCDIR"
 makepkg -p PKGBUILD -f --noconfirm 2>&1 | tail -5
 rm -f PKGBUILD
 
-echo "✅ logitune-${VERSION}-1-x86_64.pkg.tar.zst"
+echo "logitune-${VERSION}-1-x86_64.pkg.tar.zst"
