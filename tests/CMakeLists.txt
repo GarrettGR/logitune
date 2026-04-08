@@ -33,6 +33,7 @@ add_executable(logitune-tests
     test_notification_filtering.cpp
     test_settings_change_behavior.cpp
     test_desktop_factory.cpp
+    test_profile_apply_behavior.cpp
 )
 target_include_directories(logitune-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(logitune-tests PRIVATE logitune-core logitune-app-lib Qt6::Test Qt6::Widgets GTest::gtest)
