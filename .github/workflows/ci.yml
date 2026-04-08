@@ -6,8 +6,100 @@ on:
   pull_request:
     branches: [master]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-and-test:
+  # --------------------------------------------------------------------------
+  # Job 1: Build + Unit Tests (matrix across distros)
+  # --------------------------------------------------------------------------
+  build:
+    name: Build (${{ matrix.distro }})
+    runs-on: ubuntu-latest
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: archlinux
+            container: archlinux:latest
+            install: pacman -Syu --noconfirm cmake ninja gcc git qt6-base qt6-declarative qt6-svg systemd-libs gtest
+          - distro: fedora-42
+            container: fedora:42
+            install: dnf install -y cmake ninja-build gcc-c++ git qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtsvg-devel qt6-qtshadertools systemd-devel gtest-devel
+          - distro: ubuntu-24.04
+            container: ubuntu:24.04
+            install: >-
+              apt-get update -qq && apt-get install -y cmake ninja-build g++ git
+              qt6-base-dev qt6-declarative-dev qt6-svg-dev
+              qt6-base-dev-tools qt6-declarative-dev-tools
+              qml6-module-qtquick qml6-module-qtquick-controls
+              qml6-module-qtquick-layouts qml6-module-qtquick-window
+              qml6-module-qtquick-templates qml6-module-qtqml-workerscript
+              qml6-module-qtquick-dialogs qml6-module-qt5compat-graphicaleffects
+              qt6-qpa-plugins libqt6opengl6-dev libqt6svg6-dev
+              libxkbcommon-dev qml6-module-qttest
+              libudev-dev libgtest-dev
+              && cd /usr/src/googletest && cmake -B build && cmake --build build && cmake --install build
+
+    steps:
+      - name: Install dependencies
+        run: ${{ matrix.install }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -Wno-dev
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: C++ tests
+        run: ./build/tests/logitune-tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+      - name: Tray tests
+        run: ./build/tests/logitune-tray-tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+      - name: Install to staging directory
+        run: DESTDIR=${{ github.workspace }}/staging cmake --install build
+
+      - name: Verify installed files
+        run: |
+          echo "Checking installed files..."
+          STAGING="${{ github.workspace }}/staging"
+
+          find_file() {
+            local pattern="$1"
+            local desc="$2"
+            if find "$STAGING" -path "$pattern" | grep -q .; then
+              echo "  OK: $desc"
+            else
+              echo "  MISSING: $desc ($pattern)"
+              exit 1
+            fi
+          }
+
+          find_file "*/bin/logitune"                                           "logitune binary"
+          find_file "*/udev/rules.d/71-logitune.rules"                        "udev rules"
+          find_file "*/applications/logitune.desktop"                         ".desktop file"
+          find_file "*/icons/hicolor/scalable/apps/com.logitune.Logitune.svg" "icon svg"
+          find_file "*/gnome-shell/extensions/logitune-focus*/metadata.json"  "GNOME extension metadata"
+          find_file "*/gnome-shell/extensions/logitune-focus*/v45/extension.js" "GNOME extension v45"
+          find_file "*/gnome-shell/extensions/logitune-focus*/v42/extension.js" "GNOME extension v42"
+
+          echo "All expected files present."
+
+  # --------------------------------------------------------------------------
+  # Job 2: Debian package
+  # --------------------------------------------------------------------------
+  deb-pkg:
+    name: Debian Package
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -16,7 +108,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential cmake ninja-build pkg-config \
+            build-essential cmake ninja-build pkg-config dpkg-dev \
             qt6-base-dev qt6-declarative-dev qt6-svg-dev \
             qt6-tools-dev qt6-tools-dev-tools \
             qml6-module-qtquick qml6-module-qtquick-controls \
@@ -24,25 +116,41 @@ jobs:
             qml6-module-qtquick-templates qml6-module-qtqml-workerscript \
             qml6-module-qtquick-dialogs qml6-module-qt5compat-graphicaleffects \
             qt6-qpa-plugins libqt6opengl6-dev libqt6svg6-dev \
-            libqt6dbus6 libqt6widgets6 libxkbcommon-dev \
-            qml6-module-qttest libudev-dev libgtest-dev
-          cd /usr/src/googletest && sudo cmake -B build && sudo cmake --build build && sudo cmake --install build
+            libxkbcommon-dev libudev-dev
 
-      - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
-        env:
-          QT_QPA_PLATFORM: offscreen
+      - name: Build .deb
+        run: bash scripts/package-deb.sh
 
-      - name: Build
-        run: cmake --build build -j$(nproc)
-        env:
-          QT_QPA_PLATFORM: offscreen
+      - name: Verify .deb produced
+        run: |
+          DEB_COUNT=$(find . -maxdepth 1 -name '*.deb' | wc -l)
+          echo "DEBs built: $DEB_COUNT"
+          find . -maxdepth 1 -name '*.deb' -exec echo "  {}" \; -exec dpkg --info {} \;
+          if [ "$DEB_COUNT" -eq 0 ]; then
+            echo "ERROR: No .deb files produced"
+            exit 1
+          fi
 
-      - name: C++ tests
-        run: QT_QPA_PLATFORM=offscreen ./build/tests/logitune-tests
+  # --------------------------------------------------------------------------
+  # Job 3: Summary gate
+  # --------------------------------------------------------------------------
+  ci-ok:
+    name: CI Summary
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [build, deb-pkg]
+    steps:
+      - name: Check all jobs passed
+        run: |
+          echo "Build:  ${{ needs.build.result }}"
+          echo "Deb:    ${{ needs.deb-pkg.result }}"
 
-      - name: Tray tests
-        run: QT_QPA_PLATFORM=offscreen ./build/tests/logitune-tray-tests
+          if [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.deb-pkg.result }}" != "success" ]; then
+            echo ""
+            echo "One or more jobs failed."
+            exit 1
+          fi
 
-      - name: QML tests
-        run: QT_QPA_PLATFORM=offscreen ./build/tests/qml/logitune-qml-tests
+          echo ""
+          echo "All jobs passed."
