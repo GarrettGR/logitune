@@ -1,4 +1,8 @@
 # Logitune - Grant logged-in user access to Logitech hidraw devices
+# USB / Bolt / Unifying receiver (matches by USB vendor ID)
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", TAG+="uaccess"
+# Direct Bluetooth — ATTRS{idVendor} isn't in the parent chain for BT devices,
+# so match by the Logitech HID++ kernel driver instead.
+SUBSYSTEM=="hidraw", DRIVERS=="logitech-hidpp-device", TAG+="uaccess"
 # Grant logged-in user access to uinput for keystroke injection
 KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess"
