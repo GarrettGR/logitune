@@ -92,34 +92,28 @@ bool GnomeDesktop::ensureExtensionInstalled()
                       + QStringLiteral("/.local/share/gnome-shell/extensions/")
                       + QLatin1String(kExtUuid);
 
-    bool installed = QFile::exists(systemDir + QStringLiteral("/metadata.json"))
-                  || QFile::exists(userDir + QStringLiteral("/metadata.json"));
+    bool systemComplete = QFile::exists(systemDir + QStringLiteral("/extension.js"))
+                       && QFile::exists(systemDir + QStringLiteral("/metadata.json"));
 
-    if (!installed) {
-        // System package should have installed to systemDir with v42/ and v45/ subdirs.
-        // Copy the correct variant to user dir for activation.
-        QString sourceBase = systemDir;
-        if (!QFile::exists(sourceBase + "/" + variant + "/extension.js")) {
-            qCWarning(lcFocus) << "Extension source not found at" << sourceBase;
-            return false;
+    if (systemComplete) {
+        // System install has root extension.js — Shell loads from there.
+        // Remove any stale user-dir copy that might override with wrong interface name.
+        if (QFile::exists(userDir + QStringLiteral("/extension.js"))) {
+            QFile::remove(userDir + QStringLiteral("/extension.js"));
+            QFile::remove(userDir + QStringLiteral("/metadata.json"));
+            qCInfo(lcFocus) << "Removed stale user extension dir (system install is complete)";
         }
-
-        QDir().mkpath(userDir);
-        QFile::copy(sourceBase + QStringLiteral("/metadata.json"),
-                    userDir + QStringLiteral("/metadata.json"));
-        QFile::copy(sourceBase + "/" + variant + QStringLiteral("/extension.js"),
-                    userDir + QStringLiteral("/extension.js"));
-        qCInfo(lcFocus) << "Installed GNOME extension variant" << variant << "to" << userDir;
-    } else if (QFile::exists(systemDir + QStringLiteral("/metadata.json"))
-               && !QFile::exists(systemDir + QStringLiteral("/extension.js"))) {
-        // System install has v42/ and v45/ subdirs but no root extension.js —
-        // copy the correct variant to user dir
+    } else if (QFile::exists(systemDir + QStringLiteral("/metadata.json"))) {
+        // System install exists but no root extension.js — copy correct variant to user dir
         QDir().mkpath(userDir);
         QFile::copy(systemDir + QStringLiteral("/metadata.json"),
                     userDir + QStringLiteral("/metadata.json"));
         QFile::copy(systemDir + "/" + variant + QStringLiteral("/extension.js"),
                     userDir + QStringLiteral("/extension.js"));
         qCInfo(lcFocus) << "Copied" << variant << "extension.js to" << userDir;
+    } else {
+        qCWarning(lcFocus) << "Extension not found at" << systemDir;
+        return false;
     }
 
     // Enable via D-Bus (GNOME 3.36+)
