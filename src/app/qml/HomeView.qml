@@ -132,6 +132,72 @@ Item {
                 color: "#BBBBBB"
             }
         }
+
+        // GNOME AppIndicator notification banner
+        Rectangle {
+            id: trayBanner
+            anchors { bottom: parent.bottom; left: parent.left; right: parent.right; margins: 16 }
+            height: bannerCol.implicitHeight + 24
+            radius: 8
+            color: Theme.surface
+            border.color: Theme.border
+            border.width: 1
+            visible: {
+                var status = DeviceModel.gnomeTrayStatus()
+                return status === "not-installed" || status === "disabled"
+            }
+
+            Column {
+                id: bannerCol
+                anchors { fill: parent; margins: 12 }
+                spacing: 6
+
+                Text {
+                    text: {
+                        var status = DeviceModel.gnomeTrayStatus()
+                        if (status === "not-installed")
+                            return "Tray icon requires the AppIndicator GNOME extension"
+                        if (status === "disabled")
+                            return "AppIndicator extension is installed but not enabled"
+                        return ""
+                    }
+                    font.pixelSize: 12
+                    font.bold: true
+                    color: Theme.text
+                    wrapMode: Text.WordWrap
+                    width: parent.width
+                }
+
+                Text {
+                    text: {
+                        var status = DeviceModel.gnomeTrayStatus()
+                        if (status === "not-installed")
+                            return "Run: sudo pacman -S gnome-shell-extension-appindicator\nThen log out and back in."
+                        if (status === "disabled")
+                            return "Run: gnome-extensions enable appindicatorsupport@rgcjonas.gmail.com\nThen restart Logitune."
+                        return ""
+                    }
+                    font.pixelSize: 11
+                    font.family: "monospace"
+                    color: Theme.textSecondary
+                    wrapMode: Text.WordWrap
+                    width: parent.width
+                }
+            }
+
+            // Dismiss button
+            Text {
+                anchors { top: parent.top; right: parent.right; margins: 8 }
+                text: "\u2715"
+                font.pixelSize: 14
+                color: Theme.textSecondary
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: trayBanner.visible = false
+                }
+            }
+        }
     }
 
 }

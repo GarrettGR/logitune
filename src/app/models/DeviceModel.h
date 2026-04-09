@@ -96,6 +96,8 @@ public:
     QString thumbWheelMode() const;
     bool thumbWheelInvert() const;
     Q_INVOKABLE void setThumbWheelInvert(bool invert);
+    Q_INVOKABLE QString gnomeTrayStatus() const;
+
     void loadGesturesFromProfile(const QMap<QString, QPair<QString, QString>> &gestures);
 
     // Called from AppController to sync displayed profile state into the model

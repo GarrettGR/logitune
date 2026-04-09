@@ -1,5 +1,6 @@
 #include "DeviceModel.h"
 #include "interfaces/IDevice.h"
+#include "desktop/GnomeDesktop.h"
 #include "logging/LogManager.h"
 #include <QTimer>
 #include <QSettings>
@@ -360,6 +361,22 @@ void DeviceModel::setActiveProfileName(const QString &name)
 QString DeviceModel::activeWmClass() const
 {
     return m_activeWmClass;
+}
+
+QString DeviceModel::gnomeTrayStatus() const
+{
+    if (!m_desktop || m_desktop->desktopName() != QStringLiteral("GNOME"))
+        return QString(); // Not GNOME — no issue
+    auto *gnome = qobject_cast<const GnomeDesktop*>(m_desktop);
+    if (!gnome) return QString();
+    switch (gnome->appIndicatorStatus()) {
+    case GnomeDesktop::AppIndicatorNotInstalled:
+        return QStringLiteral("not-installed");
+    case GnomeDesktop::AppIndicatorDisabled:
+        return QStringLiteral("disabled");
+    default:
+        return QString(); // Active or unknown — no action needed
+    }
 }
 
 void DeviceModel::setActiveWmClass(const QString &wmClass)
