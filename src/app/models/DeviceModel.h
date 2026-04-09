@@ -36,6 +36,7 @@ class DeviceModel : public QObject {
     Q_PROPERTY(QString frontImage READ frontImage NOTIFY deviceConnectedChanged)
     Q_PROPERTY(QString sideImage READ sideImage NOTIFY deviceConnectedChanged)
     Q_PROPERTY(QString backImage READ backImage NOTIFY deviceConnectedChanged)
+    Q_PROPERTY(QString renderComponent READ renderComponent NOTIFY deviceConnectedChanged)
     Q_PROPERTY(QVariantList buttonHotspots READ buttonHotspots NOTIFY deviceConnectedChanged)
     Q_PROPERTY(QVariantList scrollHotspots READ scrollHotspots NOTIFY deviceConnectedChanged)
     Q_PROPERTY(QVariantList controlDescriptors READ controlDescriptors NOTIFY deviceConnectedChanged)
@@ -72,6 +73,7 @@ public:
     QString frontImage() const;
     QString sideImage() const;
     QString backImage() const;
+    QString renderComponent() const;
     QVariantList buttonHotspots() const;
     QVariantList scrollHotspots() const;
     QVariantList controlDescriptors() const;

@@ -20,6 +20,7 @@ public:
     int maxDpi() const override;
     int dpiStep() const override;
     int easySwitchSlots() const override;
+    QString renderComponent() const override;
 };
 
 } // namespace logitune

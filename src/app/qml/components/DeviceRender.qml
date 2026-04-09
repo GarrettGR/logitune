@@ -1,111 +1,52 @@
 import QtQuick
 import Logitune
 
-// Mouse device render — MX Master 3S PNG with invisible clickable button zones overlaid.
-// White hotspot circles on configurable buttons (no left/right click zones shown).
-Item {
+// Device-agnostic render delegator. Loads the per-device QML component
+// declared by the active device's descriptor (DeviceModel.renderComponent).
+// Forwards `view`, `showHotspots` to the loaded item and routes its
+// `buttonClicked` signal back up.
+Loader {
     id: root
 
-    implicitWidth:  280
-    implicitHeight: 414
+    // Loader automatically derives its implicit size from the loaded item.
+
+    // Public API (replaces the previous imageSource — each device now
+    // maps `view` to its own asset paths internally).
+    property string view: "front"      // "front" | "side" | "back"
+    property bool showHotspots: true
 
     signal buttonClicked(int buttonId)
 
-    // Allow parent to override the image source per page
-    property string imageSource: "qrc:/Logitune/qml/assets/mx-master-3s.png"
-    property bool showHotspots: true  // set false on Point & Scroll page
+    // Forward painted-rect properties from the loaded render item so pages
+    // can still reference deviceRender.paintedX/Y/W/H directly.
+    readonly property real paintedX: item ? item.paintedX : 0
+    readonly property real paintedY: item ? item.paintedY : 0
+    readonly property real paintedW: item ? item.paintedW : 0
+    readonly property real paintedH: item ? item.paintedH : 0
 
-    // Painted-rect properties — actual rendered area after PreserveAspectFit
-    readonly property real paintedX: (width - mouseImage.paintedWidth) / 2
-    readonly property real paintedY: (height - mouseImage.paintedHeight) / 2
-    readonly property real paintedW: mouseImage.paintedWidth
-    readonly property real paintedH: mouseImage.paintedHeight
+    // DeviceModel.renderComponent returns a basename like "MxMaster3sRender".
+    // On Qt 6.5+ the file is at qml/devices/<name>.qml via QTP0004.
+    // On Qt 6.4 the file is aliased to qml/<name>.qml (see CMakeLists).
+    // Try the subdirectory path first and fall back to the flat path.
+    readonly property string _baseName: DeviceModel.renderComponent || ""
+    source: _baseName
+        ? "qrc:/Logitune/qml/devices/" + _baseName + ".qml"
+        : ""
 
-    // ── Mouse image ──────────────────────────────────────────────────────────
-    Image {
-        id: mouseImage
-        anchors.centerIn: parent
-        width: parent.implicitWidth
-        height: parent.implicitHeight
-        source: root.imageSource
-        fillMode: Image.PreserveAspectFit
-        smooth: true
-        mipmap: true
+    onStatusChanged: {
+        if (status === Loader.Error && _baseName) {
+            // Fall back to Qt 6.4 flat path
+            source = "qrc:/Logitune/qml/" + _baseName + ".qml"
+        }
     }
 
-    // ── Button zone overlays with hotspot circles ────────────────────────────
-    // Positions are percentage-based (from Options+ core_metadata.json),
-    // scaled to our render size. Only configurable buttons (2–7).
-    //
-    // Button IDs:
-    //   2 = Middle / scroll wheel click
-    //   3 = Back
-    //   4 = Forward
-    //   5 = Gesture button
-    //   6 = Top / ModeShift
-    //   7 = ThumbWheel (horizontal scroll)
-
-    readonly property var hotspotPositions: [
-        // 2: Middle / scroll wheel — metadata: (71%, 15%)
-        { buttonId: 2, dotXPct: 0.71, dotYPct: 0.15,
-          zoneX: 0.59, zoneY: 0.05, zoneW: 0.22, zoneH: 0.15 },
-        // 3: Back — metadata: (45%, 60%)
-        { buttonId: 3, dotXPct: 0.45, dotYPct: 0.60,
-          zoneX: 0.32, zoneY: 0.52, zoneW: 0.22, zoneH: 0.14 },
-        // 4: Forward — metadata: (35%, 43%)
-        { buttonId: 4, dotXPct: 0.35, dotYPct: 0.43,
-          zoneX: 0.22, zoneY: 0.36, zoneW: 0.22, zoneH: 0.14 },
-        // 5: Gesture button — metadata: (8%, 58%)
-        { buttonId: 5, dotXPct: 0.08, dotYPct: 0.58,
-          zoneX: 0.00, zoneY: 0.50, zoneW: 0.16, zoneH: 0.15 },
-        // 6: Top / ModeShift — metadata: (81%, 34%)
-        { buttonId: 6, dotXPct: 0.81, dotYPct: 0.34,
-          zoneX: 0.70, zoneY: 0.26, zoneW: 0.18, zoneH: 0.14 },
-        // 7: ThumbWheel — metadata: (55%, 51.5%)
-        { buttonId: 7, dotXPct: 0.55, dotYPct: 0.515,
-          zoneX: 0.44, zoneY: 0.44, zoneW: 0.22, zoneH: 0.14 },
-    ]
-
-    Repeater {
-        model: root.showHotspots ? root.hotspotPositions.length : 0
-
-        Item {
-            required property int modelData
-
-            readonly property var hp: root.hotspotPositions[modelData]
-
-            // Invisible hit area (percentage-based, positioned within painted rect)
-            MouseArea {
-                x: root.paintedX + hp.zoneX * root.paintedW
-                y: root.paintedY + hp.zoneY * root.paintedH
-                width:  hp.zoneW * root.paintedW
-                height: hp.zoneH * root.paintedH
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.buttonClicked(hp.buttonId)
-            }
-
-            // 18x18 hotspot circle — white for dark background
-            Rectangle {
-                x: root.paintedX + hp.dotXPct * root.paintedW  - 9
-                y: root.paintedY + hp.dotYPct * root.paintedH - 9
-                width: 18; height: 18
-                radius: 9
-                color: "transparent"
-                border.color: Theme.accent
-                border.width: 2
-                opacity: 0.7
-
-                Behavior on opacity { NumberAnimation { duration: 200 } }
-
-                // Inner dot
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: 6; height: 6
-                    radius: 3
-                    color: Theme.accent
-                    opacity: 0.6
-                }
-            }
-        }
+    onLoaded: {
+        if (!item) return
+        if (item.view !== undefined)
+            item.view = Qt.binding(function() { return root.view })
+        if (item.showHotspots !== undefined)
+            item.showHotspots = Qt.binding(function() { return root.showHotspots })
+        if (item.buttonClicked !== undefined)
+            item.buttonClicked.connect(root.buttonClicked)
     }
 }

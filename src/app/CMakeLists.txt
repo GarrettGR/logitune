@@ -37,6 +37,10 @@ else()
         set_source_files_properties(qml/pages/${_file}.qml
             PROPERTIES QT_RESOURCE_ALIAS qml/${_file}.qml)
     endforeach()
+    foreach(_file MxMaster3sRender)
+        set_source_files_properties(qml/devices/${_file}.qml
+            PROPERTIES QT_RESOURCE_ALIAS qml/${_file}.qml)
+    endforeach()
 endif()
 
 qt_add_qml_module(logitune-app-lib
@@ -62,6 +66,7 @@ qt_add_qml_module(logitune-app-lib
         qml/components/DeviceRender.qml
         qml/components/AppProfileBar.qml
         qml/components/Toast.qml
+        qml/devices/MxMaster3sRender.qml
         qml/pages/PointScrollPage.qml
         qml/pages/ButtonsPage.qml
         qml/pages/EasySwitchPage.qml

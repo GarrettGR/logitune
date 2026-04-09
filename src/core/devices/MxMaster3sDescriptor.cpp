@@ -101,4 +101,11 @@ int MxMaster3sDescriptor::dpiStep() const { return 50; }
 
 int MxMaster3sDescriptor::easySwitchSlots() const { return 3; }
 
+QString MxMaster3sDescriptor::renderComponent() const
+{
+    // Basename of the QML file under qml/devices/ (no path, no extension).
+    // DeviceRender.qml resolves it to the correct qrc URL for the current Qt version.
+    return QStringLiteral("MxMaster3sRender");
+}
+
 } // namespace logitune

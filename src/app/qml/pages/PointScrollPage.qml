@@ -64,10 +64,10 @@ Item {
 
             DeviceRender {
                 id: mouseRender
-                imageSource: DeviceModel.sideImage
+                view: "side"
                 showHotspots: false
-                implicitWidth: 280
-                implicitHeight: 414
+                width: 280
+                height: 414
                 anchors.centerIn: parent
             }
 

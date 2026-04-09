@@ -85,9 +85,9 @@ Item {
             DeviceRender {
                 id: deviceRender
                 anchors.centerIn: parent
-                implicitWidth:  280
-                implicitHeight: 414
-                imageSource: DeviceModel.sideImage
+                width:  280
+                height: 414
+                view: "side"
 
                 onButtonClicked: function(buttonId) {
                     selectButton(buttonId)

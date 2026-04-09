@@ -53,6 +53,14 @@ public:
     virtual int maxDpi() const = 0;
     virtual int dpiStep() const = 0;
     virtual int easySwitchSlots() const = 0;
+
+    /// Returns the basename of this device's QML render component
+    /// (e.g. "MxMaster3sRender"). The file must live under
+    /// src/app/qml/devices/<basename>.qml and be registered in
+    /// src/app/CMakeLists.txt. The component must accept `view` (string)
+    /// and `showHotspots` (bool) properties and emit `buttonClicked(int)`
+    /// if it has clickable button hotspots.
+    virtual QString renderComponent() const = 0;
 };
 
 } // namespace logitune

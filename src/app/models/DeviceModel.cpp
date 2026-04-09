@@ -143,6 +143,13 @@ QString DeviceModel::backImage() const
     return QStringLiteral("qrc:/Logitune/qml/assets/mx-master-3s-back.png");
 }
 
+QString DeviceModel::renderComponent() const
+{
+    if (m_dm && m_dm->activeDevice())
+        return m_dm->activeDevice()->renderComponent();
+    return QString();
+}
+
 QVariantList DeviceModel::buttonHotspots() const
 {
     QVariantList result;

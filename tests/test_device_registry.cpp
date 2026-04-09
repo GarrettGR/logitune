@@ -67,3 +67,16 @@ TEST(DeviceRegistry, HotspotsPresent) {
     EXPECT_EQ(dev->buttonHotspots().size(), 6);
     EXPECT_EQ(dev->scrollHotspots().size(), 3);
 }
+
+TEST(DeviceRegistry, RenderComponentIsBasename) {
+    // The descriptor should return a QML component basename (no path, no .qml),
+    // which DeviceRender.qml resolves to the actual qrc URL.
+    DeviceRegistry reg;
+    auto *dev = reg.findByPid(0xb034);
+    ASSERT_NE(dev, nullptr);
+    QString rc = dev->renderComponent();
+    EXPECT_FALSE(rc.isEmpty());
+    EXPECT_FALSE(rc.contains('/'));       // not a path
+    EXPECT_FALSE(rc.contains(".qml"));    // not a filename
+    EXPECT_EQ(rc, "MxMaster3sRender");    // concrete value for MX Master 3S
+}

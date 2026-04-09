@@ -22,6 +22,7 @@ public:
     QString m_frontImagePath;
     QString m_sideImagePath;
     QString m_backImagePath;
+    QString m_renderComponent;
     QMap<QString, ButtonAction> m_defaultGestures;
     int m_minDpi       = 200;
     int m_maxDpi       = 8000;
@@ -44,6 +45,7 @@ public:
     QString frontImagePath() const override { return m_frontImagePath; }
     QString sideImagePath() const override { return m_sideImagePath; }
     QString backImagePath() const override { return m_backImagePath; }
+    QString renderComponent() const override { return m_renderComponent; }
     QMap<QString, ButtonAction> defaultGestures() const override { return m_defaultGestures; }
     int minDpi() const override { return m_minDpi; }
     int maxDpi() const override { return m_maxDpi; }
