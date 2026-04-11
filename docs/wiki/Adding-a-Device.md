@@ -35,7 +35,7 @@ public:
     virtual int minDpi() const = 0;
     virtual int maxDpi() const = 0;
     virtual int dpiStep() const = 0;
-    virtual int easySwitchSlots() const = 0;
+    virtual QList<EasySwitchSlotPosition> easySwitchSlotPositions() const = 0;
 };
 ```
 
@@ -156,7 +156,7 @@ public:
     int minDpi() const override;
     int maxDpi() const override;
     int dpiStep() const override;
-    int easySwitchSlots() const override;
+    QList<EasySwitchSlotPosition> easySwitchSlotPositions() const override;
 };
 
 } // namespace logitune
@@ -260,7 +260,14 @@ int MxAnywhere3sDescriptor::minDpi() const  { return 200; }
 int MxAnywhere3sDescriptor::maxDpi() const  { return 8000; }
 int MxAnywhere3sDescriptor::dpiStep() const { return 50; }
 
-int MxAnywhere3sDescriptor::easySwitchSlots() const { return 3; }
+QList<EasySwitchSlotPosition> MxMaster3sDescriptor::easySwitchSlotPositions() const
+{
+    return {
+        { 0.325, 0.658 }, // 1
+        { 0.384, 0.642 }, // 2
+        { 0.443, 0.643 }, // 3
+    };
+}
 
 } // namespace logitune
 ```
@@ -365,17 +372,25 @@ target_sources(logitune-core PRIVATE
 Create a test to verify the descriptor returns valid data:
 
 ```cpp
-// In tests/test_device_registry.cpp (or a new test file)
-TEST(DeviceRegistryTest, MxAnywhere3sRegistered) {
-    logitune::DeviceRegistry registry;
-    auto *dev = registry.findByPid(0xb037);
-    ASSERT_NE(dev, nullptr);
-    EXPECT_EQ(dev->deviceName(), "MX Anywhere 3S");
-    EXPECT_FALSE(dev->controls().isEmpty());
-    EXPECT_GT(dev->maxDpi(), dev->minDpi());
-    EXPECT_GT(dev->dpiStep(), 0);
-    EXPECT_EQ(dev->easySwitchSlots(), 3);
-}
+// In tests/test_device_registry.cpp
+static const DeviceSpec kDevices[] = {
+    ...
+    {
+        .pid = 0xb034,
+        .name = "MX Anywhere 3S",
+        .minDpi = 200, .maxDpi = 8000, .dpiStep = 50,
+        .buttonHotspots = 6, .scrollHotspots = 3,
+        .minControls = 7,
+        .control0Cid = 0x0050, .control5Cid = 0x00C3,
+        .control5ActionType = "gesture-trigger",
+        .control6ActionType = "smartshift-toggle",
+        .battery = true, .adjustableDpi = true, .smartShift = true,
+        .reprogControls = true, .gestureV2 = false,
+        .gestureDownType = ButtonAction::Keystroke,
+        .gestureDownPayload = "Super+D",
+        .gestureUpType = ButtonAction::Default,
+    },
+};
 ```
 
 ### Mock Device Setup

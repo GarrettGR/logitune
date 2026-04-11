@@ -30,6 +30,7 @@ PKGBUILD
 .superpowers/
 .claude/
 .vscode/
+.idea/
 
 # Reference material (not to ship)
 reference/
