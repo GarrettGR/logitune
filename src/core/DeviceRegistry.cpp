@@ -33,6 +33,10 @@ const IDevice* DeviceRegistry::findByPid(uint16_t pid) const {
 
 const IDevice* DeviceRegistry::findByName(const QString &name) const {
     for (const auto &dev : m_devices) {
+        if (name.compare(dev->deviceName(), Qt::CaseInsensitive) == 0)
+            return dev.get();
+    }
+    for (const auto &dev : m_devices) {
         if (name.contains(dev->deviceName(), Qt::CaseInsensitive))
             return dev.get();
     }
