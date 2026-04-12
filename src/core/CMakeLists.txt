@@ -16,6 +16,7 @@ target_sources(logitune-core PRIVATE
     hidpp/features/AdjustableDPI.cpp
     hidpp/features/DeviceName.cpp
     hidpp/capabilities/BatteryCapability.cpp
+    hidpp/capabilities/SmartShiftCapability.cpp
     ProfileEngine.cpp
     ActionExecutor.cpp
     DeviceRegistry.cpp

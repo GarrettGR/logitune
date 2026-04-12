@@ -117,3 +117,42 @@ TEST(BatteryCapability, ParserPointerRoutesCorrectly) {
     auto legacyStatus = legacy.parse(r);
     EXPECT_EQ(legacyStatus.level, 0);     // legacy does not use bitmask
 }
+
+// ---------------------------------------------------------------------------
+// SmartShiftCapability table
+// ---------------------------------------------------------------------------
+#include "hidpp/capabilities/SmartShiftCapability.h"
+#include "hidpp/features/SmartShift.h"
+
+TEST(SmartShiftCapability, PrefersV1OverEnhanced) {
+    FeatureDispatcher fd;
+    fd.setFeatureTable({
+        {FeatureId::SmartShift,         0x02},
+        {FeatureId::SmartShiftEnhanced, 0x03},
+    });
+    auto v = resolveCapability(&fd, kSmartShiftVariants);
+    ASSERT_TRUE(v.has_value());
+    EXPECT_EQ(v->feature, FeatureId::SmartShift);
+    EXPECT_EQ(v->getFn, 0x00);  // V1 kFnGetStatus
+    EXPECT_EQ(v->setFn, 0x01);  // V1 kFnSetStatus
+}
+
+TEST(SmartShiftCapability, FallsBackToEnhanced) {
+    FeatureDispatcher fd;
+    fd.setFeatureTable({
+        {FeatureId::SmartShiftEnhanced, 0x02},
+    });
+    auto v = resolveCapability(&fd, kSmartShiftVariants);
+    ASSERT_TRUE(v.has_value());
+    EXPECT_EQ(v->feature, FeatureId::SmartShiftEnhanced);
+    EXPECT_EQ(v->getFn, 0x01);  // Enhanced fn1 for get
+    EXPECT_EQ(v->setFn, 0x02);  // Enhanced fn2 for set
+}
+
+TEST(SmartShiftCapability, BuildSetParams) {
+    auto v = kSmartShiftVariants[0];
+    auto params = v.buildSet(2, 64);  // ratchet mode, threshold 64
+    ASSERT_GE(params.size(), 2u);
+    EXPECT_EQ(params[0], 2);
+    EXPECT_EQ(params[1], 64);
+}
