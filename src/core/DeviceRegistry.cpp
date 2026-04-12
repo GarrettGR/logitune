@@ -1,6 +1,7 @@
 #include "DeviceRegistry.h"
 #include "devices/JsonDevice.h"
 #include "logging/LogManager.h"
+#include <QCoreApplication>
 #include <QDir>
 #include <QStandardPaths>
 
@@ -66,6 +67,12 @@ QString DeviceRegistry::systemDevicesDir() {
         QString dir = p + "/logitune/devices";
         if (QDir(dir).exists())
             return dir;
+    }
+    if (QCoreApplication::instance()) {
+        QString appDir = QCoreApplication::applicationDirPath();
+        QString devDir = appDir + "/../../../devices";
+        if (QDir(devDir).exists())
+            return QDir(devDir).canonicalPath();
     }
     return "/usr/share/logitune/devices";
 }
