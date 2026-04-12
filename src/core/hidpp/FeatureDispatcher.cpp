@@ -9,6 +9,7 @@ static constexpr FeatureId kKnownFeatures[] = {
     FeatureId::FeatureSet,
     FeatureId::DeviceInfo,
     FeatureId::DeviceName,
+    FeatureId::BatteryStatus,
     FeatureId::BatteryUnified,
     FeatureId::ChangeHost,
     FeatureId::ReprogControlsV4,

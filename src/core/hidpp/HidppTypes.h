@@ -24,6 +24,7 @@ enum class FeatureId : uint16_t {
     FeatureSet      = 0x0001,
     DeviceInfo      = 0x0003,
     DeviceName      = 0x0005,
+    BatteryStatus   = 0x1000,
     BatteryUnified  = 0x1004,
     ChangeHost      = 0x1814,
     ReprogControlsV4= 0x1b04,

@@ -24,7 +24,11 @@ struct BatteryStatus {
 
 class Battery {
 public:
+    // UnifiedBattery (0x1004): params[0]=%, params[1]=level bitmask, params[2]=status
     static BatteryStatus parseStatus(const Report &r);
+
+    // BatteryStatus (0x1000) legacy: params[0]=%, params[1]=next threshold, params[2]=status
+    static BatteryStatus parseStatusLegacy(const Report &r);
 
     static constexpr uint8_t kFnGetCapabilities = 0x00;
     static constexpr uint8_t kFnGetStatus = 0x01;

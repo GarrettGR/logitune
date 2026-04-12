@@ -4,10 +4,13 @@
 #include "hidpp/Transport.h"
 #include "hidpp/FeatureDispatcher.h"
 #include "hidpp/CommandQueue.h"
+#include "hidpp/capabilities/BatteryCapability.h"
+#include "hidpp/capabilities/SmartShiftCapability.h"
 #include <QObject>
 #include <QSocketNotifier>
 #include <QTimer>
 #include <memory>
+#include <optional>
 
 struct udev;
 struct udev_monitor;
@@ -150,6 +153,11 @@ private:
     std::unique_ptr<hidpp::Transport> m_transport;
     std::unique_ptr<hidpp::FeatureDispatcher> m_features;
     std::unique_ptr<hidpp::CommandQueue> m_commandQueue;
+
+    // Resolved capability dispatches — set once at enumerateAndSetup
+    std::optional<hidpp::capabilities::BatteryVariant>    m_batteryDispatch;
+    std::optional<hidpp::capabilities::SmartShiftVariant> m_smartShiftDispatch;
+
     QSocketNotifier *m_hidrawNotifier = nullptr;
     QSocketNotifier *m_receiverNotifier = nullptr;  // listens for DJ device-arrival when no device on slots
 

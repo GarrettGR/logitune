@@ -30,4 +30,22 @@ BatteryStatus Battery::parseStatus(const Report &r)
     return status;
 }
 
+BatteryStatus Battery::parseStatusLegacy(const Report &r)
+{
+    // BatteryStatus (0x1000) legacy format — from Solaar hidpp20.decipher_battery_status:
+    //   params[0] = current discharge level (percentage, 0 = unknown)
+    //   params[1] = next discharge threshold (informational, ignored)
+    //   params[2] = status byte (same enum as UnifiedBattery)
+    BatteryStatus status;
+    status.level        = static_cast<int>(r.params[0]);
+    status.levelBitmask = 0;  // not present in legacy format
+    status.state        = static_cast<BatteryState>(r.params[2]);
+
+    status.charging = (status.state == BatteryState::Recharging ||
+                       status.state == BatteryState::AlmostFull ||
+                       status.state == BatteryState::Full ||
+                       status.state == BatteryState::SlowRecharge);
+    return status;
+}
+
 } // namespace logitune::hidpp::features

@@ -76,6 +76,60 @@ TEST(Battery, ParseZeroPercentCritical) {
 }
 
 // ---------------------------------------------------------------------------
+// Battery (BATTERY_STATUS 0x1000 legacy format)
+// ---------------------------------------------------------------------------
+// Legacy format:
+//   params[0] = current discharge level (percentage)
+//   params[1] = next discharge threshold (ignored)
+//   params[2] = status byte (same enum as UnifiedBattery)
+
+TEST(BatteryLegacy, ParseDischarging) {
+    Report r;
+    r.params[0] = 78;    // 78%
+    r.params[1] = 50;    // next threshold (ignored)
+    r.params[2] = 0x00;  // BatteryState::Discharging
+    auto status = Battery::parseStatusLegacy(r);
+    EXPECT_EQ(status.level, 78);
+    EXPECT_EQ(status.state, BatteryState::Discharging);
+    EXPECT_FALSE(status.charging);
+}
+
+TEST(BatteryLegacy, ParseRecharging) {
+    Report r;
+    r.params[0] = 45;
+    r.params[1] = 30;
+    r.params[2] = 0x01;  // BatteryState::Recharging
+    auto status = Battery::parseStatusLegacy(r);
+    EXPECT_EQ(status.level, 45);
+    EXPECT_EQ(status.state, BatteryState::Recharging);
+    EXPECT_TRUE(status.charging);
+}
+
+TEST(BatteryLegacy, ParseFull) {
+    Report r;
+    r.params[0] = 100;
+    r.params[1] = 90;
+    r.params[2] = 0x03;  // BatteryState::Full
+    auto status = Battery::parseStatusLegacy(r);
+    EXPECT_EQ(status.level, 100);
+    EXPECT_EQ(status.state, BatteryState::Full);
+    EXPECT_TRUE(status.charging);
+}
+
+TEST(BatteryLegacy, IgnoresMiddleByte) {
+    // Legacy format's params[1] must NOT be interpreted as a level bitmask.
+    // If parseStatusLegacy accidentally fell through to bitmask logic, it
+    // would mis-report percentage. Setting params[0]=0 guards the fallback path.
+    Report r;
+    r.params[0] = 0;    // would trigger bitmask fallback in parseStatus()
+    r.params[1] = 0x08; // looks like "full" bitmask but is next-threshold %
+    r.params[2] = 0x00;
+    auto status = Battery::parseStatusLegacy(r);
+    EXPECT_EQ(status.level, 0);  // must stay 0, not become 90
+    EXPECT_FALSE(status.charging);
+}
+
+// ---------------------------------------------------------------------------
 // AdjustableDPI
 // ---------------------------------------------------------------------------
 
