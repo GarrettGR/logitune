@@ -168,22 +168,37 @@ def _marker_to_pct(marker):
     return max(0.0, min(1.0, x_pct)), max(0.0, min(1.0, y_pct))
 
 
-def parse_metadata_hotspots(metadata_path, image_key='device_buttons_image', start_idx=None):
+def _canonical_sort_key(entry):
+    """Sort controls by CID ascending, but push the synthetic thumbwheel
+    (CID 0x0000) to the very end.
+
+    The canonical button order matters: ButtonsPage.qml hardcodes
+    `buttonId === 7` to mean thumbwheel, so the synthetic entry needs to
+    land last. For the MX Master line this sort also happens to produce
+    Middle(0x52) / Back(0x53) / Forward(0x56) / Gesture(0xC3) / Shift(0xC4),
+    matching the hand-written descriptors — so any profiles persisted
+    against the shipped ordering keep working.
+    """
+    cid = int(entry['_cid'])
+    if cid == THUMBWHEEL_CID:
+        return (1, 0)
+    return (0, cid)
+
+
+def parse_metadata_hotspots(metadata_path, image_key='device_buttons_image'):
     """Parse button hotspot positions from Options+ core_metadata.json.
 
     Markers are percentages in [0, 100] relative to the device image, not
     pixel coordinates — the `origin` width/height only describe the source
-    image resolution. Returns parsed controls/hotspots plus a flag indicating
-    whether a synthetic thumbwheel entry was emitted.
+    image resolution. Controls are returned in canonical CID order with
+    the synthetic thumbwheel last; buttonIndex is assigned after sorting.
     """
     try:
         meta = json.load(open(metadata_path))
     except Exception:
-        return [], False
+        return []
 
-    controls = []
-    thumbwheel_emitted = False
-    idx = len(DEFAULT_CONTROLS) if start_idx is None else start_idx
+    raw = []
 
     for img in meta.get('images', []):
         if img.get('key') != image_key:
@@ -200,45 +215,59 @@ def parse_metadata_hotspots(metadata_path, image_key='device_buttons_image', sta
             is_thumb = looks_like_thumbwheel_slot(slot_id, slot_name)
 
             if cid is None and not is_thumb:
-                # Slot has no HID++ CID and isn't a thumbwheel — nothing to
-                # emit. Scroll / pointer settings zones hit this branch.
+                # Slot has no HID++ CID and isn't a thumbwheel — nothing
+                # to emit. Scroll / pointer settings zones hit this
+                # branch.
                 continue
 
             if cid is None and is_thumb:
                 cid = THUMBWHEEL_CID
-                thumbwheel_emitted = True
 
             name_info = SLOT_NAME_MAP.get(
                 slot_name,
                 (slot_name, "default", True),
             )
 
-            cid_hex = f"0x{cid:04X}"
-            controls.append({
-                'control': {
-                    # Field names match ControlDescriptor JSON keys parsed by
-                    # JsonDevice::parseControls() in src/core/devices/JsonDevice.cpp
-                    # (controlId / buttonIndex / defaultName / defaultActionType).
-                    "controlId": cid_hex,
-                    "buttonIndex": idx,
-                    "defaultName": name_info[0],
-                    "defaultActionType": name_info[1],
-                    "configurable": name_info[2],
-                },
-                # Field names must match JsonDevice::parseHotspots()
-                # (buttonIndex / xPct / yPct / labelOffsetYPct).
-                'hotspot': {
-                    "buttonIndex": idx,
-                    "xPct": x_pct,
-                    "yPct": y_pct,
-                    "side": "right" if x_pct > 0.5 else "left",
-                    "labelOffsetYPct": 0.0,
-                },
+            raw.append({
+                '_cid': cid,
+                '_name': name_info[0],
+                '_action': name_info[1],
+                '_configurable': name_info[2],
+                '_x': x_pct,
+                '_y': y_pct,
             })
-            idx += 1
         break
 
-    return controls, thumbwheel_emitted
+    raw.sort(key=_canonical_sort_key)
+
+    controls = []
+    idx = len(DEFAULT_CONTROLS)
+    for entry in raw:
+        cid_hex = f"0x{entry['_cid']:04X}"
+        controls.append({
+            'control': {
+                # Field names match ControlDescriptor JSON keys parsed by
+                # JsonDevice::parseControls() in src/core/devices/JsonDevice.cpp
+                # (controlId / buttonIndex / defaultName / defaultActionType).
+                "controlId": cid_hex,
+                "buttonIndex": idx,
+                "defaultName": entry['_name'],
+                "defaultActionType": entry['_action'],
+                "configurable": entry['_configurable'],
+            },
+            # Field names must match JsonDevice::parseHotspots()
+            # (buttonIndex / xPct / yPct / labelOffsetYPct).
+            'hotspot': {
+                "buttonIndex": idx,
+                "xPct": entry['_x'],
+                "yPct": entry['_y'],
+                "side": "right" if entry['_x'] > 0.5 else "left",
+                "labelOffsetYPct": 0.0,
+            },
+        })
+        idx += 1
+
+    return controls
 
 
 def parse_scroll_hotspots(metadata_path, after_button_idx):
@@ -371,7 +400,7 @@ def main():
         metadata_path = os.path.join(depot_dir, 'metadata.json')
         if not os.path.exists(metadata_path):
             metadata_path = os.path.join(depot_dir, 'core_metadata.json')
-        controls_data, _ = parse_metadata_hotspots(metadata_path)
+        controls_data = parse_metadata_hotspots(metadata_path)
         scroll_hotspots = parse_scroll_hotspots(metadata_path, after_button_idx=len(controls_data))
 
         descriptor = build_descriptor(mouse_info, controls_data, scroll_hotspots,
