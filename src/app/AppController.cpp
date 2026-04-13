@@ -360,7 +360,7 @@ void AppController::restoreButtonModelFromProfile(const Profile &p)
     if (!m_currentDevice) return;
     const auto controls = m_currentDevice->controls();
 
-    QList<QPair<QString, QString>> buttons;
+    QList<ButtonAssignment> assignments;
     for (int i = 0; i < static_cast<int>(controls.size()); ++i) {
         const auto &ctrl = controls[i];
         if (ctrl.controlId == 0) {
@@ -370,7 +370,7 @@ void AppController::restoreButtonModelFromProfile(const Profile &p)
             };
             QString wheelName = kWheelNames.value(p.thumbWheelMode, p.thumbWheelMode);
             QString wheelType = (p.thumbWheelMode == "scroll") ? "default" : "wheel-mode";
-            buttons.append({wheelName, wheelType});
+            assignments.append({wheelName, wheelType, ctrl.controlId});
             continue;
         }
         const auto &ba = (static_cast<std::size_t>(i) < p.buttons.size())
@@ -415,10 +415,10 @@ void AppController::restoreButtonModelFromProfile(const Profile &p)
             aName = ctrl.defaultName;
             break;
         }
-        buttons.append({aName, aType});
+        assignments.append({aName, aType, ctrl.controlId});
     }
 
-    m_buttonModel.loadFromProfile(buttons);
+    m_buttonModel.loadFromProfile(assignments);
 
     QMap<QString, QPair<QString, QString>> gestureMap;
     for (auto it = p.gestures.begin(); it != p.gestures.end(); ++it) {
