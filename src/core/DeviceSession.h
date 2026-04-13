@@ -6,6 +6,7 @@
 #include "hidpp/CommandQueue.h"
 #include "hidpp/capabilities/BatteryCapability.h"
 #include "hidpp/capabilities/SmartShiftCapability.h"
+#include "hidpp/capabilities/ReprogControlsCapability.h"
 #include <QObject>
 #include <QSocketNotifier>
 #include <QTimer>
@@ -107,8 +108,9 @@ private:
     std::unique_ptr<hidpp::FeatureDispatcher> m_features;
     std::unique_ptr<hidpp::CommandQueue> m_commandQueue;
 
-    std::optional<hidpp::capabilities::BatteryVariant>    m_batteryDispatch;
-    std::optional<hidpp::capabilities::SmartShiftVariant> m_smartShiftDispatch;
+    std::optional<hidpp::capabilities::BatteryVariant>         m_batteryDispatch;
+    std::optional<hidpp::capabilities::SmartShiftVariant>      m_smartShiftDispatch;
+    std::optional<hidpp::capabilities::ReprogControlsVariant>  m_reprogControlsDispatch;
 
     QTimer *m_reconnectTimer = nullptr;
     QTimer *m_batteryPollTimer = nullptr;

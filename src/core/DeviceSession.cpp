@@ -40,13 +40,13 @@ DeviceSession::DeviceSession(std::unique_ptr<hidpp::HidrawDevice> device,
 
 DeviceSession::~DeviceSession()
 {
-    if (m_connected && m_features && m_transport &&
-        m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4) && m_activeDevice) {
+    if (m_connected && m_features && m_transport && m_activeDevice &&
+        m_reprogControlsDispatch && m_reprogControlsDispatch->supportsDiversion) {
         for (const auto &ctrl : m_activeDevice->controls()) {
             if (ctrl.configurable && ctrl.controlId != 0) {
                 auto params = hidpp::features::ReprogControls::buildSetDivert(ctrl.controlId, false);
                 m_features->call(m_transport.get(), m_deviceIndex,
-                                 hidpp::FeatureId::ReprogControlsV4,
+                                 m_reprogControlsDispatch->feature,
                                  hidpp::features::ReprogControls::kFnSetControlReporting,
                                  std::span<const uint8_t>(params));
             }
@@ -193,10 +193,19 @@ void DeviceSession::enumerateAndSetup()
     }
 
     // Resolve variant dispatches
-    m_batteryDispatch    = hidpp::capabilities::resolveCapability(
-                              m_features.get(), hidpp::capabilities::kBatteryVariants);
-    m_smartShiftDispatch = hidpp::capabilities::resolveCapability(
-                              m_features.get(), hidpp::capabilities::kSmartShiftVariants);
+    m_batteryDispatch        = hidpp::capabilities::resolveCapability(
+                                   m_features.get(), hidpp::capabilities::kBatteryVariants);
+    m_smartShiftDispatch     = hidpp::capabilities::resolveCapability(
+                                   m_features.get(), hidpp::capabilities::kSmartShiftVariants);
+    m_reprogControlsDispatch = hidpp::capabilities::resolveCapability(
+                                   m_features.get(), hidpp::capabilities::kReprogControlsVariants);
+    if (m_reprogControlsDispatch) {
+        qCDebug(lcDevice) << "ReprogControls: feature="
+                          << Qt::hex << static_cast<uint16_t>(m_reprogControlsDispatch->feature)
+                          << Qt::dec
+                          << (m_reprogControlsDispatch->supportsDiversion
+                                ? "(diversion supported)" : "(enumeration only)");
+    }
 
     // Read battery
     int battLevel = 0;
@@ -292,14 +301,16 @@ void DeviceSession::enumerateAndSetup()
         emit unknownDeviceDetected(m_device->info().productId);
     }
 
-    // Undivert ALL buttons for clean native state on startup
-    if (m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4)) {
+    // Undivert ALL buttons for clean native state on startup.
+    // Only V4 supports SetControlReporting; older variants can enumerate
+    // buttons but can't divert them, so there's nothing to undo.
+    if (m_reprogControlsDispatch && m_reprogControlsDispatch->supportsDiversion) {
         if (m_activeDevice) {
             for (const auto &ctrl : m_activeDevice->controls()) {
                 if (ctrl.configurable && ctrl.controlId != 0) {
                     auto params = hidpp::features::ReprogControls::buildSetDivert(ctrl.controlId, false);
                     m_features->call(m_transport.get(), m_deviceIndex,
-                                     hidpp::FeatureId::ReprogControlsV4,
+                                     m_reprogControlsDispatch->feature,
                                      hidpp::features::ReprogControls::kFnSetControlReporting,
                                      std::span<const uint8_t>(params));
                 }
@@ -417,6 +428,7 @@ void DeviceSession::disconnectCleanup()
     m_activeDevice = nullptr;
     m_batteryDispatch.reset();
     m_smartShiftDispatch.reset();
+    m_reprogControlsDispatch.reset();
     m_features.reset();
     m_transport.reset();
     m_device.reset();
@@ -538,9 +550,10 @@ void DeviceSession::handleNotification(const hidpp::Report &report)
         }
     }
 
-    // ReprogControls notifications
-    if (m_features && m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4)) {
-        auto idx = m_features->featureIndex(hidpp::FeatureId::ReprogControlsV4);
+    // ReprogControls notifications — only V4 emits diverted button / raw XY
+    // events, so other variants have nothing to route here.
+    if (m_features && m_reprogControlsDispatch && m_reprogControlsDispatch->supportsDiversion) {
+        auto idx = m_features->featureIndex(m_reprogControlsDispatch->feature);
         if (idx.has_value() && report.featureIndex == *idx) {
             if (report.functionId == 0) {
                 uint16_t controlId = (static_cast<uint16_t>(report.params[0]) << 8)
@@ -700,11 +713,13 @@ void DeviceSession::divertButton(uint16_t controlId, bool divert, bool rawXY)
 {
     if (!m_connected || !m_features || !m_commandQueue)
         return;
-    if (!m_features->hasFeature(hidpp::FeatureId::ReprogControlsV4))
+    // Only V4 supports SetControlReporting. Older variants enumerate but
+    // cannot divert — silently no-op so callers don't need to special-case.
+    if (!m_reprogControlsDispatch || !m_reprogControlsDispatch->supportsDiversion)
         return;
 
     auto params = hidpp::features::ReprogControls::buildSetDivert(controlId, divert, rawXY);
-    m_commandQueue->enqueue(hidpp::FeatureId::ReprogControlsV4,
+    m_commandQueue->enqueue(m_reprogControlsDispatch->feature,
                             hidpp::features::ReprogControls::kFnSetControlReporting,
                             std::span<const uint8_t>(params));
     qCDebug(lcDevice) << "button" << Qt::hex << controlId

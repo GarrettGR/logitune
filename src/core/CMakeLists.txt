@@ -18,6 +18,7 @@ target_sources(logitune-core PRIVATE
     hidpp/features/DeviceName.cpp
     hidpp/capabilities/BatteryCapability.cpp
     hidpp/capabilities/SmartShiftCapability.cpp
+    hidpp/capabilities/ReprogControlsCapability.cpp
     ProfileEngine.cpp
     ActionExecutor.cpp
     DeviceRegistry.cpp
