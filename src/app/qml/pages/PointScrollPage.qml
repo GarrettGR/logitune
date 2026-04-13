@@ -74,6 +74,16 @@ Item {
             // ── Scroll hotspot data from device descriptor ───────────────────
             readonly property var scrollHotspotsData: DeviceModel.scrollHotspots
 
+            function hotspotByKind(kind, fallbackIdx) {
+                for (var i = 0; i < scrollHotspotsData.length; i++) {
+                    if (scrollHotspotsData[i].kind === kind)
+                        return scrollHotspotsData[i];
+                }
+                return scrollHotspotsData.length > fallbackIdx
+                    ? scrollHotspotsData[fallbackIdx]
+                    : null;
+            }
+
             // ── Point & Scroll hotspot circles — driven by descriptor ────────
             Repeater {
                 model: renderGroup.scrollHotspotsData
@@ -91,7 +101,7 @@ Item {
             // ── Scroll wheel callout — positioned from descriptor hotspot [0]
             InfoCallout {
                 id: scrollCallout
-                readonly property var hs: renderGroup.scrollHotspotsData.length > 0 ? renderGroup.scrollHotspotsData[0] : null
+                readonly property var hs: renderGroup.hotspotByKind("scrollwheel", 0)
                 readonly property real hsX: hs ? hs.xPct : 0.73
                 readonly property real hsY: hs ? hs.yPct : 0.16
                 x: mouseRender.x + mouseRender.paintedX + mouseRender.paintedW * hsX + 16
@@ -117,7 +127,7 @@ Item {
             // ── Thumb wheel callout — positioned from descriptor hotspot [1]
             InfoCallout {
                 id: thumbCallout
-                readonly property var hs: renderGroup.scrollHotspotsData.length > 1 ? renderGroup.scrollHotspotsData[1] : null
+                readonly property var hs: renderGroup.hotspotByKind("thumbwheel", 1)
                 readonly property real hsX: hs ? hs.xPct : 0.55
                 readonly property real hsY: hs ? hs.yPct : 0.51
                 x: mouseRender.x + mouseRender.paintedX + mouseRender.paintedW * hsX - width - 16
@@ -138,7 +148,7 @@ Item {
             // ── Pointer speed callout — positioned from descriptor hotspot [2]
             InfoCallout {
                 id: pointerCallout
-                readonly property var hs: renderGroup.scrollHotspotsData.length > 2 ? renderGroup.scrollHotspotsData[2] : null
+                readonly property var hs: renderGroup.hotspotByKind("pointer", 2)
                 readonly property real hsX: hs ? hs.xPct : 0.83
                 readonly property real hsY: hs ? hs.yPct : 0.54
                 x: mouseRender.x + mouseRender.paintedX + mouseRender.paintedW * hsX + 16
