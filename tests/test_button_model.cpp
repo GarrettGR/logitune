@@ -161,3 +161,37 @@ TEST_F(ButtonModelTest, LoadFewerThanModelSizeButton0Changes) {
     // Button 1 should be unchanged
     EXPECT_EQ(model.actionNameForButton(1), original1);
 }
+
+// ---------------------------------------------------------------------------
+// isThumbWheel
+// ---------------------------------------------------------------------------
+
+TEST_F(ButtonModelTest, IsThumbWheelDefault)
+{
+    logitune::ButtonModel m;
+    // Default constructor uses canonical CID layout — button 7 is thumb wheel.
+    EXPECT_TRUE(m.isThumbWheel(7));
+    EXPECT_FALSE(m.isThumbWheel(0));  // left click
+    EXPECT_FALSE(m.isThumbWheel(2));  // middle click
+    EXPECT_FALSE(m.isThumbWheel(99)); // nonexistent id
+}
+
+TEST_F(ButtonModelTest, IsThumbWheelAfterLoadFromProfile)
+{
+    logitune::ButtonModel m;
+    // Simulate a device with no thumb wheel (e.g., MX Vertical):
+    // 8-slot layout but slot 7 carries a real CID instead of 0x0000.
+    QList<logitune::ButtonAssignment> assignments = {
+        { "Left click",  "default", 0x0050 },
+        { "Right click", "default", 0x0051 },
+        { "Middle click","default", 0x0052 },
+        { "Back",        "default", 0x0053 },
+        { "Forward",     "default", 0x0056 },
+        { "DPI",         "default", 0x00FD },
+        { "Unused",      "default", 0xFFFF },
+        { "Unused",      "default", 0xFFFF },
+    };
+    m.loadFromProfile(assignments);
+    EXPECT_FALSE(m.isThumbWheel(7));
+    EXPECT_FALSE(m.isThumbWheel(5));
+}
