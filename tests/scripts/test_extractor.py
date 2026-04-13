@@ -278,3 +278,73 @@ def test_build_descriptor_status_downgrades_on_empty_controls():
     )
     d = descbuilder.build(entry, empty_depot)
     assert d["status"] == "placeholder"
+
+
+from optionsplus_extractor import validate
+
+
+def test_validate_accepts_good_descriptor():
+    depot = sources.load_depot(FIXTURE_ROOT / "devices" / "mx_master_3s")
+    mice = sources.load_device_db(FIXTURE_ROOT / "main" / "logioptionsplus")
+    d = descbuilder.build(mice["mx_master_3s"], depot)
+    # Does not raise
+    validate.check(d, depot)
+
+
+def test_validate_rejects_wrong_control_field_name():
+    d = {
+        "name": "Bogus",
+        "status": "community-verified",
+        "productIds": ["0x1234"],
+        "features": {},
+        "controls": [
+            # wrong field name — the exact bug class we're guarding against
+            {"cid": "0x0050", "buttonIndex": 0, "defaultName": "L", "defaultActionType": "default", "configurable": False},
+        ],
+        "hotspots": {"buttons": [], "scroll": []},
+        "images": {"front": "front.png"},
+        "easySwitchSlots": [],
+    }
+    import pytest
+    with pytest.raises(validate.SchemaError) as exc:
+        validate.check(d, None)
+    assert "controlId" in str(exc.value)
+
+
+def test_validate_rejects_invalid_scroll_kind():
+    d = {
+        "name": "Bogus",
+        "status": "community-verified",
+        "productIds": ["0x1234"],
+        "features": {},
+        "controls": [
+            {"controlId": "0x0050", "buttonIndex": 0, "defaultName": "L", "defaultActionType": "default", "configurable": False},
+        ],
+        "hotspots": {
+            "buttons": [],
+            "scroll": [
+                {"kind": "bogus", "buttonIndex": -1, "xPct": 0.5, "yPct": 0.5, "side": "right", "labelOffsetYPct": 0.0},
+            ],
+        },
+        "images": {"front": "front.png"},
+        "easySwitchSlots": [],
+    }
+    import pytest
+    with pytest.raises(validate.SchemaError):
+        validate.check(d, None)
+
+
+def test_validate_rejects_missing_productIds():
+    d = {
+        "name": "Bogus",
+        "status": "community-verified",
+        "productIds": [],
+        "features": {},
+        "controls": [],
+        "hotspots": {"buttons": [], "scroll": []},
+        "images": {},
+        "easySwitchSlots": [],
+    }
+    import pytest
+    with pytest.raises(validate.SchemaError):
+        validate.check(d, None)
