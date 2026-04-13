@@ -348,3 +348,23 @@ def test_validate_rejects_missing_productIds():
     import pytest
     with pytest.raises(validate.SchemaError):
         validate.check(d, None)
+
+
+import shutil
+from optionsplus_extractor import cli
+
+
+def test_cli_end_to_end(tmp_path):
+    out_dir = tmp_path / "out"
+    rc = cli.run(
+        devices_dir=FIXTURE_ROOT / "devices",
+        main_dir=FIXTURE_ROOT / "main" / "logioptionsplus",
+        output_dir=out_dir,
+    )
+    assert rc == 0
+    # Two devices extracted (2S and 3S — MX Master 4 is not in the fixture)
+    for dev_slug in ("mx-master-2s", "mx-master-3s"):
+        desc_path = out_dir / dev_slug / "descriptor.json"
+        assert desc_path.exists(), f"missing {desc_path}"
+        img_path = out_dir / dev_slug / "front.png"
+        assert img_path.exists(), f"missing {img_path}"
