@@ -163,6 +163,8 @@ TEST(JsonDevice, LoadValidImplemented)
     // Hotspots
     EXPECT_EQ(dev->buttonHotspots().size(), 1);
     EXPECT_EQ(dev->scrollHotspots().size(), 1);
+    EXPECT_TRUE(dev->buttonHotspots()[0].kind.isEmpty())
+        << "button hotspots should default to empty kind";
 
     // Easy switch slot positions
     auto easySlots = dev->easySwitchSlotPositions();

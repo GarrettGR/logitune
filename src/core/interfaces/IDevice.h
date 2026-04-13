@@ -22,6 +22,7 @@ struct HotspotDescriptor {
     double yPct;
     QString side;
     double labelOffsetYPct;
+    QString kind;   // "scrollwheel" | "thumbwheel" | "pointer"; empty for button hotspots
 };
 
 struct FeatureSupport {
