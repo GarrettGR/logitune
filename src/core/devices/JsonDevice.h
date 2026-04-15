@@ -11,6 +11,8 @@ public:
 
     static std::unique_ptr<JsonDevice> load(const QString& dirPath);
 
+    bool refresh();
+
     Status status() const { return m_status; }
     QString sourcePath() const { return m_sourcePath; }
     qint64 loadedMtime() const { return m_loadedMtime; }
@@ -33,6 +35,7 @@ public:
 
 private:
     JsonDevice() = default;
+    bool parseFromDir(const QString& dirPath);
 
     Status m_status = Status::Placeholder;
     QString m_name;

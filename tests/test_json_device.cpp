@@ -500,3 +500,34 @@ TEST(JsonDevice, OptionalEditorFieldsDefaultEmptyWhenAbsent) {
     for (const auto &s : dev->easySwitchSlotPositions())
         EXPECT_TRUE(s.label.isEmpty());
 }
+
+TEST(JsonDevice, RefreshRereadsDescriptorInPlace) {
+    QTemporaryDir tmp;
+    ASSERT_TRUE(tmp.isValid());
+
+    auto write = [&](const QString &name) {
+        QFile f(tmp.path() + QStringLiteral("/descriptor.json"));
+        ASSERT_TRUE(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        f.write(QStringLiteral(R"({
+  "name": "%1",
+  "status": "community-local",
+  "productIds": ["0xffff"],
+  "features": {},
+  "controls": [],
+  "hotspots": {"buttons": [], "scroll": []},
+  "images": {},
+  "easySwitchSlots": []
+})").arg(name).toUtf8());
+    };
+
+    write(QStringLiteral("Original Name"));
+    auto dev = logitune::JsonDevice::load(tmp.path());
+    ASSERT_NE(dev, nullptr);
+    const auto *raw = dev.get();
+    EXPECT_EQ(dev->deviceName(), QStringLiteral("Original Name"));
+
+    write(QStringLiteral("Mutated Name"));
+    ASSERT_TRUE(dev->refresh());
+    EXPECT_EQ(dev->deviceName(), QStringLiteral("Mutated Name"));
+    EXPECT_EQ(dev.get(), raw);
+}

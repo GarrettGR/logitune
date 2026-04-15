@@ -135,7 +135,7 @@ static QMap<QString, ButtonAction> parseDefaultGestures(const QJsonObject& obj)
     return result;
 }
 
-std::unique_ptr<JsonDevice> JsonDevice::load(const QString& dirPath)
+bool JsonDevice::parseFromDir(const QString& dirPath)
 {
     const QDir dir(dirPath);
     const QString filePath = dir.absoluteFilePath(QStringLiteral("descriptor.json"));
@@ -143,7 +143,7 @@ std::unique_ptr<JsonDevice> JsonDevice::load(const QString& dirPath)
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
         qCWarning(lcDevice) << "JsonDevice: cannot open" << filePath;
-        return nullptr;
+        return false;
     }
 
     QJsonParseError parseError;
@@ -151,20 +151,14 @@ std::unique_ptr<JsonDevice> JsonDevice::load(const QString& dirPath)
     if (parseError.error != QJsonParseError::NoError) {
         qCWarning(lcDevice) << "JsonDevice: parse error in" << filePath
                             << ":" << parseError.errorString();
-        return nullptr;
+        return false;
     }
 
     const QJsonObject root = doc.object();
 
-    auto dev = std::unique_ptr<JsonDevice>(new JsonDevice());
+    m_status = parseStatus(root.value(QStringLiteral("status")).toString());
+    m_name = root.value(QStringLiteral("name")).toString();
 
-    // Status
-    dev->m_status = parseStatus(root.value(QStringLiteral("status")).toString());
-
-    // Name
-    dev->m_name = root.value(QStringLiteral("name")).toString();
-
-    // Product IDs
     const QJsonArray pidArr = root.value(QStringLiteral("productIds")).toArray();
     for (const auto& v : pidArr) {
         bool ok = false;
@@ -173,89 +167,112 @@ std::unique_ptr<JsonDevice> JsonDevice::load(const QString& dirPath)
             qCWarning(lcDevice) << "JsonDevice: invalid PID hex:" << v.toString();
             continue;
         }
-        dev->m_pids.push_back(pid);
+        m_pids.push_back(pid);
     }
 
-    // Features
-    dev->m_features = parseFeatures(root.value(QStringLiteral("features")).toObject());
+    m_features = parseFeatures(root.value(QStringLiteral("features")).toObject());
 
-    // DPI
     const QJsonObject dpiObj = root.value(QStringLiteral("dpi")).toObject();
     if (!dpiObj.isEmpty()) {
-        dev->m_minDpi = dpiObj.value(QStringLiteral("min")).toInt(200);
-        dev->m_maxDpi = dpiObj.value(QStringLiteral("max")).toInt(8000);
-        dev->m_dpiStep = dpiObj.value(QStringLiteral("step")).toInt(50);
+        m_minDpi = dpiObj.value(QStringLiteral("min")).toInt(200);
+        m_maxDpi = dpiObj.value(QStringLiteral("max")).toInt(8000);
+        m_dpiStep = dpiObj.value(QStringLiteral("step")).toInt(50);
     }
 
-    // Controls
-    dev->m_controls = parseControls(root.value(QStringLiteral("controls")).toArray());
+    m_controls = parseControls(root.value(QStringLiteral("controls")).toArray());
 
-    // Hotspots
     const QJsonObject hotspotsObj = root.value(QStringLiteral("hotspots")).toObject();
-    dev->m_buttonHotspots = parseHotspots(hotspotsObj.value(QStringLiteral("buttons")).toArray());
-    dev->m_scrollHotspots = parseHotspots(hotspotsObj.value(QStringLiteral("scroll")).toArray());
+    m_buttonHotspots = parseHotspots(hotspotsObj.value(QStringLiteral("buttons")).toArray());
+    m_scrollHotspots = parseHotspots(hotspotsObj.value(QStringLiteral("scroll")).toArray());
 
-    // Images — resolve relative paths against dirPath
     const QJsonObject imagesObj = root.value(QStringLiteral("images")).toObject();
     const QString front = imagesObj.value(QStringLiteral("front")).toString();
     const QString side  = imagesObj.value(QStringLiteral("side")).toString();
     const QString back  = imagesObj.value(QStringLiteral("back")).toString();
     if (!front.isEmpty())
-        dev->m_frontImage = dir.absoluteFilePath(front);
+        m_frontImage = dir.absoluteFilePath(front);
     if (!side.isEmpty())
-        dev->m_sideImage = dir.absoluteFilePath(side);
+        m_sideImage = dir.absoluteFilePath(side);
     if (!back.isEmpty())
-        dev->m_backImage = dir.absoluteFilePath(back);
+        m_backImage = dir.absoluteFilePath(back);
 
-    // Easy Switch Slots
     const QJsonArray slotsArr = root.value(QStringLiteral("easySwitchSlots")).toArray();
     for (const auto& v : slotsArr) {
         const QJsonObject slotObj = v.toObject();
-        dev->m_easySwitchSlots.append({
+        m_easySwitchSlots.append({
             slotObj.value(QStringLiteral("xPct")).toDouble(),
             slotObj.value(QStringLiteral("yPct")).toDouble(),
             slotObj.value(QStringLiteral("label")).toString()
         });
     }
 
-    // Default Gestures
-    dev->m_defaultGestures = parseDefaultGestures(
+    m_defaultGestures = parseDefaultGestures(
         root.value(QStringLiteral("defaultGestures")).toObject());
 
-    // Validation
-    const bool strict = (dev->m_status == Status::Implemented
-                         || dev->m_status == Status::CommunityVerified);
+    const bool strict = (m_status == Status::Implemented
+                         || m_status == Status::CommunityVerified);
 
-    if (dev->m_name.isEmpty()) {
+    if (m_name.isEmpty()) {
         qCWarning(lcDevice) << "JsonDevice: missing name in" << filePath;
-        return nullptr;
+        return false;
     }
 
-    if (dev->m_pids.empty()) {
+    if (m_pids.empty()) {
         qCWarning(lcDevice) << "JsonDevice: no productIds in" << filePath;
-        return nullptr;
+        return false;
     }
 
     if (strict) {
-        if (dev->m_controls.isEmpty()) {
+        if (m_controls.isEmpty()) {
             qCWarning(lcDevice) << "JsonDevice: implemented device has no controls in" << filePath;
-            return nullptr;
+            return false;
         }
-        if (dev->m_buttonHotspots.isEmpty()) {
+        if (m_buttonHotspots.isEmpty()) {
             qCWarning(lcDevice) << "JsonDevice: implemented device has no button hotspots in" << filePath;
-            return nullptr;
+            return false;
         }
-        if (!QFileInfo::exists(dev->m_frontImage)) {
-            qCWarning(lcDevice) << "JsonDevice: front image not found:" << dev->m_frontImage;
-            return nullptr;
+        if (!QFileInfo::exists(m_frontImage)) {
+            qCWarning(lcDevice) << "JsonDevice: front image not found:" << m_frontImage;
+            return false;
         }
     }
 
-    dev->m_sourcePath = QFileInfo(dirPath).canonicalFilePath();
-    dev->m_loadedMtime = QFileInfo(filePath).lastModified().toSecsSinceEpoch();
+    m_sourcePath = QFileInfo(dirPath).canonicalFilePath();
+    m_loadedMtime = QFileInfo(filePath).lastModified().toSecsSinceEpoch();
 
-    qCDebug(lcDevice) << "JsonDevice: loaded" << dev->m_name << "from" << dirPath;
+    qCDebug(lcDevice) << "JsonDevice: loaded" << m_name << "from" << dirPath;
+    return true;
+}
+
+std::unique_ptr<JsonDevice> JsonDevice::load(const QString& dirPath)
+{
+    auto dev = std::unique_ptr<JsonDevice>(new JsonDevice());
+    if (!dev->parseFromDir(dirPath))
+        return nullptr;
     return dev;
+}
+
+bool JsonDevice::refresh()
+{
+    if (m_sourcePath.isEmpty())
+        return false;
+    const QString src = m_sourcePath;
+    m_pids.clear();
+    m_controls.clear();
+    m_buttonHotspots.clear();
+    m_scrollHotspots.clear();
+    m_easySwitchSlots.clear();
+    m_defaultGestures.clear();
+    m_frontImage.clear();
+    m_sideImage.clear();
+    m_backImage.clear();
+    m_features = FeatureSupport{};
+    m_name.clear();
+    m_status = Status::Placeholder;
+    m_minDpi = 200;
+    m_maxDpi = 8000;
+    m_dpiStep = 50;
+    return parseFromDir(src);
 }
 
 } // namespace logitune
