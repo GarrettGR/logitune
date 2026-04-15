@@ -91,6 +91,44 @@ void EditorModel::updateHotspot(int idx, double xPct, double yPct,
     pushCommand(std::move(cmd));
 }
 
+void EditorModel::updateText(const QString &field, int index, const QString &value) {
+    if (m_activeDevicePath.isEmpty()) return;
+    ensurePending(m_activeDevicePath);
+    QJsonObject &obj = m_pendingEdits[m_activeDevicePath];
+
+    EditCommand cmd;
+    cmd.kind = EditCommand::TextEdit;
+    cmd.role = field;
+    cmd.index = index;
+
+    if (field == QStringLiteral("deviceName")) {
+        cmd.before = obj.value(QStringLiteral("name"));
+        cmd.after = value;
+        obj[QStringLiteral("name")] = value;
+    } else if (field == QStringLiteral("controlDisplayName")) {
+        QJsonArray controls = obj.value(QStringLiteral("controls")).toArray();
+        if (index < 0 || index >= controls.size()) return;
+        QJsonObject c = controls[index].toObject();
+        cmd.before = c.value(QStringLiteral("displayName"));
+        c[QStringLiteral("displayName")] = value;
+        controls[index] = c;
+        obj[QStringLiteral("controls")] = controls;
+        cmd.after = value;
+    } else if (field == QStringLiteral("slotLabel")) {
+        QJsonArray slotsArr = obj.value(QStringLiteral("easySwitchSlots")).toArray();
+        if (index < 0 || index >= slotsArr.size()) return;
+        QJsonObject s = slotsArr[index].toObject();
+        cmd.before = s.value(QStringLiteral("label"));
+        s[QStringLiteral("label")] = value;
+        slotsArr[index] = s;
+        obj[QStringLiteral("easySwitchSlots")] = slotsArr;
+        cmd.after = value;
+    } else {
+        return;
+    }
+    pushCommand(std::move(cmd));
+}
+
 void EditorModel::applyCommand(const EditCommand &cmd, bool reverse) {
     QJsonObject &obj = m_pendingEdits[m_activeDevicePath];
     const QJsonValue &target = reverse ? cmd.before : cmd.after;
@@ -108,6 +146,22 @@ void EditorModel::applyCommand(const EditCommand &cmd, bool reverse) {
         QJsonObject images = obj.value(QStringLiteral("images")).toObject();
         images[cmd.role] = target.toString();
         obj[QStringLiteral("images")] = images;
+    } else if (cmd.kind == EditCommand::TextEdit) {
+        if (cmd.role == QStringLiteral("deviceName")) {
+            obj[QStringLiteral("name")] = target;
+        } else if (cmd.role == QStringLiteral("controlDisplayName")) {
+            QJsonArray controls = obj.value(QStringLiteral("controls")).toArray();
+            QJsonObject c = controls[cmd.index].toObject();
+            c[QStringLiteral("displayName")] = target;
+            controls[cmd.index] = c;
+            obj[QStringLiteral("controls")] = controls;
+        } else if (cmd.role == QStringLiteral("slotLabel")) {
+            QJsonArray slotsArr = obj.value(QStringLiteral("easySwitchSlots")).toArray();
+            QJsonObject s = slotsArr[cmd.index].toObject();
+            s[QStringLiteral("label")] = target;
+            slotsArr[cmd.index] = s;
+            obj[QStringLiteral("easySwitchSlots")] = slotsArr;
+        }
     }
 }
 

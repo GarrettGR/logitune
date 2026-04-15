@@ -123,3 +123,34 @@ TEST(EditorModel, UndoRestoresSlotPosition) {
     EXPECT_FALSE(m.canRedo());
     EXPECT_TRUE(m.hasUnsavedChanges());
 }
+
+TEST(EditorModel, UpdateTextEditsAllThreeKindsAndUndoes) {
+    QTemporaryDir tmp; ASSERT_TRUE(tmp.isValid());
+    QDir().mkpath(tmp.path() + QStringLiteral("/dev"));
+    QFile f(tmp.path() + QStringLiteral("/dev/descriptor.json"));
+    ASSERT_TRUE(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    f.write(R"({
+  "name": "Original Name", "status": "community-local", "productIds": ["0xffff"],
+  "features": {},
+  "controls": [
+    {"controlId": "0x0050", "buttonIndex": 0, "defaultName": "Left", "defaultActionType": "default", "configurable": false}
+  ],
+  "hotspots": {"buttons": [], "scroll": []}, "images": {},
+  "easySwitchSlots": [{"xPct": 0.1, "yPct": 0.2}]
+})");
+    f.close();
+    const QString path = QFileInfo(tmp.path() + QStringLiteral("/dev")).canonicalFilePath();
+
+    logitune::DeviceRegistry reg;
+    logitune::EditorModel m(&reg, true);
+    m.setActiveDevicePath(path);
+
+    m.updateText(QStringLiteral("deviceName"), -1, QStringLiteral("New Name"));
+    m.updateText(QStringLiteral("controlDisplayName"), 0, QStringLiteral("Primary"));
+    m.updateText(QStringLiteral("slotLabel"), 0, QStringLiteral("Mac"));
+
+    EXPECT_TRUE(m.canUndo());
+    m.undo(); m.undo(); m.undo();
+    EXPECT_FALSE(m.hasUnsavedChanges());
+    EXPECT_FALSE(m.canUndo());
+}
