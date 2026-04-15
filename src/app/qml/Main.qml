@@ -182,8 +182,12 @@ ApplicationWindow {
         id: conflictBanner
         anchors { top: editorToolbar.bottom; left: parent.left; right: parent.right }
         onViewDiffRequested: function(path) {
-            console.log("View diff requested for", path)
+            diffModal.open(path)
         }
+    }
+
+    DiffModal {
+        id: diffModal
     }
 
     StackView {

@@ -29,6 +29,8 @@ public:
     bool canRedo() const;
     QString activeDevicePath() const { return m_activeDevicePath; }
 
+    Q_INVOKABLE QVariantMap pendingFor(const QString &path) const;
+
 public slots:
     void setActiveDevicePath(const QString &path);
     Q_INVOKABLE void updateSlotPosition(int idx, double xPct, double yPct);

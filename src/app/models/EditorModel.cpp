@@ -41,6 +41,10 @@ void EditorModel::onExternalFileChanged(const QString &filePath) {
         m_registry->reload(canonical);
 }
 
+QVariantMap EditorModel::pendingFor(const QString &path) const {
+    return m_pendingEdits.value(path).toVariantMap();
+}
+
 bool EditorModel::canUndo() const {
     auto it = m_undoStacks.find(m_activeDevicePath);
     return it != m_undoStacks.end() && !it->isEmpty();
