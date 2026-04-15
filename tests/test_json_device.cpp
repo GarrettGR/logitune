@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QFile>
+#include <QFileInfo>
 
 using namespace logitune;
 
@@ -401,4 +402,31 @@ TEST(JsonDevice, FeatureFlagDefaults)
     EXPECT_FALSE(f.reprogControls);
     EXPECT_FALSE(f.gestureV2);
     EXPECT_FALSE(f.persistentRemappableAction);
+}
+
+TEST(JsonDevice, TracksSourcePathAndLoadMtime) {
+    QTemporaryDir tmp;
+    ASSERT_TRUE(tmp.isValid());
+    QFile f(tmp.path() + QStringLiteral("/descriptor.json"));
+    ASSERT_TRUE(f.open(QIODevice::WriteOnly));
+    f.write(R"({
+  "name": "Tester",
+  "status": "community-local",
+  "productIds": ["0xffff"],
+  "features": {},
+  "controls": [],
+  "hotspots": {"buttons": [], "scroll": []},
+  "images": {},
+  "easySwitchSlots": []
+})");
+    f.close();
+
+    auto dev = logitune::JsonDevice::load(tmp.path());
+    ASSERT_NE(dev, nullptr);
+
+    EXPECT_EQ(dev->sourcePath(), QFileInfo(tmp.path()).canonicalFilePath());
+
+    const qint64 expected = QFileInfo(tmp.path() + "/descriptor.json")
+        .lastModified().toSecsSinceEpoch();
+    EXPECT_EQ(dev->loadedMtime(), expected);
 }

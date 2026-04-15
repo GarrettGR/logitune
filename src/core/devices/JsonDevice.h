@@ -12,6 +12,8 @@ public:
     static std::unique_ptr<JsonDevice> load(const QString& dirPath);
 
     Status status() const { return m_status; }
+    QString sourcePath() const { return m_sourcePath; }
+    qint64 loadedMtime() const { return m_loadedMtime; }
 
     QString deviceName() const override { return m_name; }
     std::vector<uint16_t> productIds() const override { return m_pids; }
@@ -43,6 +45,8 @@ private:
     QString m_frontImage, m_sideImage, m_backImage;
     QList<EasySwitchSlotPosition> m_easySwitchSlots;
     QMap<QString, ButtonAction> m_defaultGestures;
+    QString m_sourcePath;
+    qint64 m_loadedMtime = 0;
 };
 
 } // namespace logitune

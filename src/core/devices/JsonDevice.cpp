@@ -249,6 +249,9 @@ std::unique_ptr<JsonDevice> JsonDevice::load(const QString& dirPath)
         }
     }
 
+    dev->m_sourcePath = QFileInfo(dirPath).canonicalFilePath();
+    dev->m_loadedMtime = QFileInfo(filePath).lastModified().toSecsSinceEpoch();
+
     qCDebug(lcDevice) << "JsonDevice: loaded" << dev->m_name << "from" << dirPath;
     return dev;
 }
