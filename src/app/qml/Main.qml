@@ -178,9 +178,17 @@ ApplicationWindow {
         anchors { top: titleBar.bottom; left: parent.left; right: parent.right }
     }
 
+    ConflictBanner {
+        id: conflictBanner
+        anchors { top: editorToolbar.bottom; left: parent.left; right: parent.right }
+        onViewDiffRequested: function(path) {
+            console.log("View diff requested for", path)
+        }
+    }
+
     StackView {
         id: mainStack
-        anchors { top: editorToolbar.bottom; left: parent.left; right: parent.right; bottom: parent.bottom }
+        anchors { top: conflictBanner.bottom; left: parent.left; right: parent.right; bottom: parent.bottom }
         initialItem: homeViewComponent
     }
 

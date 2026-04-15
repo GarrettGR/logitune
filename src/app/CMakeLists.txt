@@ -31,7 +31,7 @@ else()
         SideNav BatteryChip LogituneSlider LogituneToggle InfoCallout
         DetailPanel KeystrokeCapture ButtonCallout ActionsPanel
         DeviceCard DeviceRender AppProfileBar Toast EditorToolbar
-        EditableText)
+        EditableText ConflictBanner)
         set_source_files_properties(qml/components/${_file}.qml
             PROPERTIES QT_RESOURCE_ALIAS qml/${_file}.qml)
     endforeach()
@@ -67,6 +67,7 @@ qt_add_qml_module(logitune-app-lib
         qml/components/Toast.qml
         qml/components/EditorToolbar.qml
         qml/components/EditableText.qml
+        qml/components/ConflictBanner.qml
         qml/pages/PointScrollPage.qml
         qml/pages/ButtonsPage.qml
         qml/pages/EasySwitchPage.qml
