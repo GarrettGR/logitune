@@ -430,3 +430,73 @@ TEST(JsonDevice, TracksSourcePathAndLoadMtime) {
         .lastModified().toSecsSinceEpoch();
     EXPECT_EQ(dev->loadedMtime(), expected);
 }
+
+TEST(JsonDevice, ParsesOptionalEditorFields) {
+    QTemporaryDir tmp;
+    ASSERT_TRUE(tmp.isValid());
+    QFile f(tmp.path() + QStringLiteral("/descriptor.json"));
+    ASSERT_TRUE(f.open(QIODevice::WriteOnly));
+    f.write(R"({
+  "name": "Tester",
+  "status": "community-local",
+  "productIds": ["0xffff"],
+  "features": {},
+  "controls": [
+    {
+      "controlId": "0x0050",
+      "buttonIndex": 0,
+      "defaultName": "Left click",
+      "defaultActionType": "default",
+      "configurable": false,
+      "displayName": "Primary Button"
+    }
+  ],
+  "hotspots": {"buttons": [], "scroll": []},
+  "images": {},
+  "easySwitchSlots": [
+    {"xPct": 0.42, "yPct": 0.78, "label": "Mac"},
+    {"xPct": 0.50, "yPct": 0.78}
+  ]
+})");
+    f.close();
+
+    auto dev = logitune::JsonDevice::load(tmp.path());
+    ASSERT_NE(dev, nullptr);
+
+    const auto controls = dev->controls();
+    ASSERT_EQ(controls.size(), 1);
+    EXPECT_EQ(controls[0].displayName, QStringLiteral("Primary Button"));
+
+    const auto slotPositions = dev->easySwitchSlotPositions();
+    ASSERT_EQ(slotPositions.size(), 2);
+    EXPECT_EQ(slotPositions[0].label, QStringLiteral("Mac"));
+    EXPECT_TRUE(slotPositions[1].label.isEmpty());
+}
+
+TEST(JsonDevice, OptionalEditorFieldsDefaultEmptyWhenAbsent) {
+    QTemporaryDir tmp;
+    ASSERT_TRUE(tmp.isValid());
+    QFile f(tmp.path() + QStringLiteral("/descriptor.json"));
+    ASSERT_TRUE(f.open(QIODevice::WriteOnly));
+    f.write(R"({
+  "name": "Tester",
+  "status": "community-local",
+  "productIds": ["0xffff"],
+  "features": {},
+  "controls": [
+    {"controlId": "0x0050", "buttonIndex": 0, "defaultName": "Left click",
+     "defaultActionType": "default", "configurable": false}
+  ],
+  "hotspots": {"buttons": [], "scroll": []},
+  "images": {},
+  "easySwitchSlots": [{"xPct": 0.1, "yPct": 0.2}]
+})");
+    f.close();
+
+    auto dev = logitune::JsonDevice::load(tmp.path());
+    ASSERT_NE(dev, nullptr);
+    for (const auto &c : dev->controls())
+        EXPECT_TRUE(c.displayName.isEmpty());
+    for (const auto &s : dev->easySwitchSlotPositions())
+        EXPECT_TRUE(s.label.isEmpty());
+}

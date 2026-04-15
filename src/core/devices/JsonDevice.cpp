@@ -99,6 +99,7 @@ static QList<ControlDescriptor> parseControls(const QJsonArray& arr)
         cd.defaultName = obj.value(QStringLiteral("defaultName")).toString();
         cd.defaultActionType = obj.value(QStringLiteral("defaultActionType")).toString();
         cd.configurable = obj.value(QStringLiteral("configurable")).toBool(false);
+        cd.displayName = obj.value(QStringLiteral("displayName")).toString();
         result.append(cd);
     }
     return result;
@@ -212,7 +213,8 @@ std::unique_ptr<JsonDevice> JsonDevice::load(const QString& dirPath)
         const QJsonObject slotObj = v.toObject();
         dev->m_easySwitchSlots.append({
             slotObj.value(QStringLiteral("xPct")).toDouble(),
-            slotObj.value(QStringLiteral("yPct")).toDouble()
+            slotObj.value(QStringLiteral("yPct")).toDouble(),
+            slotObj.value(QStringLiteral("label")).toString()
         });
     }
 
