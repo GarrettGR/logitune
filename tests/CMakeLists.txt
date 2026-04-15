@@ -14,6 +14,7 @@ add_executable(logitune-tests
     test_device_discovery.cpp
     test_action_executor.cpp
     test_device_registry.cpp
+    test_descriptor_writer.cpp
     test_smoke_mocks.cpp
     mocks/MockDesktop.cpp
     mocks/MockInjector.cpp
