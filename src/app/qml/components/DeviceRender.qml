@@ -40,6 +40,7 @@ Item {
         model: root.showHotspots ? DeviceModel.buttonHotspots.length : 0
 
         Item {
+            id: markerItem
             required property int modelData
 
             readonly property var hp: DeviceModel.buttonHotspots[modelData]
@@ -47,24 +48,28 @@ Item {
             // Skip non-configurable buttons
             visible: hp.configurable
 
-            // Dot centre in item coordinates
-            readonly property real dotCX: root.paintedX + hp.hotspotXPct * root.paintedW
-            readonly property real dotCY: root.paintedY + hp.hotspotYPct * root.paintedH
+            // Target dot centre in root coordinates
+            readonly property real targetX: root.paintedX + hp.hotspotXPct * root.paintedW
+            readonly property real targetY: root.paintedY + hp.hotspotYPct * root.paintedH
 
-            // Invisible hit zone centred on dot
+            // 24x24 hit area — follows drag in editor mode, otherwise snaps to target.
+            width: 24; height: 24
+            x: drag.active ? x : targetX - width / 2
+            y: drag.active ? y : targetY - height / 2
+
+            // Invisible click hit zone centred on dot (for button selection, non-edit mode)
             MouseArea {
-                x: dotCX - root.zoneHalfW * root.paintedW
-                y: dotCY - root.zoneHalfH * root.paintedH
+                anchors.centerIn: parent
                 width: root.zoneHalfW * root.paintedW * 2
                 height: root.zoneHalfH * root.paintedH * 2
                 cursorShape: Qt.PointingHandCursor
-                onClicked: root.buttonClicked(hp.buttonId)
+                enabled: !drag.enabled
+                onClicked: root.buttonClicked(markerItem.hp.buttonId)
             }
 
             // 18x18 hotspot circle — white for dark background
             Rectangle {
-                x: dotCX - 9
-                y: dotCY - 9
+                anchors.centerIn: parent
                 width: 18; height: 18
                 radius: 9
                 color: "transparent"
@@ -81,6 +86,27 @@ Item {
                     radius: 3
                     color: Theme.accent
                     opacity: 0.6
+                }
+            }
+
+            // Editor-mode drag handler — disabled (and effectively absent) in production.
+            DragHandler {
+                id: drag
+                enabled: typeof EditorModel !== 'undefined' && EditorModel.editing
+                target: parent
+                onActiveChanged: {
+                    if (!active) {
+                        var cx = markerItem.x + markerItem.width / 2
+                        var cy = markerItem.y + markerItem.height / 2
+                        var xPct = (cx - root.paintedX) / root.paintedW
+                        var yPct = (cy - root.paintedY) / root.paintedH
+                        xPct = Math.max(0, Math.min(1, xPct))
+                        yPct = Math.max(0, Math.min(1, yPct))
+                        EditorModel.updateHotspot(markerItem.modelData,
+                                                   xPct, yPct,
+                                                   markerItem.hp.side,
+                                                   markerItem.hp.labelOffsetYPct)
+                    }
                 }
             }
         }
