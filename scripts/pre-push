@@ -37,4 +37,12 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Extractor Python tests
+(cd scripts && python3 -m pytest ../tests/scripts/test_extractor.py -q > /dev/null 2>&1)
+if [ $? -ne 0 ]; then
+    echo "❌ Extractor pytest failed. Push aborted."
+    (cd scripts && python3 -m pytest ../tests/scripts/test_extractor.py -q 2>&1 | tail -20)
+    exit 1
+fi
+
 echo "✅ All tests passed. Pushing..."

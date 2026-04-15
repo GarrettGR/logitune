@@ -163,6 +163,8 @@ TEST(JsonDevice, LoadValidImplemented)
     // Hotspots
     EXPECT_EQ(dev->buttonHotspots().size(), 1);
     EXPECT_EQ(dev->scrollHotspots().size(), 1);
+    EXPECT_TRUE(dev->buttonHotspots()[0].kind.isEmpty())
+        << "button hotspots should default to empty kind";
 
     // Easy switch slot positions
     auto easySlots = dev->easySwitchSlotPositions();
@@ -175,6 +177,45 @@ TEST(JsonDevice, LoadValidImplemented)
     EXPECT_EQ(gestures[QStringLiteral("up")].type, ButtonAction::Default);
     EXPECT_EQ(gestures[QStringLiteral("down")].type, ButtonAction::Keystroke);
     EXPECT_EQ(gestures[QStringLiteral("down")].payload, QStringLiteral("Super+D"));
+}
+
+TEST(JsonDevice, HotspotKindRoundTrip)
+{
+    QTemporaryDir tmp;
+    ASSERT_TRUE(tmp.isValid());
+    const QString dir = tmp.path();
+
+    QJsonObject root = makeMinimalImplemented();
+    QJsonObject hotspots = root.value("hotspots").toObject();
+    QJsonArray scroll;
+
+    QJsonObject h1;
+    h1["buttonIndex"] = -1;
+    h1["xPct"] = 0.7;
+    h1["yPct"] = 0.2;
+    h1["side"] = "right";
+    h1["kind"] = "scrollwheel";
+    scroll.append(h1);
+
+    QJsonObject h2;
+    h2["buttonIndex"] = -2;
+    h2["xPct"] = 0.4;
+    h2["yPct"] = 0.5;
+    h2["side"] = "left";
+    h2["kind"] = "thumbwheel";
+    scroll.append(h2);
+
+    hotspots["scroll"] = scroll;
+    root["hotspots"] = hotspots;
+
+    writeJson(dir, root);
+    writeDummyImage(dir, QStringLiteral("front.png"));
+
+    auto dev = JsonDevice::load(dir);
+    ASSERT_NE(dev, nullptr);
+    ASSERT_EQ(dev->scrollHotspots().size(), 2);
+    EXPECT_EQ(dev->scrollHotspots()[0].kind, QStringLiteral("scrollwheel"));
+    EXPECT_EQ(dev->scrollHotspots()[1].kind, QStringLiteral("thumbwheel"));
 }
 
 TEST(JsonDevice, LoadValidPlaceholder)

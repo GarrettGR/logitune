@@ -115,6 +115,7 @@ static QList<HotspotDescriptor> parseHotspots(const QJsonArray& arr)
         hd.yPct = obj.value(QStringLiteral("yPct")).toDouble();
         hd.side = obj.value(QStringLiteral("side")).toString();
         hd.labelOffsetYPct = obj.value(QStringLiteral("labelOffsetYPct")).toDouble(0.0);
+        hd.kind = obj.value(QStringLiteral("kind")).toString();
         result.append(hd);
     }
     return result;
