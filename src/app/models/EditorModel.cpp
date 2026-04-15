@@ -1,13 +1,45 @@
 #include "EditorModel.h"
 #include "DeviceRegistry.h"
+#include "devices/JsonDevice.h"
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonArray>
 
 namespace logitune {
 
 EditorModel::EditorModel(DeviceRegistry *registry, bool editing, QObject *parent)
-    : QObject(parent), m_registry(registry), m_editing(editing) {}
+    : QObject(parent), m_registry(registry), m_editing(editing) {
+    m_watcher = new QFileSystemWatcher(this);
+    connect(m_watcher, &QFileSystemWatcher::fileChanged,
+            this, &EditorModel::onExternalFileChanged);
+
+    if (m_registry) {
+        for (const auto &dev : m_registry->devices()) {
+            if (auto *jd = dynamic_cast<const JsonDevice*>(dev.get())) {
+                m_watcher->addPath(jd->sourcePath() + QStringLiteral("/descriptor.json"));
+            }
+        }
+    }
+}
+
+void EditorModel::onExternalFileChanged(const QString &filePath) {
+    const QString devicePath = QFileInfo(filePath).absolutePath();
+    const QString canonical = QFileInfo(devicePath).canonicalFilePath();
+
+    if (m_selfWrittenPaths.contains(canonical)) {
+        m_selfWrittenPaths.remove(canonical);
+        return;
+    }
+
+    if (m_dirty.contains(canonical)) {
+        emit externalChangeDetected(canonical);
+        return;
+    }
+
+    if (m_registry)
+        m_registry->reload(canonical);
+}
 
 bool EditorModel::canUndo() const {
     auto it = m_undoStacks.find(m_activeDevicePath);

@@ -5,6 +5,7 @@
 #include <QSet>
 #include <QStack>
 #include <QJsonObject>
+#include <QFileSystemWatcher>
 #include "EditCommand.h"
 #include "devices/DescriptorWriter.h"
 
@@ -39,6 +40,7 @@ public slots:
     Q_INVOKABLE void save();
     Q_INVOKABLE void reset();
     Q_INVOKABLE void replaceImage(const QString &role, const QString &sourcePath);
+    void onExternalFileChanged(const QString &filePath);
 
 signals:
     void dirtyChanged();
@@ -46,6 +48,7 @@ signals:
     void activeDevicePathChanged();
     void saved(const QString &path);
     void saveFailed(const QString &path, const QString &error);
+    void externalChangeDetected(const QString &path);
 
 private:
     void ensurePending(const QString &path);
@@ -61,6 +64,7 @@ private:
     QSet<QString> m_dirty;
     DescriptorWriter m_writer;
     QSet<QString> m_selfWrittenPaths;
+    QFileSystemWatcher *m_watcher = nullptr;
 };
 
 } // namespace logitune

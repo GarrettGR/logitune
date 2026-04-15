@@ -271,3 +271,34 @@ TEST(EditorModel, ReplaceImageCopiesFileAndUpdatesPending) {
     EXPECT_TRUE(m.canUndo());
     EXPECT_TRUE(QFile::exists(path + QStringLiteral("/back.png")));
 }
+
+TEST(EditorModel, ExternalChangeSilentReloadWhenNotDirty) {
+    QTemporaryDir tmp; ASSERT_TRUE(tmp.isValid());
+    const QString path = writeMinimalDescriptor(tmp.path() + QStringLiteral("/dev"));
+
+    logitune::DeviceRegistry reg;
+    logitune::EditorModel m(&reg, true);
+    m.setActiveDevicePath(path);
+
+    QSignalSpy externalSpy(&m, &logitune::EditorModel::externalChangeDetected);
+    m.onExternalFileChanged(path + QStringLiteral("/descriptor.json"));
+
+    EXPECT_EQ(externalSpy.count(), 0);
+}
+
+TEST(EditorModel, ExternalChangeWhileDirtyEmitsConflictSignal) {
+    QTemporaryDir tmp; ASSERT_TRUE(tmp.isValid());
+    const QString path = writeMinimalDescriptor(tmp.path() + QStringLiteral("/dev"));
+
+    logitune::DeviceRegistry reg;
+    logitune::EditorModel m(&reg, true);
+    m.setActiveDevicePath(path);
+    m.updateSlotPosition(0, 0.99, 0.99);
+
+    QSignalSpy externalSpy(&m, &logitune::EditorModel::externalChangeDetected);
+    m.onExternalFileChanged(path + QStringLiteral("/descriptor.json"));
+
+    EXPECT_EQ(externalSpy.count(), 1);
+    EXPECT_EQ(externalSpy.first().first().toString(), path);
+    EXPECT_TRUE(m.hasUnsavedChanges());
+}
