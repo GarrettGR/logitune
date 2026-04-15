@@ -87,6 +87,8 @@ public:
     const QList<PhysicalDevice *> &devices() const;
     Q_INVOKABLE void moveDevice(int from, int to);
 
+    const IDevice *activeDevice() const;
+
     void setDesktopIntegration(IDesktopIntegration *desktop);
     Q_INVOKABLE void blockGlobalShortcuts(bool block);
     Q_INVOKABLE QVariantList runningApplications() const;

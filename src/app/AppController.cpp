@@ -1,4 +1,5 @@
 #include "AppController.h"
+#include "devices/JsonDevice.h"
 #include "models/EditorModel.h"
 #include "desktop/KDeDesktop.h"
 #include "desktop/GnomeDesktop.h"
@@ -75,6 +76,18 @@ void AppController::startMonitoring(bool simulateAll, bool editMode)
     if (editMode) {
         m_editorModel = std::make_unique<EditorModel>(&m_registry, true, this);
         qCInfo(lcApp) << "--edit: editor mode active";
+
+        auto syncActive = [this]() {
+            if (!m_editorModel)
+                return;
+            const IDevice *dev = m_deviceModel.activeDevice();
+            if (auto *jd = dynamic_cast<const JsonDevice *>(dev))
+                m_editorModel->setActiveDevicePath(jd->sourcePath());
+            else
+                m_editorModel->setActiveDevicePath(QString());
+        };
+        connect(&m_deviceModel, &DeviceModel::selectedChanged, this, syncActive);
+        syncActive();
     }
     if (simulateAll) {
         // --simulate-all: populate the carousel with one fake session per

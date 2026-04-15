@@ -341,6 +341,12 @@ PhysicalDevice *DeviceModel::selectedDevice() const
     return nullptr;
 }
 
+const IDevice *DeviceModel::activeDevice() const
+{
+    auto *s = selectedDevice();
+    return s ? s->descriptor() : nullptr;
+}
+
 // ---------------------------------------------------------------------------
 // Desktop integration
 // ---------------------------------------------------------------------------
