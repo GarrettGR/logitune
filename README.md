@@ -134,4 +134,4 @@ C++20 · Qt 6 Quick · CMake · HID++ 2.0 · GTest
 
 ## 📄 License
 
-GPL-3.0
+[GPL-3.0-only](https://spdx.org/licenses/GPL-3.0-only.html)
