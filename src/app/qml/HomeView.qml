@@ -80,6 +80,10 @@ Item {
             preferredHighlightEnd: 0.5
             highlightRangeMode: PathView.StrictlyEnforceRange
             interactive: DeviceModel.count > 1
+            flickDeceleration: 800
+            maximumFlickVelocity: 4000
+            snapMode: PathView.SnapToItem
+            highlightMoveDuration: 300
 
             path: Path {
                 startX: 0; startY: carousel.height / 2
@@ -103,24 +107,42 @@ Item {
             }
         }
 
-        // Dot indicators
-        Row {
+        // Counter text
+        Text {
+            anchors {
+                horizontalCenter: parent.horizontalCenter
+                bottom: scrollTrack.top
+                bottomMargin: 6
+            }
+            text: (DeviceModel.selectedIndex + 1) + " / " + DeviceModel.count
+            font.pixelSize: 11
+            color: Theme.textSecondary
+            visible: DeviceModel.count > 1
+        }
+
+        // Scroll indicator — thin track with highlighted segment
+        Rectangle {
+            id: scrollTrack
             anchors {
                 horizontalCenter: parent.horizontalCenter
                 bottom: parent.bottom
                 bottomMargin: 12
             }
-            spacing: 8
+            width: Math.min(200, parent.width * 0.3)
+            height: 3
+            radius: 1.5
+            color: Theme.border
             visible: DeviceModel.count > 1
 
-            Repeater {
-                model: DeviceModel.count
-                Rectangle {
-                    required property int index
-                    width: 8; height: 8; radius: 4
-                    color: index === DeviceModel.selectedIndex ? Theme.accent : Theme.border
-                    Behavior on color { ColorAnimation { duration: 200 } }
-                }
+            Rectangle {
+                height: parent.height
+                radius: parent.radius
+                color: Theme.accent
+                width: Math.max(12, parent.width / Math.max(1, DeviceModel.count))
+                x: DeviceModel.count > 1
+                    ? (DeviceModel.selectedIndex / (DeviceModel.count - 1)) * (parent.width - width)
+                    : 0
+                Behavior on x { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             }
         }
 
