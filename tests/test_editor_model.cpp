@@ -17,7 +17,7 @@ QString writeMinimalDescriptor(const QString &dir) {
     f.open(QIODevice::WriteOnly | QIODevice::Truncate);
     f.write(R"({
   "name": "Tester",
-  "status": "community-local",
+  "status": "beta",
   "productIds": ["0xffff"],
   "features": {},
   "controls": [],
@@ -82,7 +82,7 @@ TEST(EditorModel, UpdateHotspotMutatesPendingAndPushesUndo) {
     QFile f(tmp.path() + QStringLiteral("/dev/descriptor.json"));
     ASSERT_TRUE(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
     f.write(R"({
-  "name": "Tester", "status": "community-local", "productIds": ["0xffff"],
+  "name": "Tester", "status": "beta", "productIds": ["0xffff"],
   "features": {}, "controls": [],
   "hotspots": {
     "buttons": [
@@ -111,7 +111,7 @@ TEST(EditorModel, UpdateScrollHotspotMutatesScrollArray) {
     QFile f(tmp.path() + QStringLiteral("/dev/descriptor.json"));
     ASSERT_TRUE(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
     f.write(R"({
-  "name": "Tester", "status": "community-local", "productIds": ["0xffff"],
+  "name": "Tester", "status": "beta", "productIds": ["0xffff"],
   "features": {}, "controls": [],
   "hotspots": {
     "buttons": [],
@@ -165,7 +165,7 @@ TEST(EditorModel, UpdateTextEditsAllThreeKindsAndUndoes) {
     QFile f(tmp.path() + QStringLiteral("/dev/descriptor.json"));
     ASSERT_TRUE(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
     f.write(R"({
-  "name": "Original Name", "status": "community-local", "productIds": ["0xffff"],
+  "name": "Original Name", "status": "beta", "productIds": ["0xffff"],
   "features": {},
   "controls": [
     {"controlId": "0x0050", "buttonIndex": 0, "defaultName": "Left", "defaultActionType": "default", "configurable": false}

@@ -27,7 +27,7 @@ Item {
         fillMode: Image.PreserveAspectFit
         smooth: true; mipmap: true
 
-        opacity: root.status === "placeholder" ? 0.4 : 1.0
+        opacity: root.status === "beta" ? 0.8 : 1.0
     }
 
     Rectangle {
@@ -38,23 +38,19 @@ Item {
 
         color: {
             switch (root.status) {
-            case "implemented": return "#22c55e";
-            case "community-verified": return "#3b82f6";
-            case "community-local": return "#f59e0b";
-            default: return "#666";
+            case "verified": return "#22c55e";
+            default:         return "#f59e0b";
             }
         }
 
         Text {
             anchors.centerIn: parent
             font.pixelSize: 12; font.bold: true
-            color: root.status === "community-local" ? "#222" : "#fff"
+            color: "#fff"
             text: {
                 switch (root.status) {
-                case "implemented": return "\u2713";
-                case "community-verified": return "\u2605";
-                case "community-local": return "\u270E";
-                default: return "?";
+                case "verified": return "\u2713";
+                default:         return "\u03B2";
                 }
             }
         }
@@ -64,13 +60,13 @@ Item {
         anchors { top: deviceImg.bottom; topMargin: 8; horizontalCenter: parent.horizontalCenter }
         text: root.deviceName
         font { pixelSize: root.isSelected ? 13 : 11; bold: root.isSelected }
-        color: root.status === "placeholder" ? "#666" : (root.isSelected ? Theme.text : "#888")
+        color: root.isSelected ? Theme.text : "#888"
     }
 
     Row {
         anchors { top: deviceImg.bottom; topMargin: 26; horizontalCenter: parent.horizontalCenter }
         spacing: 6
-        visible: root.isSelected && root.status !== "placeholder"
+        visible: root.isSelected
 
         Text {
             text: root.batteryLevel + "%"
@@ -82,14 +78,6 @@ Item {
             font.pixelSize: 10
             color: Theme.textSecondary
         }
-    }
-
-    Text {
-        anchors { top: deviceImg.bottom; topMargin: 26; horizontalCenter: parent.horizontalCenter }
-        visible: root.status === "placeholder"
-        text: "Setup needed"
-        font.pixelSize: 9
-        color: "#666"
     }
 
     MouseArea {
