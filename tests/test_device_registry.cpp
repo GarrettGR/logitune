@@ -162,7 +162,7 @@ TEST(DeviceRegistry, ReloadByPathRefreshesSingleDevice) {
         QFile f(descPath);
         if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
             return false;
-        f.write(QStringLiteral(R"({"name":"%1","status":"community-local","productIds":["0xffff"],"features":{},"controls":[],"hotspots":{"buttons":[],"scroll":[]},"images":{},"easySwitchSlots":[]})").arg(name).toUtf8());
+        f.write(QStringLiteral(R"({"name":"%1","status":"beta","productIds":["0xffff"],"features":{},"controls":[],"hotspots":{"buttons":[],"scroll":[]},"images":{},"easySwitchSlots":[]})").arg(name).toUtf8());
         f.close();
         return true;
     };

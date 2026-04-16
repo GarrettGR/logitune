@@ -8,7 +8,7 @@ namespace logitune {
 
 class JsonDevice : public IDevice {
 public:
-    enum class Status { Implemented, CommunityVerified, CommunityLocal, Placeholder };
+    enum class Status { Verified, Beta };
 
     static std::unique_ptr<JsonDevice> load(const QString& dirPath);
 
@@ -40,7 +40,7 @@ private:
     bool parseFromDir(const QString& dirPath);
     bool parseFromObject(const QJsonObject& root, const QString& dirPath, bool strict = true);
 
-    Status m_status = Status::Placeholder;
+    Status m_status = Status::Beta;
     QString m_name;
     std::vector<uint16_t> m_pids;
     FeatureSupport m_features;
