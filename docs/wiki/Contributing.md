@@ -173,6 +173,23 @@ Before opening a pull request, verify:
 - [ ] Commit messages follow conventional commit format
 - [ ] PR description explains what and why (not how)
 
+## Adding a device
+
+The preferred path for new device descriptors is the in-app editor:
+
+1. Fork the repo and bootstrap a `descriptor.json` for your device
+   (see [Adding a Device](Adding-a-Device) for the JSON schema).
+2. Run `logitune --edit` (pair with `--simulate-all` if you do not
+   own the hardware) and use the editor to position hotspots, drop in
+   device images, and polish labels.
+3. Save. `git diff devices/<slug>/` should show the in-memory changes
+   you made.
+4. Submit a PR with `"status": "beta"` unless you have
+   hardware-verified the descriptor.
+
+For the full walkthrough, see [Editor Mode](Editor-Mode) and
+[Adding a Device](Adding-a-Device).
+
 ## Where to Find Things
 
 | You want to... | Look in... |
