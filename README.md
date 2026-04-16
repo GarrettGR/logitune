@@ -27,41 +27,44 @@
 - 📡 **HID++ 2.0** — direct communication via Bolt receiver, no daemon needed
 - 🔄 **Disconnect/reconnect** — automatic re-enumeration and profile reapplication
 - 🖥️ **KDE + GNOME** — native focus tracking on both desktops
+- 🛠️ **In-app descriptor editor**: launch with `--edit` to position hotspots, upload images, and tune labels without hand-editing JSON. [Learn more](https://github.com/mmaher88/logitune/wiki/Editor-Mode)
 
 ## 📸 Screenshots
 
-<table>
-<tr>
-<td width="50%">
-<img src="docs/images/buttons-page.jpeg" alt="Buttons Page">
-<p align="center"><em>Button remapping with callout cards</em></p>
-</td>
-<td width="50%">
-<img src="docs/images/buttons-actions-panel.jpeg" alt="Actions Panel">
-<p align="center"><em>Action selection panel</em></p>
-</td>
-</tr>
-<tr>
-<td>
-<img src="docs/images/point-scroll-page.jpeg" alt="Point & Scroll">
-<p align="center"><em>Scroll, thumb wheel & pointer speed</em></p>
-</td>
-<td>
-<img src="docs/images/point-scroll-detail-panel.jpeg" alt="Scroll Settings">
-<p align="center"><em>Scroll direction, SmartShift, smooth scrolling</em></p>
-</td>
-</tr>
-<tr>
-<td>
-<img src="docs/images/settings-page.jpeg" alt="Settings">
-<p align="center"><em>Device info, dark mode, debug logging</em></p>
-</td>
-<td>
-<img src="docs/images/easy-switch-page.jpeg" alt="Easy-Switch">
-<p align="center"><em>Easy-Switch channel management</em></p>
-</td>
-</tr>
-</table>
+<p align="center">
+  <img src="docs/images/buttons-actions-panel.jpeg" alt="Actions Panel" width="800">
+  <br>
+  <em>Action selection panel</em>
+</p>
+
+<details>
+<summary><strong>More screenshots</strong></summary>
+
+<p align="center">
+  <img src="docs/images/point-scroll-page.jpeg" alt="Point &amp; Scroll" width="800">
+  <br>
+  <em>Scroll, thumb wheel &amp; pointer speed</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/point-scroll-detail-panel.jpeg" alt="Scroll Settings" width="800">
+  <br>
+  <em>Scroll direction, SmartShift, smooth scrolling</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/easy-switch-page.jpeg" alt="Easy-Switch" width="800">
+  <br>
+  <em>Easy-Switch channel management</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/settings-page.jpeg" alt="Settings" width="800">
+  <br>
+  <em>Device info, dark mode, debug logging</em>
+</p>
+
+</details>
 
 ## 🚀 Install
 
@@ -106,11 +109,15 @@ logitune
 
 ## 🖱️ Supported Devices
 
-| Device | Status |
-|--------|--------|
-| MX Master 3S (Bolt) | ✅ Full support |
-| MX Master 3S (Bluetooth) | ✅ Full support |
-| Other Logitech HID++ 2.0 | 🔧 Add via [device descriptor](https://github.com/mmaher88/logitune/wiki/Adding-a-Device) |
+| Device | Status | Battery | DPI | SmartShift | Thumb wheel | Button remap | Gestures | Smooth scroll | Easy-Switch |
+|--------|:------:|:------:|:---:|:----------:|:-----------:|:------------:|:--------:|:-------------:|:-----------:|
+| MX Master 3S | ✅ Verified | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| MX Master 2S | ✅ Verified | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| MX Master 4  | ✅ Verified | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ off | ✅ |
+
+> **MX Master 4 smooth scrolling** is disabled in the shipped descriptor: the hardware does not respond correctly to the HID++ configuration used on MX Master 2S / 3S. Regular scroll wheel and SmartShift work normally; only sub-tick smoothing is unavailable. Re-enable yourself by setting `"smoothScroll": true` in `devices/mx-master-4/descriptor.json` if your unit behaves differently; if it works we will promote the default.
+
+Other Logitech HID++ 2.0 devices can be added by contributing a [device descriptor](https://github.com/mmaher88/logitune/wiki/Adding-a-Device). See [Device Support Status](https://github.com/mmaher88/logitune/wiki/Getting-Started#device-support-status) for what the badges mean.
 
 ## 🖥️ Desktop Environment Support
 
