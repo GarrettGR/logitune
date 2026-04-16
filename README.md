@@ -27,6 +27,7 @@
 - 📡 **HID++ 2.0** — direct communication via Bolt receiver, no daemon needed
 - 🔄 **Disconnect/reconnect** — automatic re-enumeration and profile reapplication
 - 🖥️ **KDE + GNOME** — native focus tracking on both desktops
+- 🛠️ **In-app descriptor editor**: launch with `--edit` to position hotspots, upload images, and tune labels without hand-editing JSON. [Learn more](https://github.com/mmaher88/logitune/wiki/Editor-Mode)
 
 ## 📸 Screenshots
 
@@ -106,11 +107,14 @@ logitune
 
 ## 🖱️ Supported Devices
 
-| Device | Status |
-|--------|--------|
-| MX Master 3S (Bolt) | ✅ Full support |
-| MX Master 3S (Bluetooth) | ✅ Full support |
-| Other Logitech HID++ 2.0 | 🔧 Add via [device descriptor](https://github.com/mmaher88/logitune/wiki/Adding-a-Device) |
+| Device | Status | Connection |
+|--------|--------|------------|
+| MX Master 3S | ✅ Verified | Bolt / Bluetooth |
+| MX Master 2S | ✅ Verified | Bolt / Bluetooth / Unifying |
+| MX Master 4 | ✅ Verified | Bolt / Bluetooth |
+| Other Logitech HID++ 2.0 | 🔧 Add via [device descriptor](https://github.com/mmaher88/logitune/wiki/Adding-a-Device) | varies |
+
+See [Device Support Status](https://github.com/mmaher88/logitune/wiki/Getting-Started#device-support-status) for what the badges mean.
 
 ## 🖥️ Desktop Environment Support
 
