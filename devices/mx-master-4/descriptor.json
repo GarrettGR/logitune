@@ -1,6 +1,6 @@
 {
   "name": "MX Master 4",
-  "status": "implemented",
+  "status": "verified",
   "productIds": ["0xb042"],
   "features": {
     "battery": true,

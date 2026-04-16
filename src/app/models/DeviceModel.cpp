@@ -58,14 +58,12 @@ QVariant DeviceModel::data(const QModelIndex &index, int role) const
         if (!device->descriptor())
             return QStringLiteral("unknown");
         auto* json = dynamic_cast<const JsonDevice*>(device->descriptor());
-        if (!json) return QStringLiteral("implemented");
+        if (!json) return QStringLiteral("beta");
         switch (json->status()) {
-        case JsonDevice::Status::Implemented:       return QStringLiteral("implemented");
-        case JsonDevice::Status::CommunityVerified: return QStringLiteral("community-verified");
-        case JsonDevice::Status::CommunityLocal:    return QStringLiteral("community-local");
-        case JsonDevice::Status::Placeholder:       return QStringLiteral("placeholder");
+        case JsonDevice::Status::Verified: return QStringLiteral("verified");
+        case JsonDevice::Status::Beta:     return QStringLiteral("beta");
         }
-        return QStringLiteral("unknown");
+        return QStringLiteral("beta");
     }
     case IsSelectedRole:
         return index.row() == m_selectedIndex;
@@ -776,14 +774,12 @@ QString DeviceModel::deviceStatus() const
         return QStringLiteral("unknown");
     auto* json = dynamic_cast<const JsonDevice*>(s->descriptor());
     if (!json)
-        return QStringLiteral("implemented");
+        return QStringLiteral("beta");
     switch (json->status()) {
-    case JsonDevice::Status::Implemented:       return QStringLiteral("implemented");
-    case JsonDevice::Status::CommunityVerified: return QStringLiteral("community-verified");
-    case JsonDevice::Status::CommunityLocal:    return QStringLiteral("community-local");
-    case JsonDevice::Status::Placeholder:       return QStringLiteral("placeholder");
+    case JsonDevice::Status::Verified: return QStringLiteral("verified");
+    case JsonDevice::Status::Beta:     return QStringLiteral("beta");
     }
-    return QStringLiteral("unknown");
+    return QStringLiteral("beta");
 }
 
 } // namespace logitune

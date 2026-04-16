@@ -21,13 +21,9 @@ bool JsonDevice::matchesPid(uint16_t pid) const
 
 static JsonDevice::Status parseStatus(const QString& s)
 {
-    if (s == QStringLiteral("implemented"))
-        return JsonDevice::Status::Implemented;
-    if (s == QStringLiteral("community-verified"))
-        return JsonDevice::Status::CommunityVerified;
-    if (s == QStringLiteral("community-local"))
-        return JsonDevice::Status::CommunityLocal;
-    return JsonDevice::Status::Placeholder;
+    if (s == QStringLiteral("verified") || s == QStringLiteral("implemented"))
+        return JsonDevice::Status::Verified;
+    return JsonDevice::Status::Beta;
 }
 
 static ButtonAction::Type parseButtonActionType(const QString& s)
@@ -219,8 +215,7 @@ bool JsonDevice::parseFromObject(const QJsonObject& root, const QString& dirPath
     m_defaultGestures = parseDefaultGestures(
         root.value(QStringLiteral("defaultGestures")).toObject());
 
-    const bool strictGate = strict && (m_status == Status::Implemented
-                                       || m_status == Status::CommunityVerified);
+    const bool strictGate = strict && (m_status == Status::Verified);
 
     if (strict && m_name.isEmpty()) {
         qCWarning(lcDevice) << "JsonDevice: missing name in" << filePath;
@@ -234,11 +229,11 @@ bool JsonDevice::parseFromObject(const QJsonObject& root, const QString& dirPath
 
     if (strictGate) {
         if (m_controls.isEmpty()) {
-            qCWarning(lcDevice) << "JsonDevice: implemented device has no controls in" << filePath;
+            qCWarning(lcDevice) << "JsonDevice: verified device has no controls in" << filePath;
             return false;
         }
         if (m_buttonHotspots.isEmpty()) {
-            qCWarning(lcDevice) << "JsonDevice: implemented device has no button hotspots in" << filePath;
+            qCWarning(lcDevice) << "JsonDevice: verified device has no button hotspots in" << filePath;
             return false;
         }
         if (!QFileInfo::exists(m_frontImage)) {
@@ -278,7 +273,7 @@ bool JsonDevice::refresh()
     m_backImage.clear();
     m_features = FeatureSupport{};
     m_name.clear();
-    m_status = Status::Placeholder;
+    m_status = Status::Beta;
     m_minDpi = 200;
     m_maxDpi = 8000;
     m_dpiStep = 50;
@@ -302,7 +297,7 @@ bool JsonDevice::refreshFromObject(const QJsonObject &root)
     m_backImage.clear();
     m_features = FeatureSupport{};
     m_name.clear();
-    m_status = Status::Placeholder;
+    m_status = Status::Beta;
     m_minDpi = 200;
     m_maxDpi = 8000;
     m_dpiStep = 50;
