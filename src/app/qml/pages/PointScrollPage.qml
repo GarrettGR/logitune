@@ -151,8 +151,20 @@ Item {
             // ── Scroll wheel callout — positioned from descriptor hotspot [0]
             InfoCallout {
                 id: scrollCallout
-                readonly property var hs: renderGroup.hotspotByKind("scrollwheel", 0)
-                readonly property int hsIdx: renderGroup.hotspotIndexByKind("scrollwheel", 0)
+                readonly property var hs: {
+                    var d = renderGroup.scrollHotspotsData
+                    if (!d) return null
+                    for (var i = 0; i < d.length; i++)
+                        if (d[i].kind === "scrollwheel") return d[i]
+                    return d.length > 0 ? d[0] : null
+                }
+                readonly property int hsIdx: {
+                    var d = renderGroup.scrollHotspotsData
+                    if (!d) return -1
+                    for (var i = 0; i < d.length; i++)
+                        if (d[i].kind === "scrollwheel") return i
+                    return d.length > 0 ? 0 : -1
+                }
                 readonly property real hsX: hs ? hs.xPct : 0.73
                 readonly property real hsY: hs ? hs.yPct : 0.16
                 readonly property real hsOffY: hs ? hs.labelOffsetYPct : 0
@@ -186,8 +198,20 @@ Item {
             // ── Thumb wheel callout — positioned from descriptor hotspot [1]
             InfoCallout {
                 id: thumbCallout
-                readonly property var hs: renderGroup.hotspotByKind("thumbwheel", 1)
-                readonly property int hsIdx: renderGroup.hotspotIndexByKind("thumbwheel", 1)
+                readonly property var hs: {
+                    var d = renderGroup.scrollHotspotsData
+                    if (!d) return null
+                    for (var i = 0; i < d.length; i++)
+                        if (d[i].kind === "thumbwheel") return d[i]
+                    return d.length > 1 ? d[1] : null
+                }
+                readonly property int hsIdx: {
+                    var d = renderGroup.scrollHotspotsData
+                    if (!d) return -1
+                    for (var i = 0; i < d.length; i++)
+                        if (d[i].kind === "thumbwheel") return i
+                    return d.length > 1 ? 1 : -1
+                }
                 readonly property real hsX: hs ? hs.xPct : 0.55
                 readonly property real hsY: hs ? hs.yPct : 0.51
                 readonly property real hsOffY: hs ? hs.labelOffsetYPct : 0
@@ -216,8 +240,20 @@ Item {
             // ── Pointer speed callout — positioned from descriptor hotspot [2]
             InfoCallout {
                 id: pointerCallout
-                readonly property var hs: renderGroup.hotspotByKind("pointer", 2)
-                readonly property int hsIdx: renderGroup.hotspotIndexByKind("pointer", 2)
+                readonly property var hs: {
+                    var d = renderGroup.scrollHotspotsData
+                    if (!d) return null
+                    for (var i = 0; i < d.length; i++)
+                        if (d[i].kind === "pointer") return d[i]
+                    return d.length > 2 ? d[2] : null
+                }
+                readonly property int hsIdx: {
+                    var d = renderGroup.scrollHotspotsData
+                    if (!d) return -1
+                    for (var i = 0; i < d.length; i++)
+                        if (d[i].kind === "pointer") return i
+                    return d.length > 2 ? 2 : -1
+                }
                 readonly property real hsX: hs ? hs.xPct : 0.83
                 readonly property real hsY: hs ? hs.yPct : 0.54
                 readonly property real hsOffY: hs ? hs.labelOffsetYPct : 0

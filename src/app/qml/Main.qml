@@ -176,6 +176,7 @@ ApplicationWindow {
     EditorToolbar {
         id: editorToolbar
         anchors { top: titleBar.bottom; left: parent.left; right: parent.right }
+        onDevicePage: mainStack.depth > 1
     }
 
     ConflictBanner {

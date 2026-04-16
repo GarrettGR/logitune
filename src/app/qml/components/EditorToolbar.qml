@@ -5,162 +5,105 @@ import Logitune
 
 Rectangle {
     id: root
-    visible: typeof EditorModel !== 'undefined' && EditorModel.editing
+    property bool onDevicePage: false
+    visible: typeof EditorModel !== 'undefined' && EditorModel.editing && onDevicePage
     height: visible ? 36 : 0
     color: Theme.cardBg
     border.color: Theme.border
     border.width: visible ? 1 : 0
 
+    component ToolBtn : Rectangle {
+        id: btn
+        property bool btnEnabled: true
+        property bool primary: false
+        property string icon: ""
+        property string tooltip: ""
+        signal pressed()
+
+        implicitWidth: 32
+        implicitHeight: 28
+        radius: 4
+        opacity: btnEnabled ? 1.0 : 0.4
+        color: primary && btnEnabled
+            ? (btnHover.hovered ? Theme.accentHover : Theme.accent)
+            : (btnHover.hovered && btnEnabled ? Theme.hoverBg : Theme.inputBg)
+        Behavior on color { ColorAnimation { duration: 150 } }
+        Layout.alignment: Qt.AlignVCenter
+
+        Text {
+            anchors.centerIn: parent
+            text: btn.icon
+            font.pixelSize: 16
+            color: btn.primary && btn.btnEnabled ? Theme.activeTabText : Theme.text
+        }
+
+        HoverHandler { id: btnHover }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: btn.btnEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: if (btn.btnEnabled) btn.pressed()
+            hoverEnabled: true
+            ToolTip.visible: btnHover.hovered && btn.tooltip
+            ToolTip.text: btn.tooltip
+            ToolTip.delay: 500
+        }
+    }
+
     RowLayout {
         anchors.fill: parent
         anchors.leftMargin: 12
         anchors.rightMargin: 12
-        spacing: 6
+        spacing: 4
 
-        // Path breadcrumb
+        ToolBtn {
+            icon: "\u2713"
+            tooltip: "Save"
+            primary: true
+            btnEnabled: root.visible && EditorModel.hasUnsavedChanges
+            onPressed: EditorModel.save()
+        }
+        ToolBtn {
+            icon: "\u21BA"
+            tooltip: "Reset"
+            btnEnabled: root.visible && EditorModel.hasUnsavedChanges
+            onPressed: EditorModel.reset()
+        }
+        ToolBtn {
+            icon: "\u21B6"
+            tooltip: "Undo"
+            btnEnabled: root.visible && EditorModel.canUndo
+            onPressed: EditorModel.undo()
+        }
+        ToolBtn {
+            icon: "\u21B7"
+            tooltip: "Redo"
+            btnEnabled: root.visible && EditorModel.canRedo
+            onPressed: EditorModel.redo()
+        }
+
+        Item { Layout.fillWidth: true }
+
         Text {
-            id: pathLabel
+            visible: root.visible && EditorModel.activeDevicePath
             text: root.visible && EditorModel.activeDevicePath
                   ? "\u2026/" + EditorModel.activeDevicePath.split("/").slice(-2).join("/")
                   : ""
             font.pixelSize: 11
             color: Theme.textSecondary
             elide: Text.ElideLeft
-            Layout.fillWidth: true
         }
 
-        // Unsaved-changes indicator
         Rectangle {
             visible: root.visible && EditorModel.hasUnsavedChanges
             width: 6; height: 6; radius: 3
             color: Theme.accent
+            Layout.leftMargin: 4
         }
         Text {
             visible: root.visible && EditorModel.hasUnsavedChanges
-            text: "Unsaved changes"
+            text: "Unsaved"
             font.pixelSize: 10
             color: Theme.accent
-        }
-
-        // --- Action buttons ---
-
-        // Undo
-        Rectangle {
-            id: undoBtn
-            property bool btnEnabled: root.visible && EditorModel.canUndo
-            implicitWidth: undoRow.implicitWidth + 16
-            implicitHeight: 28
-            radius: 4
-            opacity: btnEnabled ? 1.0 : 0.4
-            color: undoHover.hovered && btnEnabled ? Theme.hoverBg : Theme.inputBg
-            Behavior on color { ColorAnimation { duration: 150 } }
-            Layout.alignment: Qt.AlignVCenter
-
-            Row {
-                id: undoRow
-                anchors.centerIn: parent
-                spacing: 4
-                Text { text: "\u21B6"; font.pixelSize: 14; color: Theme.text }
-                Text { text: "Undo"; font.pixelSize: 11; font.bold: true; color: Theme.text }
-            }
-            HoverHandler { id: undoHover }
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: parent.btnEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: if (parent.btnEnabled) EditorModel.undo()
-            }
-        }
-
-        // Redo
-        Rectangle {
-            id: redoBtn
-            property bool btnEnabled: root.visible && EditorModel.canRedo
-            implicitWidth: redoRow.implicitWidth + 16
-            implicitHeight: 28
-            radius: 4
-            opacity: btnEnabled ? 1.0 : 0.4
-            color: redoHover.hovered && btnEnabled ? Theme.hoverBg : Theme.inputBg
-            Behavior on color { ColorAnimation { duration: 150 } }
-            Layout.alignment: Qt.AlignVCenter
-
-            Row {
-                id: redoRow
-                anchors.centerIn: parent
-                spacing: 4
-                Text { text: "\u21B7"; font.pixelSize: 14; color: Theme.text }
-                Text { text: "Redo"; font.pixelSize: 11; font.bold: true; color: Theme.text }
-            }
-            HoverHandler { id: redoHover }
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: parent.btnEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: if (parent.btnEnabled) EditorModel.redo()
-            }
-        }
-
-        // Reset
-        Rectangle {
-            id: resetBtn
-            property bool btnEnabled: root.visible && EditorModel.hasUnsavedChanges
-            implicitWidth: resetRow.implicitWidth + 16
-            implicitHeight: 28
-            radius: 4
-            opacity: btnEnabled ? 1.0 : 0.4
-            color: resetHover.hovered && btnEnabled ? Theme.hoverBg : Theme.inputBg
-            Behavior on color { ColorAnimation { duration: 150 } }
-            Layout.alignment: Qt.AlignVCenter
-
-            Row {
-                id: resetRow
-                anchors.centerIn: parent
-                spacing: 4
-                Text { text: "\u21BA"; font.pixelSize: 14; color: Theme.text }
-                Text { text: "Reset"; font.pixelSize: 11; font.bold: true; color: Theme.text }
-            }
-            HoverHandler { id: resetHover }
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: parent.btnEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: if (parent.btnEnabled) EditorModel.reset()
-            }
-        }
-
-        // Save (primary action — accent color)
-        Rectangle {
-            id: saveBtn
-            property bool btnEnabled: root.visible && EditorModel.hasUnsavedChanges
-            implicitWidth: saveRow.implicitWidth + 16
-            implicitHeight: 28
-            radius: 4
-            opacity: btnEnabled ? 1.0 : 0.4
-            color: btnEnabled
-                ? (saveHover.hovered ? Theme.accentHover : Theme.accent)
-                : Theme.inputBg
-            Behavior on color { ColorAnimation { duration: 150 } }
-            Layout.alignment: Qt.AlignVCenter
-
-            Row {
-                id: saveRow
-                anchors.centerIn: parent
-                spacing: 4
-                Text {
-                    text: "\u2713"
-                    font.pixelSize: 14
-                    color: saveBtn.btnEnabled ? Theme.activeTabText : Theme.text
-                }
-                Text {
-                    text: "Save"
-                    font.pixelSize: 11
-                    font.bold: true
-                    color: saveBtn.btnEnabled ? Theme.activeTabText : Theme.text
-                }
-            }
-            HoverHandler { id: saveHover }
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: parent.btnEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: if (parent.btnEnabled) EditorModel.save()
-            }
         }
     }
 }

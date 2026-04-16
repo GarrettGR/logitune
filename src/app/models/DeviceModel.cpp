@@ -519,7 +519,7 @@ QVariantList DeviceModel::buttonHotspots() const
 
         auto it = controlMap.find(hs.buttonIndex);
         if (it != controlMap.end()) {
-            entry[QStringLiteral("buttonLabel")]    = it->defaultName;
+            entry[QStringLiteral("buttonLabel")]    = it->displayName.isEmpty() ? it->defaultName : it->displayName;
             entry[QStringLiteral("actionDefault")]  = it->defaultName;
             entry[QStringLiteral("configurable")]   = it->configurable;
         } else {

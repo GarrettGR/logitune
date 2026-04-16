@@ -255,7 +255,9 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
+                propagateComposedEvents: true
                 onClicked: root.clicked()
+                onDoubleClicked: function(mouse) { mouse.accepted = false }
             }
         }
 

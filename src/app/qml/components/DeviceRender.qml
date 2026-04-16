@@ -17,10 +17,10 @@ Item {
     property string imageRole: "side"
 
     // Painted-rect properties — actual rendered area after PreserveAspectFit
-    readonly property real paintedX: (width - mouseImage.paintedWidth) / 2
-    readonly property real paintedY: (height - mouseImage.paintedHeight) / 2
-    readonly property real paintedW: mouseImage.paintedWidth
-    readonly property real paintedH: mouseImage.paintedHeight
+    readonly property real paintedX: mouseImage.paintedWidth > 0 ? (width - mouseImage.paintedWidth) / 2 : 0
+    readonly property real paintedY: mouseImage.paintedHeight > 0 ? (height - mouseImage.paintedHeight) / 2 : 0
+    readonly property real paintedW: mouseImage.paintedWidth > 0 ? mouseImage.paintedWidth : width
+    readonly property real paintedH: mouseImage.paintedHeight > 0 ? mouseImage.paintedHeight : height
 
     Image {
         id: mouseImage
@@ -48,7 +48,7 @@ Item {
         }
     }
 
-    Button {
+    Rectangle {
         id: replaceDeviceImageButton
         visible: typeof EditorModel !== 'undefined' && EditorModel.editing
         anchors {
@@ -56,8 +56,28 @@ Item {
             right: mouseImage.right
             margins: 4
         }
-        text: "Replace image"
-        onClicked: deviceImageDialog.open()
+        width: 32; height: 28
+        radius: 4
+        color: replaceHover.hovered ? Theme.hoverBg : Theme.inputBg
+        Behavior on color { ColorAnimation { duration: 150 } }
+
+        Text {
+            anchors.centerIn: parent
+            text: "\uD83D\uDDBC"
+            font.pixelSize: 16
+            color: Theme.text
+        }
+
+        HoverHandler { id: replaceHover }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: deviceImageDialog.open()
+            hoverEnabled: true
+            ToolTip.visible: replaceHover.hovered
+            ToolTip.text: "Replace image"
+            ToolTip.delay: 500
+        }
     }
 
     FileDialog {

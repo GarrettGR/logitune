@@ -62,7 +62,7 @@ Item {
                     }
                 }
 
-                Button {
+                Rectangle {
                     id: replaceBackButton
                     visible: typeof EditorModel !== 'undefined' && EditorModel.editing
                     anchors {
@@ -70,8 +70,28 @@ Item {
                         right: deviceImage.right
                         margins: 4
                     }
-                    text: "Replace image"
-                    onClicked: backImageDialog.open()
+                    width: 32; height: 28
+                    radius: 4
+                    color: replaceBackHover.hovered ? Theme.hoverBg : Theme.inputBg
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "\uD83D\uDDBC"
+                        font.pixelSize: 16
+                        color: Theme.text
+                    }
+
+                    HoverHandler { id: replaceBackHover }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: backImageDialog.open()
+                        hoverEnabled: true
+                        ToolTip.visible: replaceBackHover.hovered
+                        ToolTip.text: "Replace image"
+                        ToolTip.delay: 500
+                    }
                 }
 
                 FileDialog {
@@ -120,10 +140,18 @@ Item {
 
                         Rectangle {
                             anchors.centerIn: parent
-                            width: 9; height: 9; radius: 4.5
+                            width: 16; height: 16; radius: 8
                             color: slotItem.isActive ? Theme.accent : "transparent"
                             border.color: Theme.accent
                             border.width: slotItem.isActive ? 0 : 1.5
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: (slotItem.index + 1).toString()
+                                font.pixelSize: 9
+                                font.bold: true
+                                color: slotItem.isActive ? Theme.activeTabText : Theme.accent
+                            }
 
                             SequentialAnimation on opacity {
                                 running: slotItem.isActive
