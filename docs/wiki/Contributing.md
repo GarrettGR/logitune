@@ -173,12 +173,30 @@ Before opening a pull request, verify:
 - [ ] Commit messages follow conventional commit format
 - [ ] PR description explains what and why (not how)
 
+## Adding a device
+
+The preferred path for new device descriptors is the in-app editor:
+
+1. Fork the repo and bootstrap a `descriptor.json` for your device
+   (see [Adding a Device](Adding-a-Device) for the JSON schema).
+2. Run `logitune --edit` (pair with `--simulate-all` if you do not
+   own the hardware) and use the editor to position hotspots, drop in
+   device images, and polish labels.
+3. Save. `git diff devices/<slug>/` should show the in-memory changes
+   you made.
+4. Submit a PR with `"status": "beta"` unless you have
+   hardware-verified the descriptor.
+
+For the full walkthrough, see [Editor Mode](Editor-Mode) and
+[Adding a Device](Adding-a-Device).
+
 ## Where to Find Things
 
 | You want to... | Look in... |
 |----------------|------------|
-| Add a new HID++ feature | `src/core/hidpp/features/` — create a new header/cpp pair |
-| Add a new device | `src/core/devices/` — see [Adding a Device](Adding-a-Device) |
+| Add a new HID++ feature | `src/core/hidpp/features/` then a capability-table entry in `src/core/hidpp/capabilities/` |
+| Add a new device | `devices/<slug>/` at the repo root: see [Adding a Device](Adding-a-Device) |
+| Edit a wiki page | `docs/wiki/*.md` in this repo. Wiki is one-way synced from master; edits on the GitHub wiki itself are overwritten on next sync. |
 | Add a new desktop environment | `src/core/desktop/` — see [Adding a Desktop Environment](Adding-a-Desktop-Environment) |
 | Add a new button action type | `src/core/ButtonAction.h` and `src/app/AppController.cpp` (onDivertedButtonPressed) |
 | Add a new QML page | `src/app/qml/pages/` and register in `src/app/CMakeLists.txt` |
