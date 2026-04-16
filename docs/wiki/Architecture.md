@@ -97,8 +97,8 @@ The project is split into two static libraries:
 
 | Library | Contents | Dependencies |
 |---------|----------|-------------|
-| `logitune-core` | DeviceManager, HID++ protocol, ProfileEngine, ActionExecutor, device descriptors, desktop integration, input injection, logging | Qt6::Core, Qt6::DBus, libudev |
-| `logitune-app-lib` | AppController, models (DeviceModel, ButtonModel, ActionModel, ProfileModel), TrayManager, QML module, dialogs | logitune-core, Qt6::Quick, Qt6::Widgets |
+| `logitune-core` | DeviceManager, HID++ protocol, ProfileEngine, ActionExecutor, `DeviceRegistry`, `JsonDevice`, `DescriptorWriter`, desktop integration, input injection, logging | Qt6::Core, Qt6::DBus, libudev |
+| `logitune-app-lib` | AppController, `EditorModel`, models (DeviceModel, ButtonModel, ActionModel, ProfileModel), TrayManager, QML module, dialogs | logitune-core, Qt6::Quick, Qt6::Widgets |
 
 This split allows tests to link against `logitune-core` and `logitune-app-lib` without pulling in the executable's `main()`.
 
@@ -638,6 +638,43 @@ For receiver connections, Logitune pings device indices 1-6 with a HID++ 2.0 Roo
 - HID++ 2.0 error (device not present)
 
 If no device is found on any slot, the receiver fd is kept open and a `QSocketNotifier` watches for incoming traffic, indicating a device has connected.
+
+## Device Registry
+
+`DeviceRegistry` loads device descriptors at startup from three sources
+(scanned in order; earlier entries win on PID collisions via
+`findByPid` returning the first match):
+
+1. `$XDG_DATA_DIRS/logitune/devices/<slug>/descriptor.json` (system,
+   where `cmake --install` places the `devices/` folder from the repo)
+2. `$XDG_CACHE_HOME/logitune/devices/<slug>/descriptor.json` (cache,
+   rarely used directly)
+3. `$XDG_DATA_HOME/logitune/devices/<slug>/descriptor.json` (user
+   override, for iterating on a community descriptor without
+   rebuilding; remove the matching system descriptor first if you
+   need the user version to take precedence)
+
+Each descriptor is wrapped in a `JsonDevice` instance that exposes the
+`IDevice` interface consumed by the rest of the app. `JsonDevice` is
+the only concrete `IDevice` subclass; there are no per-device C++
+classes. A new device is a `descriptor.json` file plus three images.
+
+### Key Components
+
+- **`JsonDevice`** (`src/core/devices/JsonDevice.{h,cpp}`): parses `descriptor.json` and adapts to the `IDevice` interface. Tracks the source directory path and modification time for live reload support.
+- **`DescriptorWriter`** (`src/core/devices/DescriptorWriter.{h,cpp}`): atomic writes to `descriptor.json`, preserving unknown fields so hand-edited entries survive a round-trip through the editor.
+- **`EditorModel`** (`src/app/models/EditorModel.{h,cpp}`): `--edit` mode state machine, undo/redo command stack, and file-conflict detection. Drives the in-app descriptor editor.
+
+```mermaid
+graph LR
+    EditorModel --> DescriptorWriter
+    DescriptorWriter --> JsonDevice
+    JsonDevice --> DeviceRegistry
+```
+
+For the contributor-facing workflow, see
+[Adding a Device](Adding-a-Device). For the visual-editing tool, see
+[Editor Mode](Editor-Mode).
 
 ## Disconnect and Reconnect
 
