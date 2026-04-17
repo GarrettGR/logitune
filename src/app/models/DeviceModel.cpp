@@ -546,6 +546,7 @@ QVariantList DeviceModel::scrollHotspots() const
         entry[QStringLiteral("yPct")]            = hs.yPct;
         entry[QStringLiteral("side")]            = hs.side;
         entry[QStringLiteral("labelOffsetYPct")] = hs.labelOffsetYPct;
+        entry[QStringLiteral("kind")]            = hs.kind;
         result.append(entry);
     }
     return result;
@@ -594,6 +595,14 @@ bool DeviceModel::smoothScrollSupported() const
     auto *s = selectedDevice();
     if (s && s->descriptor())
         return s->descriptor()->features().smoothScroll;
+    return true;
+}
+
+bool DeviceModel::thumbWheelSupported() const
+{
+    auto *s = selectedDevice();
+    if (s && s->descriptor())
+        return s->descriptor()->features().thumbWheel;
     return true;
 }
 

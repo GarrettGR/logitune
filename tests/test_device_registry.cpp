@@ -67,6 +67,66 @@ static const DeviceSpec kDevices[] = {
         .gestureDownPayload = "Super+D",
         .gestureUpType = ButtonAction::Default,
     },
+    {
+        .pid = 0xb037,
+        .name = "MX Anywhere 3S",
+        .minDpi = 200, .maxDpi = 8000, .dpiStep = 50,
+        .buttonHotspots = 4, .scrollHotspots = 2,
+        .minControls = 6,
+        .control0Cid = 0x0050, .control5Cid = 0x00C4,
+        .control5ActionType = "smartshift-toggle",
+        .control6ActionType = nullptr,
+        .battery = true, .adjustableDpi = true, .smartShift = true,
+        .reprogControls = true, .gestureV2 = false,
+        .gestureDownType = ButtonAction::Default,
+        .gestureDownPayload = nullptr,
+        .gestureUpType = ButtonAction::Default,
+    },
+    {
+        .pid = 0xb038,
+        .name = "MX Anywhere 3S for Business",
+        .minDpi = 200, .maxDpi = 8000, .dpiStep = 50,
+        .buttonHotspots = 4, .scrollHotspots = 2,
+        .minControls = 6,
+        .control0Cid = 0x0050, .control5Cid = 0x00C4,
+        .control5ActionType = "smartshift-toggle",
+        .control6ActionType = nullptr,
+        .battery = true, .adjustableDpi = true, .smartShift = true,
+        .reprogControls = true, .gestureV2 = false,
+        .gestureDownType = ButtonAction::Default,
+        .gestureDownPayload = nullptr,
+        .gestureUpType = ButtonAction::Default,
+    },
+    {
+        .pid = 0xb025,
+        .name = "MX Anywhere 3",
+        .minDpi = 200, .maxDpi = 4000, .dpiStep = 50,
+        .buttonHotspots = 4, .scrollHotspots = 2,
+        .minControls = 6,
+        .control0Cid = 0x0050, .control5Cid = 0x00C4,
+        .control5ActionType = "smartshift-toggle",
+        .control6ActionType = nullptr,
+        .battery = true, .adjustableDpi = true, .smartShift = true,
+        .reprogControls = true, .gestureV2 = false,
+        .gestureDownType = ButtonAction::Default,
+        .gestureDownPayload = nullptr,
+        .gestureUpType = ButtonAction::Default,
+    },
+    {
+        .pid = 0xb02d,
+        .name = "MX Anywhere 3 for Business",
+        .minDpi = 200, .maxDpi = 4000, .dpiStep = 50,
+        .buttonHotspots = 4, .scrollHotspots = 2,
+        .minControls = 6,
+        .control0Cid = 0x0050, .control5Cid = 0x00C4,
+        .control5ActionType = "smartshift-toggle",
+        .control6ActionType = nullptr,
+        .battery = true, .adjustableDpi = true, .smartShift = true,
+        .reprogControls = true, .gestureV2 = false,
+        .gestureDownType = ButtonAction::Default,
+        .gestureDownPayload = nullptr,
+        .gestureUpType = ButtonAction::Default,
+    },
 };
 
 class DeviceRegistryTest : public testing::TestWithParam<DeviceSpec> {
@@ -90,7 +150,9 @@ TEST_P(DeviceRegistryTest, ControlsHaveExpectedCids) {
     EXPECT_EQ(controls[0].controlId, s.control0Cid);
     EXPECT_EQ(controls[5].controlId, s.control5Cid);
     EXPECT_EQ(controls[5].defaultActionType, s.control5ActionType);
-    EXPECT_EQ(controls[6].defaultActionType, s.control6ActionType);
+    if (s.minControls >= 7 && s.control6ActionType) {
+        EXPECT_EQ(controls[6].defaultActionType, s.control6ActionType);
+    }
 }
 
 TEST_P(DeviceRegistryTest, DefaultGesturesPresent) {
@@ -98,10 +160,14 @@ TEST_P(DeviceRegistryTest, DefaultGesturesPresent) {
     ASSERT_NE(dev, nullptr);
     auto& s = GetParam();
     auto gestures = dev->defaultGestures();
-    EXPECT_TRUE(gestures.contains("down"));
-    EXPECT_EQ(gestures["down"].type, s.gestureDownType);
-    EXPECT_EQ(gestures["down"].payload, s.gestureDownPayload);
-    EXPECT_EQ(gestures["up"].type, s.gestureUpType);
+    if (s.gestureDownPayload) {
+        EXPECT_TRUE(gestures.contains("down"));
+        EXPECT_EQ(gestures["down"].type, s.gestureDownType);
+        EXPECT_EQ(gestures["down"].payload, s.gestureDownPayload);
+        EXPECT_EQ(gestures["up"].type, s.gestureUpType);
+    } else {
+        EXPECT_TRUE(gestures.isEmpty());
+    }
 }
 
 TEST_P(DeviceRegistryTest, FeatureSupport) {
