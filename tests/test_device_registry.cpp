@@ -4,6 +4,7 @@
 #include <QTemporaryDir>
 #include <QFile>
 #include <QFileInfo>
+#include <algorithm>
 using namespace logitune;
 
 struct DeviceSpec {
@@ -122,6 +123,21 @@ static const DeviceSpec kDevices[] = {
         .control5ActionType = "smartshift-toggle",
         .control6ActionType = nullptr,
         .battery = true, .adjustableDpi = true, .smartShift = true,
+        .reprogControls = true, .gestureV2 = false,
+        .gestureDownType = ButtonAction::Default,
+        .gestureDownPayload = nullptr,
+        .gestureUpType = ButtonAction::Default,
+    },
+    {
+        .pid = 0xb020,
+        .name = "MX Vertical",
+        .minDpi = 400, .maxDpi = 4000, .dpiStep = 50,
+        .buttonHotspots = 4, .scrollHotspots = 2,
+        .minControls = 6,
+        .control0Cid = 0x0050, .control5Cid = 0x00C3,
+        .control5ActionType = "dpi-cycle",
+        .control6ActionType = nullptr,
+        .battery = true, .adjustableDpi = true, .smartShift = false,
         .reprogControls = true, .gestureV2 = false,
         .gestureDownType = ButtonAction::Default,
         .gestureDownPayload = nullptr,
@@ -253,4 +269,32 @@ TEST(DeviceRegistry, ReloadByPathRefreshesSingleDevice) {
 TEST(DeviceRegistry, ReloadUnknownPathReturnsFalse) {
     logitune::DeviceRegistry reg;
     EXPECT_FALSE(reg.reload(QStringLiteral("/nonexistent/path/that/does/not/exist")));
+}
+
+TEST(DeviceRegistry, MxVerticalForBusinessRegistered) {
+    logitune::DeviceRegistry reg;
+    const auto *dev = reg.findByName(QStringLiteral("MX Vertical for Business"));
+    ASSERT_NE(dev, nullptr);
+    const auto ids = dev->productIds();
+    EXPECT_NE(std::find(ids.begin(), ids.end(), 0xb020), ids.end());
+    EXPECT_EQ(dev->maxDpi(), 4000);
+    EXPECT_EQ(dev->minDpi(), 400);
+    EXPECT_EQ(dev->controls().size(), 6);
+    EXPECT_EQ(dev->controls()[5].controlId, 0x00C3);
+    EXPECT_EQ(dev->controls()[5].defaultActionType, QStringLiteral("dpi-cycle"));
+    EXPECT_FALSE(dev->features().smartShift);
+    EXPECT_TRUE(dev->features().pointerSpeed);
+    const auto ring = dev->dpiCycleRing();
+    ASSERT_EQ(ring.size(), 4u);
+    EXPECT_EQ(ring[0], 400);
+    EXPECT_EQ(ring[1], 1000);
+    EXPECT_EQ(ring[2], 1750);
+    EXPECT_EQ(ring[3], 4000);
+}
+
+TEST(DeviceRegistry, MxMaster3sHasNoDpiCycleRing) {
+    logitune::DeviceRegistry reg;
+    const auto *dev = reg.findByName(QStringLiteral("MX Master 3S"));
+    ASSERT_NE(dev, nullptr);
+    EXPECT_TRUE(dev->dpiCycleRing().empty());
 }
