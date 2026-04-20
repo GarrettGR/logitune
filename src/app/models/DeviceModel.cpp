@@ -2,6 +2,7 @@
 #include "interfaces/IDevice.h"
 #include "devices/JsonDevice.h"
 #include "desktop/GnomeDesktop.h"
+#include "DistroDetector.h"
 #include "logging/LogManager.h"
 #include <QFile>
 #include <QJsonArray>
@@ -818,6 +819,21 @@ QString DeviceModel::gnomeTrayStatus() const
     default:
         return QString();
     }
+}
+
+QString DeviceModel::appIndicatorInstallCommand() const
+{
+    switch (logitune::util::detectDistroFamily()) {
+    case logitune::util::DistroFamily::Arch:
+        return QStringLiteral("sudo pacman -S gnome-shell-extension-appindicator");
+    case logitune::util::DistroFamily::Debian:
+        return QStringLiteral("sudo apt install gnome-shell-extension-appindicator");
+    case logitune::util::DistroFamily::Fedora:
+        return QStringLiteral("sudo dnf install gnome-shell-extension-appindicator");
+    case logitune::util::DistroFamily::Unknown:
+        return QStringLiteral("Install gnome-shell-extension-appindicator via your package manager.");
+    }
+    Q_UNREACHABLE();
 }
 
 void DeviceModel::setActiveWmClass(const QString &wmClass)
