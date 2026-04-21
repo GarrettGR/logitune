@@ -57,10 +57,9 @@ private slots:
     void onUserButtonChanged(int buttonId, const QString &actionName, const QString &actionType);
     void onWindowFocusChanged(const QString &wmClass, const QString &title);
     void onTabSwitched(const QString &profileName);
-    void onDisplayProfileChanged(const Profile &profile);
+    void onDisplayProfileChanged(const QString &serial, const Profile &profile);
     void onPhysicalDeviceAdded(PhysicalDevice *device);
     void onPhysicalDeviceRemoved(PhysicalDevice *device);
-    void onGestureRawXY(int16_t dx, int16_t dy);
     void onDivertedButtonPressed(uint16_t controlId, bool pressed);
     void onThumbWheelRotation(int delta);
     void onDpiChangeRequested(int value);
@@ -68,6 +67,7 @@ private slots:
     void onScrollConfigChangeRequested(bool hiRes, bool invert);
     void onThumbWheelModeChangeRequested(const QString &mode);
     void onThumbWheelInvertChangeRequested(bool invert);
+    void onSelectedDeviceChanged();
 
 private:
     void wireSignals();
@@ -78,6 +78,7 @@ private:
     void setupProfileForDevice(PhysicalDevice *device);
     PhysicalDevice *selectedDevice() const;
     DeviceSession *selectedSession() const;  // convenience — selectedDevice()->primary()
+    QString selectedSerial() const;  // PhysicalDevice::deviceSerial() of the selected device, or empty
     QString buttonActionToName(const ButtonAction &ba) const;
     ButtonAction buttonEntryToAction(const QString &actionType, const QString &actionName) const;
 

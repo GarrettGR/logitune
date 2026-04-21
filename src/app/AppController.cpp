@@ -118,8 +118,11 @@ void AppController::wireSignals()
     connect(&m_profileModel, &ProfileModel::profileSwitched,
             this, &AppController::onTabSwitched);
 
-    connect(&m_profileEngine, &ProfileEngine::displayProfileChanged,
+    connect(&m_profileEngine, &ProfileEngine::deviceDisplayProfileChanged,
             this, &AppController::onDisplayProfileChanged);
+
+    connect(&m_deviceModel, &DeviceModel::selectedChanged,
+            this, &AppController::onSelectedDeviceChanged);
 
     // Physical device lifecycle — one per unique serial, survives transport
     // switches. Per-transport events are routed through PhysicalDevice
@@ -134,10 +137,18 @@ void AppController::wireSignals()
             saveCurrentProfile();
         });
 
-    connect(&m_profileModel, &ProfileModel::profileAdded,
-            &m_profileEngine, &ProfileEngine::createProfileForApp);
-    connect(&m_profileModel, &ProfileModel::profileRemoved,
-            &m_profileEngine, &ProfileEngine::removeAppProfile);
+    connect(&m_profileModel, &ProfileModel::profileAdded, this,
+            [this](const QString &wmClass, const QString &profileName) {
+        const QString serial = selectedSerial();
+        if (!serial.isEmpty())
+            m_profileEngine.createProfileForApp(serial, wmClass, profileName);
+    });
+    connect(&m_profileModel, &ProfileModel::profileRemoved, this,
+            [this](const QString &wmClass) {
+        const QString serial = selectedSerial();
+        if (!serial.isEmpty())
+            m_profileEngine.removeAppProfile(serial, wmClass);
+    });
 
     connect(&m_deviceFetcher, &DeviceFetcher::descriptorsUpdated,
             this, [this]() {
@@ -195,9 +206,11 @@ void AppController::onPhysicalDeviceAdded(PhysicalDevice *device)
     connect(device, &PhysicalDevice::transportSetupComplete, this,
             [this, device]() {
         m_currentDevice = device->descriptor();
-        Profile &p = m_profileEngine.cachedProfile(m_profileEngine.hardwareProfile());
+        const QString serial = device->deviceSerial();
+        Profile &p = m_profileEngine.cachedProfile(serial,
+                                                   m_profileEngine.hardwareProfile(serial));
         qCDebug(lcApp) << "device transport ready, applying profile:"
-                        << m_profileEngine.hardwareProfile();
+                        << m_profileEngine.hardwareProfile(serial);
         applyProfileToHardware(p);
     });
 
@@ -218,19 +231,38 @@ void AppController::onPhysicalDeviceRemoved(PhysicalDevice *device)
         m_deviceModel.setSelectedIndex(0);
 }
 
+// Carousel selection changed. Refresh the UI from the newly-selected
+// device's cached profile. No file I/O, no seeding, no hardware apply —
+// one-time device provisioning happens in onPhysicalDeviceAdded.
+void AppController::onSelectedDeviceChanged()
+{
+    auto *device = selectedDevice();
+    if (!device) return;
+
+    m_currentDevice = device->descriptor();
+
+    const QString serial = device->deviceSerial();
+    const QString name = m_profileEngine.displayProfile(serial);
+    if (name.isEmpty()) return;  // device not yet fully set up
+
+    const Profile &p = m_profileEngine.cachedProfile(serial, name);
+    restoreButtonModelFromProfile(p);
+    pushDisplayValues(p);
+}
+
 void AppController::setupProfileForDevice(PhysicalDevice *device)
 {
     m_currentDevice = device->descriptor();
 
-    const QString configBase =
-        QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    const QString serial = device->deviceSerial();
+    const QString configBase = QStandardPaths::writableLocation(
+        QStandardPaths::AppConfigLocation);
     const QString profilesDir = configBase
-        + QStringLiteral("/devices/")
-        + device->deviceSerial()
+        + QStringLiteral("/devices/") + serial
         + QStringLiteral("/profiles");
 
     QDir().mkpath(profilesDir);
-    m_profileEngine.setDeviceConfigDir(profilesDir);
+    m_profileEngine.registerDevice(serial, profilesDir);
     qCDebug(lcApp) << "profile dir:" << profilesDir;
 
     const QString defaultConf = profilesDir + QStringLiteral("/default.conf");
@@ -246,7 +278,9 @@ void AppController::setupProfileForDevice(PhysicalDevice *device)
         seed.smoothScrolling     = !device->scrollRatchet();
         if (m_currentDevice) {
             const auto controls = m_currentDevice->controls();
-            for (int i = 0; i < static_cast<int>(controls.size()) && i < static_cast<int>(seed.buttons.size()); ++i) {
+            for (int i = 0;
+                 i < static_cast<int>(controls.size()) &&
+                 i < static_cast<int>(seed.buttons.size()); ++i) {
                 const auto &ctrl = controls[i];
                 if (ctrl.defaultActionType == "gesture-trigger")
                     seed.buttons[i] = {ButtonAction::GestureTrigger, {}};
@@ -256,19 +290,19 @@ void AppController::setupProfileForDevice(PhysicalDevice *device)
                     seed.buttons[i] = {ButtonAction::DpiCycle, {}};
             }
             const auto defaultGestures = m_currentDevice->defaultGestures();
-            for (auto it = defaultGestures.begin(); it != defaultGestures.end(); ++it) {
+            for (auto it = defaultGestures.begin();
+                 it != defaultGestures.end(); ++it) {
                 seed.gestures[it.key()] = it.value();
             }
         }
         ProfileEngine::saveProfile(defaultConf, seed);
-        m_profileEngine.setDeviceConfigDir(profilesDir);
+        m_profileEngine.registerDevice(serial, profilesDir);  // reload cache after seeding
         qCDebug(lcApp) << "created default profile at" << defaultConf;
     }
 
     const QString bindingsFile = profilesDir + QStringLiteral("/app-bindings.conf");
     if (QFile::exists(bindingsFile)) {
         const auto bindings = ProfileEngine::loadAppBindings(bindingsFile);
-
         QMap<QString, QString> iconLookup;
         const auto apps = m_desktop->runningApplications();
         for (const auto &app : apps) {
@@ -276,26 +310,24 @@ void AppController::setupProfileForDevice(PhysicalDevice *device)
             iconLookup[map[QStringLiteral("wmClass")].toString().toLower()]
                 = map[QStringLiteral("icon")].toString();
         }
-
         for (auto it = bindings.cbegin(); it != bindings.cend(); ++it) {
             QString icon = iconLookup.value(it.key().toLower());
             m_profileModel.restoreProfile(it.key(), it.value(), icon);
         }
     }
 
-    QString hwName = m_profileEngine.hardwareProfile();
+    QString hwName = m_profileEngine.hardwareProfile(serial);
     bool isFirstConnect = hwName.isEmpty();
-
     if (isFirstConnect) {
         hwName = QStringLiteral("default");
         m_profileModel.setHwActiveIndex(0);
-        m_profileEngine.setHardwareProfile(hwName);
-        m_profileEngine.setDisplayProfile(hwName);
+        m_profileEngine.setHardwareProfile(serial, hwName);
+        m_profileEngine.setDisplayProfile(serial, hwName);
     }
 
-    Profile &p = m_profileEngine.cachedProfile(hwName);
+    Profile &p = m_profileEngine.cachedProfile(serial, hwName);
     qCDebug(lcApp) << "setupProfileForDevice: applying profile" << hwName
-                    << "thumbWheelMode=" << p.thumbWheelMode;
+                   << "thumbWheelMode=" << p.thumbWheelMode;
     applyProfileToHardware(p);
 }
 
@@ -314,6 +346,12 @@ DeviceSession *AppController::selectedSession() const
     return d ? d->primary() : nullptr;
 }
 
+QString AppController::selectedSerial() const
+{
+    auto *d = selectedDevice();
+    return d ? d->deviceSerial() : QString();
+}
+
 // Slot implementations -------------------------------------------------------
 
 void AppController::onUserButtonChanged(int buttonId, const QString &actionName, const QString &actionType)
@@ -322,7 +360,9 @@ void AppController::onUserButtonChanged(int buttonId, const QString &actionName,
 
     saveCurrentProfile();
 
-    if (m_profileEngine.displayProfile() != m_profileEngine.hardwareProfile())
+    const QString serial = selectedSerial();
+    if (serial.isEmpty()) return;
+    if (m_profileEngine.displayProfile(serial) != m_profileEngine.hardwareProfile(serial))
         return;
 
     if (!m_currentDevice) return;
@@ -343,17 +383,22 @@ void AppController::onUserButtonChanged(int buttonId, const QString &actionName,
 
 void AppController::onTabSwitched(const QString &profileName)
 {
-    m_profileEngine.setDisplayProfile(profileName);
+    const QString serial = selectedSerial();
+    if (serial.isEmpty()) return;
+    m_profileEngine.setDisplayProfile(serial, profileName);
 }
 
-void AppController::onDisplayProfileChanged(const Profile &profile)
+void AppController::onDisplayProfileChanged(const QString &serial, const Profile &profile)
 {
+    if (serial != selectedSerial())
+        return;
+
     m_deviceModel.setActiveProfileName(profile.name);
 
     m_deviceModel.setDisplayValues(
         profile.dpi, profile.smartShiftEnabled, profile.smartShiftThreshold,
-        profile.hiResScroll, profile.scrollDirection == "natural", profile.thumbWheelMode,
-        profile.thumbWheelInvert);
+        profile.hiResScroll, profile.scrollDirection == "natural",
+        profile.thumbWheelMode, profile.thumbWheelInvert);
 
     restoreButtonModelFromProfile(profile);
 }
@@ -378,12 +423,15 @@ void AppController::onWindowFocusChanged(const QString &wmClass, const QString &
 
     m_deviceModel.setActiveWmClass(wmClass);
 
-    QString profileName = m_profileEngine.profileForApp(wmClass);
-    if (profileName == m_profileEngine.hardwareProfile())
+    const QString serial = selectedSerial();
+    if (serial.isEmpty()) return;
+
+    QString profileName = m_profileEngine.profileForApp(serial, wmClass);
+    if (profileName == m_profileEngine.hardwareProfile(serial))
         return;
 
-    Profile &p = m_profileEngine.cachedProfile(profileName);
-    m_profileEngine.setHardwareProfile(profileName);
+    Profile &p = m_profileEngine.cachedProfile(serial, profileName);
+    m_profileEngine.setHardwareProfile(serial, profileName);
     applyProfileToHardware(p);
     m_profileModel.setHwActiveByProfileName(profileName);
 }
@@ -513,10 +561,13 @@ void AppController::applyProfileToHardware(const Profile &p)
 
 void AppController::saveCurrentProfile()
 {
-    QString name = m_profileEngine.displayProfile();
+    const QString serial = selectedSerial();
+    if (serial.isEmpty()) return;
+
+    const QString name = m_profileEngine.displayProfile(serial);
     if (name.isEmpty()) return;
 
-    Profile &p = m_profileEngine.cachedProfile(name);
+    Profile &p = m_profileEngine.cachedProfile(serial, name);
     if (p.name.isEmpty()) p.name = name;
 
     if (m_currentDevice) {
@@ -536,7 +587,7 @@ void AppController::saveCurrentProfile()
             p.gestures[dir] = {ButtonAction::Keystroke, ks};
     }
 
-    m_profileEngine.saveProfileToDisk(name);
+    m_profileEngine.saveProfileToDisk(serial, name);
 }
 
 void AppController::pushDisplayValues(const Profile &p)
@@ -549,13 +600,15 @@ void AppController::pushDisplayValues(const Profile &p)
 
 void AppController::onDpiChangeRequested(int value)
 {
-    QString name = m_profileEngine.displayProfile();
+    const QString serial = selectedSerial();
+    if (serial.isEmpty()) return;
+    const QString name = m_profileEngine.displayProfile(serial);
     if (name.isEmpty()) return;
-    Profile &p = m_profileEngine.cachedProfile(name);
+    Profile &p = m_profileEngine.cachedProfile(serial, name);
     p.dpi = value;
-    m_profileEngine.saveProfileToDisk(name);
+    m_profileEngine.saveProfileToDisk(serial, name);
     pushDisplayValues(p);
-    if (name == m_profileEngine.hardwareProfile()) {
+    if (name == m_profileEngine.hardwareProfile(serial)) {
         auto *session = selectedSession();
         if (session) session->setDPI(value);
     }
@@ -563,14 +616,16 @@ void AppController::onDpiChangeRequested(int value)
 
 void AppController::onSmartShiftChangeRequested(bool enabled, int threshold)
 {
-    QString name = m_profileEngine.displayProfile();
+    const QString serial = selectedSerial();
+    if (serial.isEmpty()) return;
+    const QString name = m_profileEngine.displayProfile(serial);
     if (name.isEmpty()) return;
-    Profile &p = m_profileEngine.cachedProfile(name);
+    Profile &p = m_profileEngine.cachedProfile(serial, name);
     p.smartShiftEnabled = enabled;
     p.smartShiftThreshold = threshold;
-    m_profileEngine.saveProfileToDisk(name);
+    m_profileEngine.saveProfileToDisk(serial, name);
     pushDisplayValues(p);
-    if (name == m_profileEngine.hardwareProfile()) {
+    if (name == m_profileEngine.hardwareProfile(serial)) {
         auto *session = selectedSession();
         if (session) session->setSmartShift(enabled, threshold);
     }
@@ -578,14 +633,16 @@ void AppController::onSmartShiftChangeRequested(bool enabled, int threshold)
 
 void AppController::onScrollConfigChangeRequested(bool hiRes, bool invert)
 {
-    QString name = m_profileEngine.displayProfile();
+    const QString serial = selectedSerial();
+    if (serial.isEmpty()) return;
+    const QString name = m_profileEngine.displayProfile(serial);
     if (name.isEmpty()) return;
-    Profile &p = m_profileEngine.cachedProfile(name);
+    Profile &p = m_profileEngine.cachedProfile(serial, name);
     p.hiResScroll = hiRes;
     p.scrollDirection = invert ? QStringLiteral("natural") : QStringLiteral("standard");
-    m_profileEngine.saveProfileToDisk(name);
+    m_profileEngine.saveProfileToDisk(serial, name);
     pushDisplayValues(p);
-    if (name == m_profileEngine.hardwareProfile()) {
+    if (name == m_profileEngine.hardwareProfile(serial)) {
         auto *session = selectedSession();
         if (session) session->setScrollConfig(hiRes, invert);
     }
@@ -598,35 +655,33 @@ void AppController::onThumbWheelModeChangeRequested(const QString &mode)
         auto &state = m_perDeviceState[session->deviceId()];
         state.thumbAccum = 0;
     }
-    QString name = m_profileEngine.displayProfile();
+    const QString serial = selectedSerial();
+    if (serial.isEmpty()) return;
+    const QString name = m_profileEngine.displayProfile(serial);
     qCDebug(lcApp) << "thumbWheelMode requested:" << mode << "for profile:" << name;
     if (name.isEmpty()) return;
-    Profile &p = m_profileEngine.cachedProfile(name);
+    Profile &p = m_profileEngine.cachedProfile(serial, name);
     p.thumbWheelMode = mode;
-    m_profileEngine.saveProfileToDisk(name);
+    m_profileEngine.saveProfileToDisk(serial, name);
     pushDisplayValues(p);
-    if (name == m_profileEngine.hardwareProfile() && session)
+    if (name == m_profileEngine.hardwareProfile(serial) && session)
         session->setThumbWheelMode(mode, p.thumbWheelInvert);
 }
 
 void AppController::onThumbWheelInvertChangeRequested(bool invert)
 {
-    QString name = m_profileEngine.displayProfile();
+    const QString serial = selectedSerial();
+    if (serial.isEmpty()) return;
+    const QString name = m_profileEngine.displayProfile(serial);
     if (name.isEmpty()) return;
-    Profile &p = m_profileEngine.cachedProfile(name);
+    Profile &p = m_profileEngine.cachedProfile(serial, name);
     p.thumbWheelInvert = invert;
-    m_profileEngine.saveProfileToDisk(name);
+    m_profileEngine.saveProfileToDisk(serial, name);
     pushDisplayValues(p);
-    if (name == m_profileEngine.hardwareProfile()) {
+    if (name == m_profileEngine.hardwareProfile(serial)) {
         auto *session = selectedSession();
         if (session) session->setThumbWheelMode(p.thumbWheelMode, invert);
     }
-}
-
-void AppController::onGestureRawXY(int16_t dx, int16_t dy)
-{
-    Q_UNUSED(dx); Q_UNUSED(dy);
-    // Handled by per-session lambda in onSessionAdded
 }
 
 void AppController::onDivertedButtonPressed(uint16_t controlId, bool pressed)
@@ -635,7 +690,10 @@ void AppController::onDivertedButtonPressed(uint16_t controlId, bool pressed)
     if (!session) return;
     auto &state = m_perDeviceState[session->deviceId()];
 
-    const Profile &hwProfile = m_profileEngine.cachedProfile(m_profileEngine.hardwareProfile());
+    const QString serial = selectedSerial();
+    if (serial.isEmpty()) return;
+    const Profile &hwProfile = m_profileEngine.cachedProfile(
+        serial, m_profileEngine.hardwareProfile(serial));
 
     if (!pressed && state.gestureActive
         && (controlId == 0 || controlId == state.gestureControlId)) {

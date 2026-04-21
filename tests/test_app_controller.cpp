@@ -10,8 +10,8 @@ using namespace logitune::test;
 
 TEST_F(AppControllerFixture, Smoke) {
     EXPECT_NE(m_ctrl.get(), nullptr);
-    EXPECT_EQ(profileEngine().displayProfile(), "default");
-    EXPECT_EQ(profileEngine().hardwareProfile(), "default");
+    EXPECT_EQ(profileEngine().displayProfile(QStringLiteral("mock-serial")), "default");
+    EXPECT_EQ(profileEngine().hardwareProfile(QStringLiteral("mock-serial")), "default");
 }
 
 // =============================================================================
@@ -24,26 +24,26 @@ TEST_F(AppControllerFixture, FocusAppWithProfileSwitchesHardware) {
 
     focusApp("google-chrome");
 
-    EXPECT_EQ(profileEngine().hardwareProfile(), "Chrome");
+    EXPECT_EQ(profileEngine().hardwareProfile(QStringLiteral("mock-serial")), "Chrome");
 }
 
 TEST_F(AppControllerFixture, FocusAppWithoutProfileSwitchesToDefault) {
     // No profile for "firefox" — should stay on default
     focusApp("firefox");
 
-    EXPECT_EQ(profileEngine().hardwareProfile(), "default");
+    EXPECT_EQ(profileEngine().hardwareProfile(QStringLiteral("mock-serial")), "default");
 }
 
 TEST_F(AppControllerFixture, FocusSameAppTwiceNoDoubleApply) {
     createAppProfile("google-chrome", "Chrome", 1600);
 
     focusApp("google-chrome");
-    EXPECT_EQ(profileEngine().hardwareProfile(), "Chrome");
+    EXPECT_EQ(profileEngine().hardwareProfile(QStringLiteral("mock-serial")), "Chrome");
 
     // Focus same app again — hardware profile already "Chrome", should be a no-op.
     // We verify by checking that profileForApp still returns "Chrome" and no crash.
     focusApp("google-chrome");
-    EXPECT_EQ(profileEngine().hardwareProfile(), "Chrome");
+    EXPECT_EQ(profileEngine().hardwareProfile(QStringLiteral("mock-serial")), "Chrome");
 }
 
 TEST_F(AppControllerFixture, DesktopComponentsFiltered) {
@@ -52,13 +52,13 @@ TEST_F(AppControllerFixture, DesktopComponentsFiltered) {
     focusApp("org.kde.plasmashell");
 
     // plasmashell is in the ignore list — hardware profile must NOT change
-    EXPECT_EQ(profileEngine().hardwareProfile(), "default");
+    EXPECT_EQ(profileEngine().hardwareProfile(QStringLiteral("mock-serial")), "default");
 }
 
 TEST_F(AppControllerFixture, KwinWaylandFiltered) {
     focusApp("kwin_wayland");
 
-    EXPECT_EQ(profileEngine().hardwareProfile(), "default");
+    EXPECT_EQ(profileEngine().hardwareProfile(QStringLiteral("mock-serial")), "default");
 }
 
 TEST_F(AppControllerFixture, FocusUpdatesHwIndicator) {
@@ -80,14 +80,14 @@ TEST_F(AppControllerFixture, TabSwitchChangesDisplayNotHardware) {
 
     // Focus Chrome so hardware is on Chrome
     focusApp("google-chrome");
-    EXPECT_EQ(profileEngine().hardwareProfile(), "Chrome");
+    EXPECT_EQ(profileEngine().hardwareProfile(QStringLiteral("mock-serial")), "Chrome");
 
     // User clicks the default tab (index 0)
     profileModel().selectTab(0);
 
     // Display should be default, but hardware stays on Chrome
-    EXPECT_EQ(profileEngine().displayProfile(), "default");
-    EXPECT_EQ(profileEngine().hardwareProfile(), "Chrome");
+    EXPECT_EQ(profileEngine().displayProfile(QStringLiteral("mock-serial")), "default");
+    EXPECT_EQ(profileEngine().hardwareProfile(QStringLiteral("mock-serial")), "Chrome");
 }
 
 TEST_F(AppControllerFixture, TabSwitchPushesDisplayValues) {
@@ -107,14 +107,14 @@ TEST_F(AppControllerFixture, SettingsSaveToDisplayedProfile) {
     createAppProfile("google-chrome", "Chrome", 1600);
 
     // Display Chrome profile
-    profileEngine().setDisplayProfile("Chrome");
+    profileEngine().setDisplayProfile(QStringLiteral("mock-serial"), "Chrome");
 
     // Set a button action on button 3 (Back) via ButtonModel — simulates UI action
     buttonModel().setAction(3, "Copy", "keystroke");
 
     // Trigger save via saveCurrentProfile (this is what happens after userActionChanged)
     // The action should be saved to the Chrome profile
-    Profile &chromeP = profileEngine().cachedProfile("Chrome");
+    Profile &chromeP = profileEngine().cachedProfile(QStringLiteral("mock-serial"), "Chrome");
     // After save, the Chrome profile should reflect the displayed edit
     // Note: saveCurrentProfile writes from ButtonModel to the displayed profile.
     // buttonModel().setAction emits userActionChanged -> onUserButtonChanged -> saveCurrentProfile
@@ -131,13 +131,13 @@ TEST_F(AppControllerFixture, SettingsDontSaveToOtherProfile) {
     focusApp("google-chrome");
     profileModel().selectTab(0); // switch display to default
 
-    EXPECT_EQ(profileEngine().displayProfile(), "default");
+    EXPECT_EQ(profileEngine().displayProfile(QStringLiteral("mock-serial")), "default");
 
     // Change a button on displayed (default) profile
     buttonModel().setAction(3, "Paste", "keystroke");
 
     // Chrome profile button 3 should still be Alt+Left, not Paste
-    const Profile &chromeP = profileEngine().cachedProfile("Chrome");
+    const Profile &chromeP = profileEngine().cachedProfile(QStringLiteral("mock-serial"), "Chrome");
     EXPECT_EQ(chromeP.buttons[3].type, ButtonAction::Keystroke);
     EXPECT_EQ(chromeP.buttons[3].payload, "Alt+Left");
 }
@@ -167,8 +167,8 @@ TEST_F(AppControllerFixture, DispatchReadsHwNotDisplayProfile) {
 
     // User switches display tab to default
     profileModel().selectTab(0);
-    EXPECT_EQ(profileEngine().displayProfile(), "default");
-    EXPECT_EQ(profileEngine().hardwareProfile(), "Chrome");
+    EXPECT_EQ(profileEngine().displayProfile(QStringLiteral("mock-serial")), "default");
+    EXPECT_EQ(profileEngine().hardwareProfile(QStringLiteral("mock-serial")), "Chrome");
 
     // Press button 3 — should dispatch Chrome's action (Alt+Left), not default's
     pressButton(0x53);
@@ -314,11 +314,11 @@ TEST_F(AppControllerFixture, GestureUsesHardwareProfileGestures) {
 
     // Focus Chrome — hardware profile is now Chrome
     focusApp("google-chrome");
-    EXPECT_EQ(profileEngine().hardwareProfile(), "Chrome");
+    EXPECT_EQ(profileEngine().hardwareProfile(QStringLiteral("mock-serial")), "Chrome");
 
     // Switch display to default
     profileModel().selectTab(0);
-    EXPECT_EQ(profileEngine().displayProfile(), "default");
+    EXPECT_EQ(profileEngine().displayProfile(QStringLiteral("mock-serial")), "default");
 
     // Gesture right — should use Chrome's (hardware) gesture, not default's (display)
     pressButton(0xC3);
@@ -434,4 +434,77 @@ TEST_F(AppControllerFixture, MediaActionPerProfileSwitching) {
 
     EXPECT_TRUE(m_injector->hasCalled("injectKeystroke"));
     EXPECT_EQ(m_injector->lastArg("injectKeystroke"), "Next");
+}
+
+TEST_F(AppControllerFixture, CarouselSwitchSwapsButtonModel) {
+    // Fixture's primary device "mock-serial" is selected (index 0). Set
+    // its button 3 to a distinctive action.
+    setProfileButton("default", 3,
+                     {ButtonAction::Keystroke, QStringLiteral("Alt+Left")});
+    deviceModel().setSelectedIndex(0);
+
+    auto *secondary = addMockDevice(QStringLiteral("B"));
+    {
+        const QString serialB = QStringLiteral("mock-serial-B");
+        Profile &pB = profileEngine().cachedProfile(
+            serialB, QStringLiteral("default"));
+        pB.buttons[3] = {ButtonAction::Media, QStringLiteral("Play")};
+        profileEngine().saveProfileToDisk(
+            serialB, QStringLiteral("default"));
+    }
+
+    // Select device A explicitly and confirm ButtonModel reflects A.
+    deviceModel().setSelectedIndex(0);
+    EXPECT_EQ(buttonModel().actionTypeForButton(3),
+              QStringLiteral("keystroke"));
+
+    // Switch carousel to device B.
+    const int idxB = deviceModel().devices().indexOf(secondary);
+    ASSERT_GE(idxB, 0);
+    deviceModel().setSelectedIndex(idxB);
+
+    // ButtonModel now reflects device B.
+    EXPECT_EQ(buttonModel().actionTypeForButton(3),
+              QStringLiteral("media-controls"));
+}
+
+TEST_F(AppControllerFixture, CarouselSwitchSwapsDisplayValues) {
+    // Fixture primary has DPI 1000 (seeded in SetUp).
+    deviceModel().setSelectedIndex(0);
+    EXPECT_EQ(deviceModel().currentDPI(), 1000);
+
+    auto *secondary = addMockDevice(QStringLiteral("B"), /*seedDpi=*/2500);
+
+    const int idxB = deviceModel().devices().indexOf(secondary);
+    ASSERT_GE(idxB, 0);
+    deviceModel().setSelectedIndex(idxB);
+    EXPECT_EQ(deviceModel().currentDPI(), 2500);
+
+    deviceModel().setSelectedIndex(0);
+    EXPECT_EQ(deviceModel().currentDPI(), 1000);
+}
+
+TEST_F(AppControllerFixture, DisplayProfileChangedIgnoredForNonSelectedDevice) {
+    deviceModel().setSelectedIndex(0);
+    EXPECT_EQ(deviceModel().currentDPI(), 1000);
+
+    // Add a second device without switching to it. Primary stays selected.
+    addMockDevice(QStringLiteral("B"), /*seedDpi=*/2500);
+    EXPECT_EQ(deviceModel().selectedIndex(), 0);
+
+    // Modify device B's cached profile and fire its displayProfile signal.
+    // setDisplayProfile short-circuits on unchanged name, so bounce through
+    // an intermediate value to force emission.
+    const QString serialB = QStringLiteral("mock-serial-B");
+    Profile &pB = profileEngine().cachedProfile(
+        serialB, QStringLiteral("default"));
+    pB.dpi = 9999;
+    profileEngine().setDisplayProfile(
+        serialB, QStringLiteral("other"));
+    profileEngine().setDisplayProfile(
+        serialB, QStringLiteral("default"));
+
+    // DeviceModel should still reflect device A's 1000 DPI — the
+    // onDisplayProfileChanged filter rejected device B's signal.
+    EXPECT_EQ(deviceModel().currentDPI(), 1000);
 }
