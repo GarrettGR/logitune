@@ -4,92 +4,22 @@ Logitune is a Qt 6 / QML application that communicates with Logitech HID++ 2.0 d
 
 ## System Overview
 
-```mermaid
-graph TB
-    subgraph "QML UI"
-        Main[Main.qml]
-        Pages[Pages: PointScroll, Buttons, EasySwitch, Settings]
-        Components[Components: DeviceRender, SideNav, ProfileBar]
-    end
+At a glance — one button press on the mouse turns into one row update in the QML UI. Each layer has one job:
 
-    subgraph "App Layer (logitune-app-lib)"
-        AC[AppController]
-        DM_model[DeviceModel]
-        BM[ButtonModel]
-        AM[ActionModel]
-        PM[ProfileModel]
-        TM[TrayManager]
-    end
+<img src="diagrams/system-overview.png" alt="Logitune system overview: QML UI on top, app library below, core library in the middle with three sub-bands (integration, aggregation, protocol), Linux kernel layer, and hardware at the bottom" width="800"/>
 
-    subgraph "Core Layer (logitune-core)"
-        DevMgr[DeviceManager]
-        PE[ProfileEngine]
-        AE[ActionExecutor]
-        DR[DeviceRegistry]
-        
-        subgraph "HID++ Protocol"
-            FD[FeatureDispatcher]
-            CQ[CommandQueue]
-            TR[Transport]
-            HR[HidrawDevice]
-        end
+> Source: `docs/wiki/diagrams/system-overview.svg`. Re-render with `rsvg-convert -w 1600 -h 1120 docs/wiki/diagrams/system-overview.svg -o docs/wiki/diagrams/system-overview.png` after edits.
 
-        subgraph "Desktop Integration"
-            IDesktop[IDesktopIntegration]
-            KDE[KDeDesktop]
-            Generic[GenericDesktop]
-        end
+Each layer below has its own detailed diagram elsewhere on this page:
 
-        subgraph "Input Injection"
-            IInject[IInputInjector]
-            Uinput[UinputInjector]
-        end
-    end
-
-    subgraph "System"
-        hidraw[/dev/hidrawN/]
-        udev[libudev]
-        dbus[D-Bus Session Bus]
-        uinputdev[/dev/uinput/]
-    end
-
-    Main --> DM_model
-    Main --> BM
-    Main --> AM
-    Main --> PM
-    Pages --> DM_model
-    Pages --> BM
-
-    AC --> DM_model
-    AC --> BM
-    AC --> AM
-    AC --> PM
-    AC --> DevMgr
-    AC --> PE
-    AC --> AE
-    AC --> IDesktop
-
-    DevMgr --> DR
-    DevMgr --> FD
-    DevMgr --> CQ
-    DevMgr --> TR
-    DevMgr --> udev
-
-    FD --> TR
-    CQ --> FD
-    TR --> HR
-    HR --> hidraw
-
-    KDE --> dbus
-    IDesktop -.-> KDE
-    IDesktop -.-> Generic
-
-    AE --> IInject
-    IInject -.-> Uinput
-    Uinput --> uinputdev
-
-    TM --> DM_model
-```
+| Layer | Detail |
+|---|---|
+| Core — HID++ stack | [HID++ protocol stack](#stack), [feature discovery](#feature-discovery), [command queue](#command-queue), [async matching](#async-response-matching) |
+| Core — Desktop integration | [Interface hierarchy](#interface-hierarchy), [KDE focus tracking](#kde-focus-tracking) |
+| Core — Device lifecycle | [PhysicalDevice transport aggregation](#physicaldevice-transport-aggregation), [Discovery flow](#discovery-flow), [Disconnect and reconnect](#disconnect-and-reconnect) |
+| App — Models | [MVVM pattern](#mvvm-pattern), [Model roles](#model-roles), [Model registration](#model-registration) |
+| App — Orchestration | [AppController wiring](#appcontroller-wiring) |
+| Cross-cutting flow | [Window focus → profile switch → hardware commands](#window-focus-change---profile-switch---hardware-commands) |
 
 ### Two Static Libraries
 
@@ -97,8 +27,8 @@ The project is split into two static libraries:
 
 | Library | Contents | Dependencies |
 |---------|----------|-------------|
-| `logitune-core` | DeviceManager, HID++ protocol, ProfileEngine, ActionExecutor, `DeviceRegistry`, `JsonDevice`, `DescriptorWriter`, desktop integration, input injection, logging | Qt6::Core, Qt6::DBus, libudev |
-| `logitune-app-lib` | AppController, `EditorModel`, models (DeviceModel, ButtonModel, ActionModel, ProfileModel), TrayManager, QML module, dialogs | logitune-core, Qt6::Quick, Qt6::Widgets |
+| `logitune-core` | DeviceManager, `PhysicalDevice`, `DeviceSession`, HID++ protocol + capability dispatch, ProfileEngine, ActionExecutor, `DeviceRegistry`, `JsonDevice`, `DescriptorWriter`, `LinuxDesktopBase` + KDE/GNOME/Generic implementations, input injection, logging | Qt6::Core, Qt6::DBus, libudev |
+| `logitune-app-lib` | AppController, `EditorModel`, models (DeviceModel, ButtonModel, ActionModel, `ActionFilterModel`, ProfileModel, `SettingsModel`), TrayManager, QML module, dialogs | logitune-core, Qt6::Quick, Qt6::Widgets |
 
 This split allows tests to link against `logitune-core` and `logitune-app-lib` without pulling in the executable's `main()`.
 
@@ -116,7 +46,8 @@ sequenceDiagram
     participant PE as ProfileEngine
     participant PM as ProfileModel
     participant DM as DeviceModel
-    participant DMgr as DeviceManager
+    participant PD as PhysicalDevice
+    participant DS as DeviceSession
     participant CQ as CommandQueue
     participant FD as FeatureDispatcher
     participant TR as Transport
@@ -124,36 +55,46 @@ sequenceDiagram
     KWin->>KDE: callDBus focusChanged(resourceClass, title, desktopFileName)
     KDE->>KDE: resolveDesktopFile(resourceClass)
     KDE->>AC: activeWindowChanged(appId, title)
-    
+
     Note over AC: Skip shell components (plasmashell, krunner)
-    
+
     AC->>DM: setActiveWmClass(wmClass)
     AC->>PE: profileForApp(wmClass)
     PE-->>AC: profileName (or "default")
-    
+
     Note over AC: Skip if same as current hardware profile
-    
+
     AC->>PE: cachedProfile(profileName)
     AC->>PE: setHardwareProfile(profileName)
     AC->>AC: applyProfileToHardware(profile)
-    
-    par Apply all settings
-        AC->>DMgr: divertButton(CID, divert, rawXY) [for each button]
-        AC->>DMgr: setDPI(value)
-        AC->>DMgr: setSmartShift(enabled, threshold)
-        AC->>DMgr: setScrollConfig(hiRes, invert)
-        AC->>DMgr: setThumbWheelMode(mode, invert)
+
+    AC->>PD: primary()
+    PD-->>AC: DeviceSession* (active transport)
+
+    par Apply all settings on the selected session
+        AC->>DS: setDPI(value)
+        DS->>CQ: enqueue(AdjustableDPI, setSensorDpi, params)
+    and
+        AC->>DS: setSmartShift(enabled, threshold)
+        DS->>CQ: enqueue(SmartShift, setRatchetControl, params)
+    and
+        AC->>DS: setScrollConfig(hiRes, invert)
+        DS->>CQ: enqueue(HiResWheel / ReprogControls, ...)
+    and
+        AC->>DS: setThumbWheelMode(mode, invert)
+        DS->>CQ: enqueue(ThumbWheel, setThumbwheelReporting, params)
+    and
+        AC->>DS: divertButton(CID, divert, rawXY) [per button]
+        DS->>CQ: enqueue(ReprogControlsV4, setCidReporting, params)
     end
-    
-    Note over DMgr: Each setter enqueues via CommandQueue
-    
-    loop For each enqueued command
+
+    loop For each enqueued command (FIFO, paced)
         CQ->>FD: callAsync(feature, functionId, params)
         FD->>TR: sendRequestAsync(report)
         TR->>TR: write to hidraw fd
         Note over CQ: Wait 10ms before next command
     end
-    
+
     AC->>PM: setHwActiveByProfileName(profileName)
 ```
 
@@ -480,11 +421,33 @@ graph LR
 Models are registered as QML singletons in `main.cpp`:
 
 ```cpp
-qmlRegisterSingletonInstance("Logitune", 1, 0, "DeviceModel",  controller.deviceModel());
-qmlRegisterSingletonInstance("Logitune", 1, 0, "ButtonModel",  controller.buttonModel());
-qmlRegisterSingletonInstance("Logitune", 1, 0, "ActionModel",  controller.actionModel());
-qmlRegisterSingletonInstance("Logitune", 1, 0, "ProfileModel", controller.profileModel());
+qmlRegisterSingletonInstance("Logitune", 1, 0, "DeviceModel",        controller.deviceModel());
+qmlRegisterSingletonInstance("Logitune", 1, 0, "ButtonModel",        controller.buttonModel());
+qmlRegisterSingletonInstance("Logitune", 1, 0, "ActionFilterModel",  controller.actionFilterModel());
+qmlRegisterSingletonInstance("Logitune", 1, 0, "ProfileModel",       controller.profileModel());
+qmlRegisterSingletonInstance("Logitune", 1, 0, "SettingsModel",      controller.settingsModel());
 ```
+
+`ActionFilterModel` wraps the raw `ActionModel` catalog and hides entries the selected device can't execute (PR #82). QML code always binds to the filter model, never to the raw catalog. `SettingsModel` exposes the persisted user prefs (dark mode, logging, autostart, minimized, bug reports) as a single Q_PROPERTY surface.
+
+```mermaid
+flowchart LR
+    QML["QML import Logitune 1.0<br/>(any .qml file)"]
+
+    DM["DeviceModel<br/><i>rows: PhysicalDevice *</i>"]
+    BM["ButtonModel<br/><i>rows: visible buttons of<br/>selected device profile</i>"]
+    AFM["ActionFilterModel<br/><i>catalog minus actions the<br/>selected device can't run</i>"]
+    PM["ProfileModel<br/><i>rows: user's profiles</i>"]
+    SM["SettingsModel<br/><i>dark mode, logging,<br/>autostart, …</i>"]
+
+    QML -->|singleton| DM
+    QML -->|singleton| BM
+    QML -->|singleton| AFM
+    QML -->|singleton| PM
+    QML -->|singleton| SM
+```
+
+All five are registered in `src/app/main.cpp` against `controller.xxxModel()` accessors — AppController owns them, QML borrows them. No other QML-visible C++ classes.
 
 ## Desktop Integration
 
@@ -503,22 +466,36 @@ classDiagram
         +activeWindowChanged(wmClass, title) signal
     }
 
+    class LinuxDesktopBase {
+        +runningApplications()
+        #resolveDesktopFile(appId) QString
+        #desktopDirs() QStringList
+    }
+
     class KDeDesktop {
         +focusChanged(resourceClass, title, desktopFileName)
-        -resolveDesktopFile(resourceClass) QString
         -m_kwin : QDBusInterface
         -m_pollTimer : QTimer
-        -m_resolveCache : QHash
+    }
+
+    class GnomeDesktop {
+        +focusChanged(appId, title)
+        -ensureExtensionInstalled() bool
+        -detectAppIndicatorStatus()
+        -m_appIndicatorStatus : AppIndicatorStatus
     }
 
     class GenericDesktop {
         +start()
-        +available() bool
     }
 
-    IDesktopIntegration <|-- KDeDesktop
+    IDesktopIntegration <|-- LinuxDesktopBase
+    LinuxDesktopBase <|-- KDeDesktop
+    LinuxDesktopBase <|-- GnomeDesktop
     IDesktopIntegration <|-- GenericDesktop
 ```
+
+`GnomeDesktop` (Wayland-only) auto-installs and enables a GNOME Shell extension on first launch that pipes focus events to a D-Bus-registered callback in-process — event-driven, no polling. It also detects AppIndicator support via `org.kde.StatusNotifierWatcher` so the tray icon can tell users when to install `gnome-shell-extension-appindicator`. `KDeDesktop` uses a KWin script + polling fallback (the KWin 6 signal quirk).
 
 ### KDE Focus Tracking
 
@@ -585,6 +562,34 @@ QDBusConnection::sessionBus().call(msg, QDBus::NoBlock);
 This prevents Ctrl+Super+Left (assigned to "switch desktop left") from actually switching desktops while the user is trying to capture it as a button binding.
 
 ## Device Discovery and Connection
+
+### PhysicalDevice: transport aggregation
+
+A single MX Master 3S mouse typically appears on the host as *two* hidraw nodes when both transports are active — once via the Bolt/Unifying receiver, once via direct Bluetooth. HID++ unit serial (from `DeviceInfo.getSerial`) identifies them as the same physical unit. `src/core/PhysicalDevice.{h,cpp}` is the abstraction that collapses them:
+
+- Owned by `DeviceManager`, keyed by serial.
+- Holds a non-owning list of `DeviceSession *` transports.
+- Exposes a single `primary()` pointer — commands route there.
+- Picks primary based on connection state: if the current primary goes stale (udev remove, ping timeout), switches to any other connected transport without the UI seeing a disconnect event.
+- Emits `stateChanged` / `deviceNameChanged` / `batteryChanged` once per underlying transition, not per transport — models bind to `PhysicalDevice`, not the raw `DeviceSession`.
+
+The UI, `DeviceModel`, `ProfileEngine`, and tray all deal in `PhysicalDevice *`. `DeviceSession *` is an implementation detail of the transport layer.
+
+```mermaid
+flowchart LR
+    DM["DeviceManager<br/><i>keyed by unit serial</i>"]
+    PD["PhysicalDevice<br/><i>serial = 'ABCD…'</i>"]
+    DS1["DeviceSession<br/><i>Bolt receiver</i><br/>✅ primary"]
+    DS2["DeviceSession<br/><i>Bluetooth direct</i><br/>standby"]
+
+    DM -->|owns| PD
+    PD -->|non-owning, active| DS1
+    PD -.->|non-owning, fallback| DS2
+
+    DS1 -. "pings fail →<br/>PhysicalDevice swaps primary" .-> DS2
+```
+
+When the active transport drops (udev remove, HID++ ping timeout), `PhysicalDevice::setPrimary()` picks any remaining connected session. The UI never sees a disconnect event — `stateChanged` still fires, but `DeviceModel`'s row for this serial stays.
 
 ### Discovery Flow
 
@@ -794,7 +799,9 @@ graph TB
         DM[DeviceModel]
         BM[ButtonModel]
         AM[ActionModel]
+        AFM[ActionFilterModel]
         PM[ProfileModel]
+        SM[SettingsModel]
     end
 
     subgraph "Injected (or created)"
@@ -803,22 +810,22 @@ graph TB
     end
 
     subgraph "Signal Connections (wireSignals)"
-        S1["ButtonModel::userActionChanged -> onUserButtonChanged"]
-        S2["IDesktopIntegration::activeWindowChanged -> onWindowFocusChanged"]
-        S3["ProfileModel::profileSwitched -> onTabSwitched"]
-        S4["ProfileEngine::displayProfileChanged -> onDisplayProfileChanged"]
-        S5["DeviceManager::deviceSetupComplete -> onDeviceSetupComplete"]
-        S6["DeviceModel::userGestureChanged -> saveCurrentProfile"]
-        S7["ProfileModel::profileAdded -> ProfileEngine::createProfileForApp"]
-        S8["ProfileModel::profileRemoved -> ProfileEngine::removeAppProfile"]
-        S9["DeviceManager::gestureRawXY -> onGestureRawXY"]
-        S10["DeviceManager::divertedButtonPressed -> onDivertedButtonPressed"]
-        S11["DeviceManager::thumbWheelRotation -> onThumbWheelRotation"]
-        S12["DeviceModel::dpiChangeRequested -> onDpiChangeRequested"]
-        S13["DeviceModel::smartShiftChangeRequested -> onSmartShiftChangeRequested"]
-        S14["DeviceModel::scrollConfigChangeRequested -> onScrollConfigChangeRequested"]
-        S15["DeviceModel::thumbWheelModeChangeRequested -> onThumbWheelModeChangeRequested"]
-        S16["DeviceModel::thumbWheelInvertChangeRequested -> onThumbWheelInvertChangeRequested"]
+        S1["ButtonModel::userActionChanged<br/>→ onUserButtonChanged"]
+        S2["IDesktopIntegration::activeWindowChanged<br/>→ onWindowFocusChanged"]
+        S3["ProfileModel::profileSwitched<br/>→ onTabSwitched"]
+        S4["ProfileEngine::displayProfileChanged<br/>→ onDisplayProfileChanged"]
+        S5["DeviceManager::deviceSetupComplete<br/>→ onDeviceSetupComplete"]
+        S6["DeviceModel::userGestureChanged<br/>→ saveCurrentProfile"]
+        S7["ProfileModel::profileAdded<br/>→ ProfileEngine::createProfileForApp"]
+        S8["ProfileModel::profileRemoved<br/>→ ProfileEngine::removeAppProfile"]
+        S9["DeviceManager::gestureRawXY<br/>→ onGestureRawXY"]
+        S10["DeviceManager::divertedButtonPressed<br/>→ onDivertedButtonPressed"]
+        S11["DeviceManager::thumbWheelRotation<br/>→ onThumbWheelRotation"]
+        S12["DeviceModel::dpiChangeRequested<br/>→ onDpiChangeRequested"]
+        S13["DeviceModel::smartShiftChangeRequested<br/>→ onSmartShiftChangeRequested"]
+        S14["DeviceModel::scrollConfigChangeRequested<br/>→ onScrollConfigChangeRequested"]
+        S15["DeviceModel::thumbWheelModeChangeRequested<br/>→ onThumbWheelModeChangeRequested"]
+        S16["DeviceModel::thumbWheelInvertChangeRequested<br/>→ onThumbWheelInvertChangeRequested"]
     end
 ```
 

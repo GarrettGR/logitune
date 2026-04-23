@@ -41,8 +41,8 @@ graph TB
 
 | Tier | Binary | Runs In CI | Requires Device | Count |
 |------|--------|-----------|----------------|-------|
-| C++ Mock | `logitune-tests` | Yes | No | ~35 test files |
-| QML | `logitune-qml-tests` | Yes | No | 13 test files |
+| C++ Mock | `logitune-tests` | Yes | No | ~40 test files |
+| QML | `logitune-qml-tests` | No (pre-push hook only) | No | 15 test files |
 | Tray | `logitune-tray-tests` | Yes | No | 1 test file |
 | Hardware | `logitune-hw-tests` | No | Yes (MX Master 3S) | 5 test files |
 
@@ -378,11 +378,13 @@ Qt Quick Test's `mouseClick` requires the target item to be within a `Window` or
 
 ## Pre-Push Hook
 
-The `scripts/pre-push` git hook runs all three test tiers before allowing a push:
+`hooks/pre-push` (auto-activated by `cmake -B build` via `core.hooksPath`) runs five stages before allowing a push:
 
 ```mermaid
 graph LR
-    Push[git push] --> Build{Build OK?}
+    Push[git push] --> Lint{README devices table<br/>matches descriptors?}
+    Lint -->|No| Abort0[Abort: README regenerated,<br/>amend + retry]
+    Lint -->|Yes| Build{Build OK?}
     Build -->|No| Abort1[Abort: build failed]
     Build -->|Yes| CPP{C++ tests pass?}
     CPP -->|No| Abort2[Abort: C++ tests failed]
@@ -390,14 +392,12 @@ graph LR
     Tray -->|No| Abort3[Abort: tray tests failed]
     Tray -->|Yes| QML{QML tests pass?}
     QML -->|No| Abort4[Abort: QML tests failed]
-    QML -->|Yes| Push2[Push proceeds]
+    QML -->|Yes| Py{Extractor pytest?}
+    Py -->|No| Abort5[Abort: extractor pytest failed]
+    Py -->|Yes| Push2[Push proceeds]
 ```
 
-Install the hook:
-
-```bash
-make setup-hooks
-```
+No install step needed — `cmake -B build` sets `core.hooksPath=hooks` in the repo's local git config during configure, so the tracked `hooks/pre-push` runs automatically on every `git push`.
 
 ## CI Pipeline
 
@@ -445,6 +445,20 @@ All tests run with `QT_QPA_PLATFORM=offscreen` (no display server required).
 | `test_notification_filtering.cpp` | softwareId filtering, notification dispatch |
 | `test_settings_change_behavior.cpp` | DPI/SmartShift/scroll change flow |
 | `test_tray_manager.cpp` | TrayManager menu, actions, battery display |
+| `test_action_filter_model.cpp` | ActionFilterModel hides entries the selected device can't run |
+| `test_capability_dispatch.cpp` | HID++ feature-variant capability table resolution |
+| `test_descriptor_writer.cpp` | DescriptorWriter round-trip preserves unknown fields |
+| `test_editor_model.cpp` | EditorModel mutations, undo/redo, per-device stacks |
+| `test_desktop_factory.cpp` | Desktop integration selection based on XDG_CURRENT_DESKTOP |
+| `test_device_session.cpp` | Per-transport state machine, feature enumeration |
+| `test_physical_device.cpp` | Transport aggregation, primary selection on failover |
+| `test_profile_apply_behavior.cpp` | Hardware profile application sequences |
+| `test_settings_model.cpp` | SettingsModel persistence and Q_PROPERTY surface |
+| `test_json_device.cpp` | JsonDevice::load parsing, schema conformance |
+| `test_device_fetcher.cpp` | Async device info fetching (name, serial, firmware) |
+| `test_dpi_cycle_ring.cpp` | DPI cycle ring rotation + boundary handling |
+| `test_autostart_desktop.cpp` | Autostart .desktop installation (PR #69) |
+| `test_distro_detector.cpp` | Distribution detection for packaging hints |
 
 ### Crash dialog behavior
 
