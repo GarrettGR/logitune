@@ -140,12 +140,12 @@ logitune
 <summary> Or, if you're using nix: </summary>
 
 You can build it with:
-```nix
+```bash
 nix build .\#default
 ```
 
 And if you want to build it using `cmake` like above, you can run:
-```nix
+```bash
 nix develop .
 ```
 
